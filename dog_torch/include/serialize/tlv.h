@@ -1,0 +1,186 @@
+#pragma once
+#include "export.h"
+
+#include <set>
+#include <map>
+#include <stack>
+#include <vector>
+#include <string>
+#include <variant>
+#include <iostream>
+#include <unordered_map>
+#include <unordered_set>
+
+#include "utils/compile.h"
+#include "BinaryData.h"
+#include "math/number.h"
+#include "math/integer.h"
+#include "utils/exception.h"
+
+namespace dog_torch::serialize::tlv
+{
+	struct DOG_TORCH_API MIBString
+	{
+		uint64_t mib;//utf-8 = 106
+		std::string string;
+
+		MIBString(const std::string& str, uint64_t mid = 106);
+		MIBString(std::string&& str, uint64_t mid = 106);
+		bool operator==(const MIBString& other) const;
+	};
+
+	class DOG_TORCH_API Value;
+
+}
+namespace std
+{
+	template<>
+	struct DOG_TORCH_API hash<dog_torch::serialize::tlv::MIBString>
+	{
+		size_t operator()(const dog_torch::serialize::tlv::MIBString& value) const;
+	};
+
+	template<>
+	struct DOG_TORCH_API hash<dog_torch::serialize::tlv::Value>
+	{
+		size_t operator()(const dog_torch::serialize::tlv::Value& value_) const;
+	};
+}
+/*
+* TLV value
+* other0  0000 XXXX
+* other1  0001 XXXX
+* null    0010 0000
+* bool    0011 0000/false 1111/true
+* u/int   010 0 0+/1- LLL
+* float   011 000 00-16 01-32 10-64 11-128
+* binary  100 0 0 LLL
+* string  101 00-utf8/01-2BMiB/10-4BMIB/11-8BMIB LLL (2-4) uint
+* container   11 XXX LLL
+* 000 - array  - TL V|TL V
+* 001 - set    - TL V|TL V
+* 101 - enum   - u/int,TL V|u/int,TL V
+* 010 - map    - TL V,TL V|TL V,TL V
+* 011 - object - string,TL V|string,TL V
+*/
+namespace dog_torch::serialize::tlv
+{
+	enum class DOG_TORCH_API Type : uint8_t
+	{
+		Null = 0,
+		Bool = 1,
+		Integer = 2,
+		Float = 3,
+		Binary = 4,
+		String = 5,
+		Array = 6,
+		Set = 7,
+		Enum = 8,
+		Map = 9,
+		Object = 10
+	};
+
+	using Integer64 = dog_torch::math::number::Integer64;
+
+	class DOG_TORCH_API Value
+	{
+	public:
+		using _store = std::variant<
+			std::nullptr_t,                        //0
+			bool,                                  //1
+			Integer64,                             //2
+			double,                                //3
+			std::vector<uint8_t>,                  //4
+			MIBString,                             //5
+			std::vector<Value>,                    //6
+			std::unordered_set<Value>,             //7
+			std::unordered_map<Integer64, Value>,  //8
+			std::unordered_map<Value, Value>,      //9
+			std::unordered_map<MIBString, Value>   //10
+		>;
+	private:
+		_store value_;
+
+	public:
+		Value();
+		Value(std::nullptr_t);
+		Value(bool value);
+
+		Value(const Integer64& value);
+		Value(Integer64&& value);
+		Value(char sign, uint64_t number);
+
+		Value(double value);
+
+		Value(const std::vector<uint8_t>& value);
+		Value(std::vector<uint8_t>&& value);
+
+		Value(const MIBString& value);
+		Value(MIBString&& value);
+
+		Value(const std::vector<Value>& value);
+		Value(std::vector<Value>&& value);
+
+		Value(const std::unordered_set<Value>& value);
+		Value(std::unordered_set<Value>&& value);
+
+		Value(const std::unordered_map<Integer64, Value>& value);
+		Value(std::unordered_map<Integer64, Value>&& value);
+
+		Value(const std::unordered_map<Value, Value>& value);
+		Value(std::unordered_map<Value, Value>&& value);
+
+		Value(const std::unordered_map<MIBString, Value>& value);
+		Value(std::unordered_map<MIBString, Value>&& value);
+
+		Value(const Value& other);
+		Value& operator=(const Value& other);
+		Value(Value&& other) noexcept;
+		Value& operator=(Value&& other) noexcept;
+
+		const _store& get() const;
+		_store& get();
+
+		bool operator==(const Value& other) const;
+
+		Type type() const;
+
+		std::nullptr_t to_null() const;
+		
+		bool& to_bool();
+		bool to_bool() const;
+
+		Integer64& to_integer();
+		const Integer64& to_integer() const;
+
+		double& to_float();
+		double to_float() const;
+
+		std::vector<uint8_t>& to_binary();
+		const std::vector<uint8_t>& to_binary() const;
+
+		MIBString& to_string();
+		const MIBString& to_string() const;
+
+		std::vector<Value>& to_array();
+		const std::vector<Value>& to_array() const;
+
+		std::unordered_set<Value>& to_set();
+		const std::unordered_set<Value>& to_set() const;
+
+		std::unordered_map<Integer64, Value>& to_enum();
+		const std::unordered_map<Integer64, Value>& to_enum() const;
+
+		std::unordered_map<Value, Value>& to_map();
+		const std::unordered_map<Value, Value>& to_map() const;
+
+		std::unordered_map<MIBString, Value>& to_object();
+		const std::unordered_map<MIBString, Value> to_object() const;
+
+		static Value parse(std::vector<uint8_t>::const_iterator& pos, std::vector<uint8_t>::const_iterator end);
+		static Value parse(std::istream& input);
+
+		std::vector<uint8_t> serialize() const;
+	};
+}
+
