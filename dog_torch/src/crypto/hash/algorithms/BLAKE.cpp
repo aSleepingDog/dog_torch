@@ -103,18 +103,40 @@ NSROOT::BLAKE2::BLAKE2(uint64_t effective, uint8_t out_size, const BinaryData& k
 }
 
 NSROOT::BLAKE2::BLAKE2(const BLAKE2& other) : Algorithm(other)
-{}
+{
+    this->t_low = other.t_low;
+    this->f0 = other.f0;
+    this->out_size = other.out_size;
+    this->key = other.key;
+    this->p = other.p;
+}
 NSROOT::BLAKE2& NSROOT::BLAKE2::operator=(const BLAKE2& other)
 {
     Algorithm::operator=(other);
+    this->t_low = other.t_low;
+    this->f0 = other.f0;
+    this->out_size = other.out_size;
+    this->key = other.key;
+    this->p = other.p;
     return *this;
 }
 NSROOT::BLAKE2::BLAKE2(BLAKE2&& other) noexcept : Algorithm(std::move(other))
-{}
+{
+    this->t_low = other.t_low;
+    this->f0 = other.f0;
+    this->out_size = other.out_size;
+    this->key = std::move(other.key);
+    this->p = std::move(other.p);
+}
 NSROOT::BLAKE2& NSROOT::BLAKE2::operator=(BLAKE2&& other) noexcept
 {
     if (this ==&other) return *this;
     Algorithm::operator=(std::move(other));
+    this->t_low = other.t_low;
+    this->f0 = other.f0;
+    this->out_size = other.out_size;
+    this->key = std::move(other.key);
+    this->p = std::move(other.p);
     return *this;
 }
 
@@ -143,7 +165,7 @@ NSROOT::Config NSROOT::BLAKE2::config() const
 
 std::string NSROOT::BLAKE2::fmt_string() const
 {
-    return std::string();
+    return std::format("{}({})", this->config().name, this->effective);
 }
 
 void NSROOT::BLAKE2::init()

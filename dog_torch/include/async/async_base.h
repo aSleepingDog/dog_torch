@@ -25,6 +25,8 @@ namespace dog_torch::async
 		Stopped = 4
 	};
 
+	DOG_TORCH_API std::string status_to_string(Status status);
+
 	template<typename Dur>
 	concept is_std_duration =
 		std::is_same_v<Dur, std::chrono::nanoseconds> ||
@@ -35,6 +37,33 @@ namespace dog_torch::async
 		std::is_same_v<Dur, std::chrono::hours> ||
 		std::is_same_v<Dur, std::chrono::days> ||
 		std::is_same_v<Dur, std::chrono::weeks>;
+
+	enum class DOG_TORCH_API TimeUnit : uint8_t
+	{
+		Nanoseconds = 0,
+		Microseconds = 1,
+		Milliseconds = 2,
+		Seconds = 3,
+		Minutes = 4,
+		Hours = 5,
+		Days = 6,
+		Weeks = 7,
+		Count = 8
+	};
+
+
+	template<TimeUnit S, TimeUnit E = TimeUnit::Weeks> 
+	std::array<uint64_t, (static_cast<uint64_t>(E) + 1 - static_cast<uint64_t>(S))> convert(uint64_t value)
+	{
+		std::array<uint64_t, 7> time_unit_table = { 1000,1000,1000,60,60,24,7 };
+        std::array<uint64_t, (static_cast<uint64_t>(E) + 1 - static_cast<uint64_t>(S))> result;
+		for (uint64_t i = static_cast<uint64_t>(S); i <= static_cast<uint64_t>(E); ++i)
+		{
+			result[i - static_cast<uint64_t>(S)] = value / time_unit_table[i];
+			value %= time_unit_table[i];
+		}
+		return result;
+	}
 
 	template<is_std_duration T>
 	class DOG_TORCH_API Clock

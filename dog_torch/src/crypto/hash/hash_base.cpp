@@ -10,11 +10,13 @@ NSROOT::algorithm::Config::Config(const Config& config)
 {
 	this->name = config.name;
 	this->region = config.region;
+	this->params = config.params;
 }
 NSROOT::algorithm::Config& NSROOT::algorithm::Config::operator=(const Config& config)
 {
 	this->name = config.name;
 	this->region = config.region;
+	this->params = config.params;
 	return *this;
 }
 
@@ -22,11 +24,13 @@ NSROOT::algorithm::Config::Config(Config&& config) noexcept
 {
 	this->name = std::move(config.name);
 	this->region = std::move(config.region);
+	this->params = std::move(config.params);
 }
 NSROOT::algorithm::Config& NSROOT::algorithm::Config::operator=(Config && config) noexcept
 {
 	this->name = std::move(config.name);
 	this->region = std::move(config.region);
+	this->params = std::move(config.params);
 	return *this;
 }
 
@@ -205,6 +209,7 @@ NSROOT::BinaryData NSROOT::Generator::calculate(PauseableChannel& pc, std::istre
 
 NSROOT::BinaryData NSROOT::Generator::calculate_with(PauseableChannel& pc, Generator& self, std::istream& source, uint64_t total)
 {
+	pc.param("config_str") = self.fmt_string();
 	return self.calculate(pc, source, total);
 }
 

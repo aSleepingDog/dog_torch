@@ -91,7 +91,7 @@ namespace dog_torch::crypto::hash
 namespace dog_torch::async::pool
 {
 	using hash_stream_func = std::function<dog_torch::serialize::BinaryData(PauseableChannel&, dog_torch::crypto::hash::Generator&,std::istream&,uint64_t)>;
-	template<> std::pair<uint64_t, std::future<dog_torch::serialize::BinaryData>> PausedThreadPool::add_task(hash_stream_func&&,dog_torch::crypto::hash::Generator&,std::istream&,uint64_t&&);
+	template<> dog_torch::async::pool::Result<dog_torch::serialize::BinaryData> PausedThreadPool::add_task(hash_stream_func&&,dog_torch::crypto::hash::Generator&,std::istream&,uint64_t&&);
 };
 #endif // SHARED
 

@@ -5,6 +5,8 @@
 #include <vector>
 #include <string>
 #include <chrono>
+#include <unordered_map>
+#include <any>
 
 #include "math/number.h"
 #include "utils/exception.h"
@@ -14,9 +16,11 @@ namespace dog_torch::async::thread
 {
 	struct DOG_TORCH_API PauseableDetail
 	{
+		uint64_t task_id = 0;
 		Status status;
 		double progress;
 		uint64_t time;
+		std::unordered_map<std::string, std::any> params;
 	};
 
 	class DOG_TORCH_API PauseableChannel
@@ -26,9 +30,10 @@ namespace dog_torch::async::thread
 		std::unique_ptr<std::condition_variable> condition_variable_;
 		std::atomic<Status> status_ = Status::Ready;
 		std::atomic<double> progress_ = 0;
+		std::unordered_map<std::string, std::any> params_;
 		std::unique_ptr<Clock<std::chrono::milliseconds>> clock_ = nullptr;
 	public:
-		PauseableChannel(bool need_clock = true);//Create -> Ready
+		PauseableChannel(bool need_clock = true, const std::unordered_map<std::string, std::any>& param = {});//Create -> Ready
 
 		PauseableChannel(const PauseableChannel&) = delete;
 		PauseableChannel& operator=(const PauseableChannel&) = delete;
@@ -45,6 +50,8 @@ namespace dog_torch::async::thread
 		PauseableDetail to_detail();
 		void set_progress(double progress);
 		void add_progress(double progress);
+		std::any& param(const std::string& key);
+		const std::any& param(const std::string& key) const;
 		double get_progress();
 	};
 

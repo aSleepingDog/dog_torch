@@ -11,8 +11,8 @@
 
 namespace dog_torch::serialize
 {
+    // !\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~
     DOG_TORCH_API std::string to_utf8(uint64_t code);
-
     class DOG_TORCH_API BinaryData
     {
     private:

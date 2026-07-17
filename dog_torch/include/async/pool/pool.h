@@ -24,6 +24,31 @@ namespace dog_torch::async::pool
 	using dog_torch::async::thread::PauseableChannel;
 	using dog_torch::async::thread::PauseableDetail;
 	using dog_torch::async::thread::PauseFunc;
+	template<typename T>
+	struct SharedResult;
+
+	template<typename T>
+	struct Result
+	{
+		uint64_t task_id;
+		std::future<T> future;
+
+		Result(uint64_t tid, std::future<T>&& f) : task_id(tid), future(std::move(f)) {}
+		SharedResult<T> share()
+		{
+			return { task_id, future.share() };
+		}
+	};
+
+	template<typename T>
+	struct SharedResult
+	{
+		uint64_t task_id;
+		std::shared_future<T> future;
+
+		SharedResult(uint64_t tid, std::shared_future<T>&& f) : task_id(tid), future(std::move(f)) {};
+	};
+
 
 	class DOG_TORCH_API PausedThreadPool
 	{
@@ -40,19 +65,10 @@ namespace dog_torch::async::pool
 			Worker(const Worker&) = delete;
 			Worker& operator=(const Worker&) = delete;
 
-			Worker(Worker&& other) noexcept
-			{
-				this->pc = std::move(other.pc);
-				this->thread = std::move(other.thread);
-				this->task_id = other.task_id;
-			};
-			Worker& operator=(Worker&& other) noexcept
-			{
-				this->pc = std::move(other.pc);
-				this->thread = std::move(other.thread);
-				this->task_id = other.task_id;
-				return *this;
-			}
+			Worker(Worker&& other) noexcept;
+			Worker& operator=(Worker&& other) noexcept;
+
+			~Worker();
 		};
 
 		class Task
@@ -61,180 +77,38 @@ namespace dog_torch::async::pool
 			uint64_t id = 0;
 			std::function<void(PauseableChannel&)> func;
 			Task() = default;
-			Task(std::function<void(PauseableChannel&)>&& pfunc, uint64_t pid)
-				: func(std::move(pfunc)), id(pid) {}
+			Task(std::function<void(PauseableChannel&)>&& pfunc, uint64_t pid);
 		};
 
 		std::mutex mutex_;
 		std::unique_ptr<std::condition_variable> condition_variable_ = std::make_unique<std::condition_variable>();
 		std::atomic<Status> status_ = Status::Ready;
 		std::atomic<uint64_t> task_next_id_ = 1;
-		std::atomic<uint64_t> worker_count_;
+		std::atomic<uint64_t> worker_count_ = 0;
 		VectorMove<Worker> workers_;
 		DequeMove<Task> tasks_;
 	public:
-		PausedThreadPool(uint64_t count)
-		{
-			worker_count_.store(count);
-			workers_.reserve(count);
-		}
-		~PausedThreadPool()
-		{
-			stop_all();
-		}
+		PausedThreadPool(uint64_t count);
+		~PausedThreadPool();
 
-		void start()
-		{
-			auto work = [this](Worker& self_worker) -> void
-			{
-				while (this->status_.load() != Status::Stopped)
-				{
-					Task task;
-					{
-					std::unique_lock<std::mutex> lock(this->mutex_);
-					this->condition_variable_->wait(lock, [this, &self_worker]()->bool
-						{
-							return this->status_ == Status::Stopped || this->status_ == Status::Blocked || !this->tasks_.empty();
-						});
-					if (this->status_ == Status::Stopped) return;
-					task = this->tasks_.take_front();
-					}
-					self_worker.task_id = task.id;
-					try
-					{
-						task.func(self_worker.pc);
-					}
-					catch (const std::exception& e)
-					{
-						std::cout << e.what() << std::endl;
-					}
-					self_worker.pc.stop();
-					self_worker.pc.reset();
-				}
-			};
-			workers_.doing([work, n = this->worker_count_.load()](std::vector<Worker>& vec)->void
-				{
-					vec.resize(n);
-					for (auto& worker : vec)
-					{
-						worker.thread = std::jthread(work, std::ref(worker));
-					}
-				}
-			);
-		}
+		static void work(PausedThreadPool& self, Worker& worker);
 
-		void wait_stop()
-		{
-			while (true)
-			{
-				if (tasks_.empty()) break;
-				std::this_thread::yield();
-			}
-		}
-		void pause_all()
-		{
-			status_.store(Status::Blocked);
-			workers_.doing([](std::vector<Worker>& workers)->void
-				{
-					for (auto& worker : workers)
-					{
-						worker.pc.pause();
-					}
-				});
-		}
-		void stop_all()
-		{
-			status_.store(Status::Stopped);
-			this->condition_variable_->notify_all();
-			auto waiting = [](std::vector<Worker>& workers)-> void
-				{
-					for (auto& worker : workers)
-					{
-						worker.pc.stop();
-						worker.thread.join();
-					}
-				};
-			workers_.doing(waiting);
-		}
-		std::vector<std::pair<uint64_t, PauseableDetail>> get_tasks_detail()
-		{
-			std::vector<std::pair<uint64_t, PauseableDetail>> details;
-			auto get_detail = [&details](std::vector<Worker>& workers)-> void
-				{
-					for (auto& worker : workers)
-					{
-						if (worker.task_id != 0)
-						{
-							std::pair<uint64_t, PauseableDetail> item(
-								worker.task_id, worker.pc.to_detail()
-							);
-							details.emplace_back(item);
-							if (worker.pc.status() == Status::Stopped)
-							{
-								worker.task_id = 0;
-							}
-						}
-					}
-				};
-			workers_.doing(get_detail);
-			return details;
-		}
+		void start();
 
-		bool pause(uint64_t task_id)
-		{
-			bool result = false;
-			workers_.doing([&result, &task_id](std::vector<Worker>& workers)->void
-				{
-					for (auto& worker : workers)
-					{
-						if (worker.task_id == task_id)
-						{
-							worker.pc.pause();
-							result = true;
-							break;
-						}
-					}
-				});
-			return result;
-		}
-		bool resume(uint64_t task_id)
-		{
-			bool result = false;
-			workers_.doing([&result, &task_id](std::vector<Worker>& workers)->void
-				{
-					for (auto& worker : workers)
-					{
-						if (worker.task_id == task_id)
-						{
-							worker.pc.resume();
-							result = true;
-							break;
-						}
-					}
-				});
-			return result;
-		}
-		bool stop(uint64_t task_id)
-		{
-			bool result = false;
-			workers_.doing([&result, &task_id](std::vector<Worker>& workers)->void
-				{
-					for (auto& worker : workers)
-					{
-						if (worker.task_id == task_id)
-						{
-							worker.pc.stop();
-							result = true;
-							break;
-						}
-					}
-				});
-			return result;
-		}
+		void resize(uint64_t count);
+
+		void wait_stop();
+		void pause_all();
+		void stop_all();
+		std::vector<PauseableDetail> get_tasks_detail();
+
+		bool pause(uint64_t task_id);
+		bool resume(uint64_t task_id);
+		bool stop(uint64_t task_id);
 
 		template<typename Func, typename... Args>
 			requires PauseFunc<Func, Args...>
-		auto add_task(Func&& func, Args&&... args) -> std::pair<uint64_t, std::future<decltype(func(std::declval<PauseableChannel&>(), std::forward<Args>(args)...))>>
+		auto add_task(Func&& func, Args&&... args) -> Result<decltype(func(std::declval<PauseableChannel&>(), std::forward<Args>(args)...))>
 		{
 			using ResType = decltype(func(std::declval<PauseableChannel&>(), std::forward<Args>(args)...));
 			using promRes = std::promise<ResType>;
@@ -276,7 +150,8 @@ namespace dog_torch::async::pool
 			std::unique_lock lock(this->mutex_);
 			uint64_t task_id = this->task_next_id_++;
 			this->tasks_.emplace_back({ std::move(task),  task_id });
-			return std::pair{ task_id, std::move(prom->get_future()) };
+			condition_variable_->notify_one();
+			return Result{ task_id, std::move(prom->get_future()) };
 		}
 
 		template<typename Func, typename... Args>
@@ -294,6 +169,7 @@ namespace dog_torch::async::pool
 			std::unique_lock lock(this->mutex_);
 			uint64_t task_id = this->task_next_id_++;
 			this->tasks_.emplace_back({ std::move(task),  task_id });
+			condition_variable_->notify_one();
 			return task_id;
 		}
 	};

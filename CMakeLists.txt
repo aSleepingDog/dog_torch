@@ -46,4 +46,5 @@ function(packing PATH ROOT)
 endfunction(packing PATH ROOT)
 
 add_subdirectory(dog_torch)
+add_subdirectory(dog_torch_extra)
 add_subdirectory(cmd_application)

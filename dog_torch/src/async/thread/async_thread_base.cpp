@@ -2,7 +2,8 @@
 
 namespace NSROOT = dog_torch::async::thread;
 
-NSROOT::PauseableChannel::PauseableChannel(bool need_clock) : clock_(need_clock ? std::make_unique<Clock<std::chrono::milliseconds>>() : nullptr)
+NSROOT::PauseableChannel::PauseableChannel(bool need_clock, const std::unordered_map<std::string, std::any>& param)
+    : clock_(need_clock ? std::make_unique<Clock<std::chrono::milliseconds>>() : nullptr), params_(param)
 {
     this->condition_variable_ = std::make_unique<std::condition_variable>();
 }
@@ -73,6 +74,7 @@ void NSROOT::PauseableChannel::stop()
 void NSROOT::PauseableChannel::reset()
 {
     if (this->status_.load() != Status::Stopped)return;
+    this->params_.clear();
     this->status_.store(Status::Ready);
     this->progress_.store(0.0);
     if (this->clock_) this->clock_->reset();
@@ -83,6 +85,7 @@ NSROOT::PauseableDetail NSROOT::PauseableChannel::to_detail()
     r.status = this->status_.load();
     r.progress = this->progress_.load();
     if (this->clock_) r.time = this->clock_->elapsed();
+    r.params = this->params_;
     return r;
 }
 void NSROOT::PauseableChannel::set_progress(double progress)
@@ -92,6 +95,14 @@ void NSROOT::PauseableChannel::set_progress(double progress)
 void NSROOT::PauseableChannel::add_progress(double progress)
 {
     this->progress_.fetch_add(progress);
+}
+std::any& NSROOT::PauseableChannel::param(const std::string& key)
+{
+    return this->params_[key];
+}
+const std::any& NSROOT::PauseableChannel::param(const std::string& key) const
+{
+    return this->params_.at(key);
 }
 double NSROOT::PauseableChannel::get_progress()
 {
