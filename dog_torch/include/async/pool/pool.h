@@ -104,6 +104,7 @@ namespace dog_torch::async::pool
 
 		bool pause(uint64_t task_id);
 		bool resume(uint64_t task_id);
+		bool cancel(uint64_t task_id);
 		bool stop(uint64_t task_id);
 
 		template<typename Func, typename... Args>

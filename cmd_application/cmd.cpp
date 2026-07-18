@@ -454,6 +454,10 @@ void handle_hash(
                 std::ifstream ifs(path, std::ios::binary);
                 uint64_t size = fs::file_size(path);
                 auto data = hash::Generator::calculate_with(pc, *gen, ifs, size);
+                if (pc.is_cancel())
+                {
+                    data = BinaryData{};
+                }
                 return HashThreadResult(std::move(data), std::move(pc.to_detail()));
             },
             fpath
@@ -469,6 +473,7 @@ std::string fmt_iso_time(uint64_t milis_time)
     using namespace dog_torch::async;
     auto r = convert<TimeUnit::Milliseconds, TimeUnit::Hours>(milis_time);
     std::string rs = "";
+    //std::cout << r[0] << " " << r[1] << " " << r[2] << " " << r[3] << "\n";
     if (r[3] != 0)
     {
         rs += std::format("{:0>2}:", r[3]);
@@ -494,11 +499,6 @@ void task_manage(
     std::vector<std::pair<uint64_t, PauseableDetail>>& task_results
 )
 {
-    /*
-    * todo
-    * 1 时间格式化有问题
-    * 2 暂停和恢复有问题
-    */
     std::optional<uint64_t> op;
     do
     {
@@ -532,9 +532,9 @@ void task_manage(
             std::cout << std::format("file-[{}]->{}\n", std::any_cast<std::string>(detail.params.at("config_str")), hash_results[detail.task_id].output_type.fmt_string());
             std::cout << std::format("status: {}\n", status_to_string(detail.status));
             std::cout << std::format("progress: {:0.2f}%\n", detail.progress * 100);
-            std::cout << std::format("time: {} {}ms\n", fmt_iso_time(detail.time), detail.time);
+            std::cout << std::format("time: {}\n", fmt_iso_time(detail.time), detail.time);
             uint64_t elapsed = static_cast<uint64_t>(detail.time * (1 / detail.progress - 1));
-            std::cout << std::format("expected: ~{} {}ms\n", fmt_iso_time(elapsed), elapsed);
+            std::cout << std::format("expected: ~ {}\n", fmt_iso_time(elapsed), elapsed);
             std::cout << "}\n";
         };
         std::cout.flush();
@@ -558,15 +558,36 @@ void task_manage(
 
                 if (op == 1)
                 {
-                    pool.resume(id.value());
+                    if (pool.pause(id.value()))
+                    {
+                        std::cout << std::format("success to pause task {}", id.value()) << std::endl;
+                    }
+                    else
+                    {
+                        std::cout << std::format("task {} is not running", id.value()) << std::endl;
+                    }
                 }
                 else if (op == 2)
                 {
-                    pool.pause(id.value());
+                    if (pool.resume(id.value()))
+                    {
+                        std::cout << std::format("success to resume task {}", id.value()) << std::endl;
+                    }
+                    else
+                    {
+                        std::cout << std::format("task {} is not paused", id.value()) << std::endl;
+                    }
                 }
                 else if (op == 3)
                 {
-                    pool.stop(id.value());
+                    if (pool.cancel(id.value()))
+                    {
+                        std::cout << std::format("success to cancel task {}", id.value()) << std::endl;
+                    }
+                    else
+                    {
+                        std::cout << std::format("task {} is not running", id.value()) << std::endl;
+                    }
                 }
                 else
                 {

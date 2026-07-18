@@ -59,8 +59,8 @@ namespace dog_torch::async
         std::array<uint64_t, (static_cast<uint64_t>(E) + 1 - static_cast<uint64_t>(S))> result;
 		for (uint64_t i = static_cast<uint64_t>(S); i <= static_cast<uint64_t>(E); ++i)
 		{
-			result[i - static_cast<uint64_t>(S)] = value / time_unit_table[i];
-			value %= time_unit_table[i];
+			result[i - static_cast<uint64_t>(S)] = value % time_unit_table[i];
+			value /= time_unit_table[i - static_cast<uint64_t>(S)];
 		}
 		return result;
 	}

@@ -30,6 +30,7 @@ namespace dog_torch::async::thread
 		std::unique_ptr<std::condition_variable> condition_variable_;
 		std::atomic<Status> status_ = Status::Ready;
 		std::atomic<double> progress_ = 0;
+		std::atomic<bool> is_failed_ = false;
 		std::unordered_map<std::string, std::any> params_;
 		std::unique_ptr<Clock<std::chrono::milliseconds>> clock_ = nullptr;
 	public:
@@ -46,7 +47,9 @@ namespace dog_torch::async::thread
 		bool check_status();
 		void resume();//Blocked -> Running
 		void stop();//Running|Blocked -> Stopped
+		void cancel();//Running|Blocked -> Stopped
 		void reset();//Stopped -> Ready
+		bool is_cancel();
 		PauseableDetail to_detail();
 		void set_progress(double progress);
 		void add_progress(double progress);

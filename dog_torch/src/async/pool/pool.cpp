@@ -171,6 +171,7 @@ bool NSROOT::PausedThreadPool::pause(uint64_t task_id)
 			{
 				if (worker.task_id == task_id)
 				{
+					if (worker.pc.status() != Status::Running) break;
 					worker.pc.pause();
 					result = true;
 					break;
@@ -188,7 +189,26 @@ bool NSROOT::PausedThreadPool::resume(uint64_t task_id)
 			{
 				if (worker.task_id == task_id)
 				{
+					if (worker.pc.status() != Status::Blocked) break;
 					worker.pc.resume();
+					result = true;
+					break;
+				}
+			}
+		});
+	return result;
+}
+bool NSROOT::PausedThreadPool::cancel(uint64_t task_id)
+{
+	bool result = false;
+	workers_.doing([&result, &task_id](std::vector<Worker>& workers)->void
+		{
+			for (auto& worker : workers)
+			{
+				if (worker.task_id == task_id)
+				{
+					if (worker.pc.status() != Status::Running && worker.pc.status() != Status::Blocked) break;
+					worker.pc.cancel();
 					result = true;
 					break;
 				}

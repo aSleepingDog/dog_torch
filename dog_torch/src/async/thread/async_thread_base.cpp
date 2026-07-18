@@ -71,13 +71,27 @@ void NSROOT::PauseableChannel::stop()
     this->condition_variable_->notify_one();
     if (this->clock_) this->clock_->stop();
 }
+void NSROOT::PauseableChannel::cancel()
+{
+    if (this->status_.load() != Status::Running && this->status_ != Status::Blocked) return;
+    std::unique_lock lock(this->mutex_);
+    this->status_.store(Status::Stopped);
+    this->is_failed_ = true;
+    this->condition_variable_->notify_one();
+    if (this->clock_) this->clock_->stop();
+}
 void NSROOT::PauseableChannel::reset()
 {
     if (this->status_.load() != Status::Stopped)return;
     this->params_.clear();
     this->status_.store(Status::Ready);
     this->progress_.store(0.0);
+    this->is_failed_ = false;
     if (this->clock_) this->clock_->reset();
+}
+bool NSROOT::PauseableChannel::is_cancel()
+{
+    return this->is_failed_;
 }
 NSROOT::PauseableDetail NSROOT::PauseableChannel::to_detail()
 {
