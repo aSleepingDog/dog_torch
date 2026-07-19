@@ -16,7 +16,7 @@
 
 namespace dog_torch::crypto::sym::block::mode
 {
-	DOG_TORCH_API const std::array<std::reference_wrapper<const Config>, 10> get_all();
+	DOG_TORCH_API const std::vector<std::reference_wrapper<const Config>> get_all();
 	DOG_TORCH_API std::unique_ptr<Mode> create(const std::string& name, const padding::Padding& padding, const std::unordered_map<std::string, Param>& params);
 }
 
@@ -28,12 +28,12 @@ namespace dog_torch::crypto::sym::block::mode
 
 extern "C"
 {
-	using NS_MODE(ConfigArray) = std::array<std::reference_wrapper<const NS_MODE(Config)>, 10>;
+	using NS_MODE(ConfigVector) = std::vector<std::reference_wrapper<const NS_MODE(Config)>>;
 
-	C_API(NS_MODE(ConfigArray)*)            NS_MODE(get_all)                   ();
-	C_API(void)                             NS_MODE(ConfigArray_delete)        (NS_MODE(ConfigArray)** self);
-	C_API(uint64_t)                         NS_MODE(ConfigArray_size)          (const LVALUE(NS_MODE(ConfigArray)) self);
-	C_API(const LVALUE(NS_MODE(Config)))    NS_MODE(ConfigArray_at)            (LVALUE(UTILS(CppResultSet)) result_set, const LVALUE(NS_MODE(ConfigArray)) self, uint64_t index);
+	C_API(NS_MODE(ConfigVector)*)            NS_MODE(get_all)                   ();
+	C_API(void)                              NS_MODE(ConfigVector_delete)        (NS_MODE(ConfigVector)** self);
+	C_API(uint64_t)                          NS_MODE(ConfigVector_size)          (const LVALUE(NS_MODE(ConfigVector)) self);
+	C_API(const LVALUE(NS_MODE(Config)))     NS_MODE(ConfigVector_at)            (LVALUE(UTILS(CppResultSet)) result_set, const LVALUE(NS_MODE(ConfigVector)) self, uint64_t index);
 
 	C_API(NS_ROOT(Mode)*)                   NS_ROOT(Mode_create_c_str)         (const char* name, const LVALUE(NS_ROOT(Padding)) padding, const LVALUE(CRYPTO_BASE(ParamHashMap)) params);
 	C_API(NS_ROOT(Mode)*)                   NS_ROOT(Mode_create_string)        (const LVALUE(UTILS(CppString)) name, const LVALUE(NS_ROOT(Padding)) padding, const LVALUE(CRYPTO_BASE(ParamHashMap)) params);

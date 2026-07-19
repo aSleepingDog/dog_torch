@@ -748,7 +748,7 @@ std::string NSROOT::BigUnsignedInteger::to_num_str(uint64_t radix, bool is_upper
         while (v_compare(num, vec64({ 0 })) != CompareResult::EQUAL)
         {
             auto q_r = v_divide_single(num, 10);
-            str.push_back('0' + q_r.second);
+            str.push_back(static_cast<char>('0' + q_r.second));
             num = q_r.first;
         }
         for (uint64_t in_size = 0; in_size < str.size() / 2; ++in_size)

@@ -82,11 +82,9 @@ Value NSROOT::CFB::serialize() const
     using dog_torch::serialize::tlv::MIBString;
     using dog_torch::math::number::Integer64;
     auto total = static_cast<Mode>(*this).serialize();
+    total.to_array()[0] = MIBString{ this->config().name };
     Value params = std::unordered_map<MIBString, Value>{};
-    if (this->shift_ != 0)
-    {
-        params.to_object()[MIBString{ "shift" }] = Value{ Integer64{this->shift_} };
-    }
+    params.to_object()[MIBString{ "shift" }] = Value{ Integer64{this->shift_} };
     params.to_object()[MIBString{ "iv" }] = Value{ this->iv_.get_data() };
     total.to_array().push_back(params);
     return total;
@@ -425,12 +423,10 @@ Value NSROOT::CFBb::serialize() const
     using dog_torch::serialize::tlv::MIBString;
     using dog_torch::math::number::Integer64;
     Value total = std::vector<Value>{};;
+    total.to_array()[0] = MIBString{ this->config().name };
     total.to_array().push_back(MIBString{ this->config().name });
     Value params = std::unordered_map<MIBString, Value>{};
-    if (this->shift_ != 0)
-    {
-        params.to_object()[MIBString{ "shift" }] = Value{ Integer64{this->shift_} };
-    }
+    params.to_object()[MIBString{ "shift" }] = Value{ Integer64{this->shift_} };
     params.to_object()[MIBString{ "iv" }] = Value{ this->iv_.get_data() };
     total.to_array().push_back(params);
     return total;

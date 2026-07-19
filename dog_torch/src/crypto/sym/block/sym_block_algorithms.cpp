@@ -2,7 +2,7 @@
 
 namespace NSROOT = dog_torch::crypto::sym::block::algorithm;
 
-const std::array<std::reference_wrapper<const NSROOT::Config>, 4> NSROOT::get_all()
+const std::vector<std::reference_wrapper<const NSROOT::Config>> NSROOT::get_all()
 {
     return {
         std::cref(AES::allowed_config()),
@@ -39,20 +39,20 @@ std::unique_ptr<NSROOT::Algorithm> NSROOT::create(const std::string& name, uint6
 #define SERIALIZE(name) dog_torch__serialize__##name
 #define UTILS(name)     dog_torch__utils__##name
 
-NS_ALG(ConfigArray)* NS_ALG(get_all)()
+NS_ALG(ConfigVector)* NS_ALG(get_all)()
 {
-    return new NS_ALG(ConfigArray){ dog_torch::crypto::sym::block::algorithm::get_all() };
+    return new NS_ALG(ConfigVector){ dog_torch::crypto::sym::block::algorithm::get_all() };
 }
-void NS_ALG(ConfigArray_delete)(NS_ALG(ConfigArray)** self)
+void NS_ALG(ConfigVector_delete)(NS_ALG(ConfigVector)** self)
 {
     DEFAULT_DESTOTY(self);
 }
-uint64_t NS_ALG(ConfigArray_size)(const LVALUE(NS_ALG(ConfigArray)) self)
+uint64_t NS_ALG(ConfigVector_size)(const LVALUE(NS_ALG(ConfigVector)) self)
 {
     if (self == nullptr) return 0;
     return self->size();
 }
-const LVALUE(NS_ALG(Config)) NS_ALG(ConfigArray_at)(LVALUE(UTILS(CppResultSet)) result_set, const LVALUE(NS_ALG(ConfigArray)) self, uint64_t index)
+const LVALUE(NS_ALG(Config)) NS_ALG(ConfigVector_at)(LVALUE(UTILS(CppResultSet)) result_set, const LVALUE(NS_ALG(ConfigVector)) self, uint64_t index)
 {
     using namespace dog_torch::utils;
     if (self == nullptr)

@@ -209,7 +209,6 @@ NSROOT::BinaryData NSROOT::Generator::calculate(PauseableChannel& pc, std::istre
 
 NSROOT::BinaryData NSROOT::Generator::calculate_with(PauseableChannel& pc, Generator& self, std::istream& source, uint64_t total)
 {
-	pc.param("config_str") = self.fmt_string();
 	return self.calculate(pc, source, total);
 }
 

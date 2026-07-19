@@ -12,6 +12,9 @@
 #include "serialize_extra/BinaryParams.h"
 
 #include "crypto/hash/hash_algorithms.h"
+#include "crypto/sym/block/sym_block_algorithms.h"
+#include "crypto/sym/block/sym_block_paddings.h"
+#include "crypto/sym/block/sym_block_modes.h"
 
 void enableVirtualTerminal();
 void clear_cmd();
@@ -81,13 +84,22 @@ using serializeType = dog_torch::serialize::Type;
 namespace fs = std::filesystem;
 std::optional<bool> input_bool()
 {
+    std::cout << "bool input\n";
+    std::cout << "true  <- 1 true  True   t  T  y  Y  yes  Yes\n";
+    std::cout << "false <- 0 false False  f  F  n  N  no   No\n";
+    std::cout << ">";
+    std::cout.flush();
     std::string str2;
     std::getline(std::cin, str2);
-    if (str2 == "0" || str2 == "false" || str2 == "False" || str2 == "f" || str2 == "F" || str2 == "n" || str2 == "N")
+    if (str2 == "0" || 
+        str2 == "false" || str2 == "False" || str2 == "f" || str2 == "F" || 
+        str2 == "n" || str2 == "N" || str2 == "no" || str2 == "No")
     {
         return false;
     }
-    else if (str2 == "1" || str2 == "true" || str2 == "True" || str2 == "t" || str2 == "T" || str2 == "y" || str2 == "Y")
+    else if (str2 == "1" || 
+        str2 == "true" || str2 == "True" || str2 == "t" || str2 == "T" || 
+        str2 == "y" || str2 == "Y" || str2 == "yes" || str2 == "Yes")
     {
         return true;
     }
@@ -148,6 +160,50 @@ std::string input_string()
     std::getline(std::cin, str2);
     return str2;
 }
+std::optional<BinaryData> input_binary(bool allow_empty, bool empty_random, uint64_t size, std::string* ori_str = nullptr, uint64_t* type = nullptr)
+{
+    std::cout << std::format("binary input {}",
+        allow_empty == true && empty_random == true ? "will be random when input is empty" : ""
+        ) << std::endl;
+    std::cout << "1. choose type: utf8-0,bin-1,hex-2,base64-3" << std::endl;
+    std::cout << "2. input data and press enter to continue" << std::endl;
+    std::cout << ">";
+    std::optional<uint64_t>  op = input_uint64(true);
+    if (!op.has_value() && allow_empty)
+    {
+        if (!empty_random)
+        {
+            return BinaryData{};
+        }
+        else
+        {
+            std::random_device rd;
+            BinaryData r{ size };
+            for (auto& i : r)
+            {
+                i = static_cast<uint8_t>(rd());
+            }
+            return r;
+        }
+    }
+    else if (!op.has_value())
+    {
+        std::cout << "unsupport empty" << std::endl;
+        return std::nullopt;
+    }
+    std::string str = input_string();
+    if (op < 4)
+    {
+        if(ori_str) *ori_str = str;
+        if (type) *type = op.value();
+        return BinaryData{ str, op.value() };
+    }
+    else
+    {
+        std::cout << "invalid operation" << std::endl;
+        return std::nullopt;
+    }
+}
 std::optional<std::variant<BinaryData, fs::path>> input_data(bool allow_file, bool allow_empty, uint64_t& type, std::string& input_str)
 {
     std::cout << "binary input" << std::endl;
@@ -165,6 +221,7 @@ std::optional<std::variant<BinaryData, fs::path>> input_data(bool allow_file, bo
         return std::nullopt;
     }
     std::string str = input_string();
+    input_str = str;
     if (op == 4 && !allow_file)
     {
         std::cout << "file input not allowed" << std::endl;
@@ -172,10 +229,12 @@ std::optional<std::variant<BinaryData, fs::path>> input_data(bool allow_file, bo
     }
     else if (op < 4)
     {
+        type = op.value();
         return BinaryData{ str, op.value()};
     }
     else if (op == 4)
     {
+        type = op.value();
         if (!fs::exists(str))
         {
             std::cout << "file not exists" << std::endl;
@@ -196,79 +255,48 @@ std::optional<std::variant<BinaryParams, fs::path>> output_type(bool allow_file)
     std::cout << "e.m." << std::endl;
     std::cout << "2:0->hex:upper 3:+-=" << std::endl;
     std::cout << ">";
-    std::string str;
-    std::getline(std::cin, str);
-    if (str.size() == 1 && str[0] < '4' && str[0] >= '0')
+
+    std::optional<uint64_t>  op = input_uint64(true);
+    if (!op.has_value())
     {
-        switch (str[0])
-        {
-        case '0': return BinaryParams::from_utf8();
-        case '1': return BinaryParams::from_binary();
-        case '2': return BinaryParams::from_hex(true);
-        case '3': return BinaryParams::from_base64();
-        }
-    }
-    if (str.size() <= 2 || str[1] != ':')
-    {
-        std::cout << "invalid operation" << std::endl;
+        std::cout << "unsupport empty" << std::endl;
         return std::nullopt;
     }
-    if (str[0] == '2')
+    if (op == 4 && !allow_file)
     {
-        if (str[2] == '0')
+        std::cout << "file input not allowed" << std::endl;
+        return std::nullopt;
+    }
+    else if (op < 4)
+    {
+        switch (op.value())
         {
-            return BinaryParams::from_hex(true);
-        }
-        else if (str[2] == '1')
-        {
-            return BinaryParams::from_hex(false);
-        }
-        else if (str.substr(2) == "lower" || str.substr(2) == "upper")
-        {
-            return BinaryParams::from_hex(str.substr(2) == "upper");
-        }
-        else
-        {
-            std::cout << "invalid operation" << std::endl;
-            return std::nullopt;
+        case 0: return BinaryParams::from_utf8();
+        case 1: return BinaryParams::from_binary();
+        case 2: return BinaryParams::from_hex(true);
+        case 3: return BinaryParams::from_base64();
         }
     }
-    if (str[0] == '3')
+    else if (op == 4)
     {
-        if (str.size() != 5)
-        {
-            std::cout << "invalid operation" << std::endl;
-            return std::nullopt;
-        }
-        char c1 = str[2], c2 = str[3], c3 = str[4];
-        auto contain = [](char c) -> bool
-            {
-                const char* l = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
-                for (int i = 0; i < 32; i++)
-                {
-                    if (l[i] == c) return true;
-                }
-                return false;
-            };
-        if (contain(c1) && contain(c2) && contain(c3) && c1 != c2 && c2 != c3 && c1 != c3)
-        {
-            return BinaryParams::from_base64(c1, c2, c3);
-        }
-        else
-        {
-            std::cout << "invalid operation" << std::endl;
-            return std::nullopt;
-        }
-    }
-    if (str[0] == '4')
-    {
+        std::string str = input_string();
         std::string path_str = str.substr(2);
         auto writeable = [](const std::string& str)->bool
             {
                 fs::path p{ str };
                 std::error_code ec;
-                if (!fs::is_regular_file(p)) return false;
-                auto perms = fs::status(p, ec).permissions();
+                fs::perms perms;
+                if (fs::exists(p))
+                {
+                    if (!fs::is_regular_file(p)) return false;
+                    perms = fs::status(p, ec).permissions();
+
+                }
+                else
+                {
+                    auto pp = p.parent_path();
+                    perms = fs::status(pp, ec).permissions();
+                }
                 if (ec) return false;
                 return (perms & fs::perms::owner_write) != fs::perms::none ||
                     (perms & fs::perms::group_write) != fs::perms::none ||
@@ -281,11 +309,19 @@ std::optional<std::variant<BinaryParams, fs::path>> output_type(bool allow_file)
         }
         return fs::path{ path_str };
     }
-    std::cout << "invalid operation" << std::endl;
-    return std::nullopt;
+    else
+    {
+        std::cout << "invalid operation" << std::endl;
+        return std::nullopt;
+    }
 }
 using dog_torch::crypto::hash::Generator;
 namespace hash = dog_torch::crypto::hash;
+enum class TaskType : uint64_t
+{
+    Hash = 0,
+    Crypt = 1,
+};
 std::shared_ptr<Generator> get_hash_generator()
 {
     //name
@@ -415,6 +451,7 @@ void handle_trans()
     std::cout << std::format("{}->{}", type_fmt_string(static_cast<serializeType>(type)), arr.fmt_string()) << "\n";
     std::cout << "=====output=====" << "\n";
     std::cout << tar_str << "\n";
+    std::cout << std::endl;
 }
 void handle_hash(
     PausedThreadPool& pool,
@@ -431,7 +468,6 @@ void handle_hash(
     if (gen == nullptr) return;
     if (!ot.has_value()) return;
     auto arr = std::get<0>(ot.value());
-    clear_cmd();
     if (data.value().index() == 0)
     {
         data = gen->calculate(std::get<0>(data.value()));
@@ -441,7 +477,7 @@ void handle_hash(
         std::cout << str << "\n";
         std::cout << "=====operate=====" << "\n";
         std::cout << std::format("{}-[{}]->{}", type_fmt_string(static_cast<serializeType>(type)), gen->fmt_string(), arr.fmt_string()) << "\n";
-        std::cout << "=====output=====" << "\n";
+        std::cout << "=====hash=====" << "\n";
         std::cout << tar_str << "\n";
     }
     else
@@ -450,9 +486,11 @@ void handle_hash(
         auto result = pool.add_task(
             [gen](dog_torch::async::thread::PauseableChannel& pc, fs::path path)
             {
+                pc.param("type") = TaskType::Hash;
                 pc.param("path") = path.string();
                 std::ifstream ifs(path, std::ios::binary);
                 uint64_t size = fs::file_size(path);
+                pc.param("config_str") = gen->fmt_string();
                 auto data = hash::Generator::calculate_with(pc, *gen, ifs, size);
                 if (pc.is_cancel())
                 {
@@ -495,10 +533,10 @@ std::string fmt_iso_time(uint64_t milis_time)
 }
 void task_manage(
     PausedThreadPool& pool, 
-    std::unordered_map<uint64_t, HashResult>& hash_results, 
-    std::vector<std::pair<uint64_t, PauseableDetail>>& task_results
+    std::unordered_map<uint64_t, HashResult>& hash_results
 )
 {
+    clear_cmd();
     std::optional<uint64_t> op;
     do
     {
@@ -515,7 +553,7 @@ void task_manage(
                 std::cout << future.get_input_path_str() << "\n";
                 std::cout << " =====operate=====\n";
                 std::cout << std::format("file-[{}]->{}\n", future.get_config_str(), future.output_type.fmt_string());
-                std::cout << " =====output=====\n";
+                std::cout << " =====hash=====\n";
                 std::cout << future.get_binary_str() << "\n";
                 std::cout << "}\n";
             }
@@ -525,11 +563,26 @@ void task_manage(
         for (auto& detail : details)
         {
             std::cout << "{" << "\n";
-            std::cout << std::format("id: {}\n", detail.task_id);
-            std::cout << " =====input=====\n";
-            std::cout << hash_results[detail.task_id].get_input_path_str() << "\n";
-            std::cout << " =====operate=====\n";
-            std::cout << std::format("file-[{}]->{}\n", std::any_cast<std::string>(detail.params.at("config_str")), hash_results[detail.task_id].output_type.fmt_string());
+            if (std::any_cast<TaskType>(detail.params.at("type")) == TaskType::Hash)
+            {
+                std::cout << std::format("id: {}\n", detail.task_id);
+                std::cout << " =====input=====\n";
+                std::cout << hash_results[detail.task_id].get_input_path_str() << "\n";
+                std::cout << " =====operate=====\n";
+                std::cout << std::format("file-[{}]->{}\n", std::any_cast<std::string>(detail.params.at("config_str")), hash_results[detail.task_id].output_type.fmt_string());
+            }
+            else if (std::any_cast<TaskType>(detail.params.at("type")) == TaskType::Crypt)
+            {
+                std::cout << std::format("id: {}\n", detail.task_id);
+                std::cout << "=====plain=====" << "\n";
+                std::cout << std::any_cast<std::string>(detail.params.at("plain")) << "\n";
+                std::cout << "=====key=====" << "\n";
+                std::cout << std::any_cast<std::string>(detail.params.at("key")) << "\n";
+                std::cout << "=====operate=====" << "\n";
+                std::cout << std::any_cast<std::string>(detail.params.at("config_str")) << "\n";
+                std::cout << "=====crypt=====" << "\n";
+                std::cout << std::any_cast<std::string>(detail.params.at("crypt")) << "\n";
+            }
             std::cout << std::format("status: {}\n", status_to_string(detail.status));
             std::cout << std::format("progress: {:0.2f}%\n", detail.progress * 100);
             std::cout << std::format("time: {}\n", fmt_iso_time(detail.time), detail.time);
@@ -551,11 +604,13 @@ void task_manage(
             {
                 op = input_uint64(true);
                 if (!op.has_value()) break;
-
+                if (op == 0)
+                {
+                    break;
+                }
                 std::cout << "task id:\n>";
                 auto id = input_uint64();
                 if (!id.has_value()) break;
-
                 if (op == 1)
                 {
                     if (pool.pause(id.value()))
@@ -602,17 +657,460 @@ void task_manage(
         }
     } while (!op.has_value() || op.value() != 0);
 }
+namespace block_crypto = dog_torch::crypto::sym::block;
+std::string get_padding()
+{
+    std::cout << "choose padding" << "\n";
+    auto padding_configs = block_crypto::padding::get_all();
+    for (uint64_t i = 0; i < padding_configs.size(); ++i)
+    {
+        std::cout << std::format("{}: {}\n", i, padding_configs[i].get().name);
+    }
+    std::cout << ">";
+    std::cout.flush();
+    auto padding_config = input_uint64();
+    if (!padding_config.has_value())
+    {
+        return "";
+    }
+    if (padding_config.value() >= padding_configs.size())
+    {
+        std::cout << "invalid padding index" << std::endl;
+        return "";
+    }
+    return padding_configs[padding_config.value()].get().name;
+}
+std::shared_ptr<block_crypto::BlockCipher> get_block_cipher()
+{
+    std::cout << "choose algorithm" << "\n";
+    auto alg_configs = block_crypto::algorithm::get_all();
+    for (auto& config : alg_configs)
+    {
+        std::cout << config.get().name << ",";
+    }
+    std::cout << std::endl;
+    std::string alg_name = input_string();
 
+    auto alg_config = std::find_if(alg_configs.begin(), alg_configs.end(), [&alg_name](const auto& config)
+        {
+            return config.get().name == alg_name;
+        }
+    );
+    if (alg_config == alg_configs.end())
+    {
+        std::cout << "invalid algorithm name" << std::endl;
+        return nullptr;
+    }
 
+    using dog_torch::math::region::NumberIterator;
+    NumberIterator bnit{ (*alg_config).get().block_size_region };
+    std::cout << "choose block size" << "\n";
+    while (bnit.have_next())
+    {
+        std::cout << bnit.next() << ",";
+    }
+    std::cout << "\n>";
+    std::cout.flush();
+    auto block_size = input_uint64();
+    if (!block_size.has_value())
+    {
+        return nullptr;
+    }
+
+    NumberIterator knit{ (*alg_config).get().key_size_region };
+    std::cout << "choose key size" << "\n";
+    while (knit.have_next())
+    {
+        std::cout << knit.next() << ",";
+    }
+    std::cout << "\n>";
+    std::cout.flush();
+    auto key_size = input_uint64();
+    if (!key_size.has_value())
+    {
+        return nullptr;
+    }
+
+    std::unique_ptr<block_crypto::algorithm::Algorithm> alg_ptr = nullptr;
+    try
+    {
+        alg_ptr = block_crypto::algorithm::create((*alg_config).get().name, block_size.value(), key_size.value());
+        if (alg_ptr == nullptr)
+        {
+            return nullptr;
+        }
+    }
+    catch (std::exception& e)
+    {
+        std::cout << e.what() << std::endl;
+        return nullptr;
+    }
+
+    auto modes = block_crypto::mode::get_all();
+    std::cout << "choose mode" << "\n";
+    for (auto& mode : modes)
+    {
+        std::cout << mode.get().name << ",";
+    }
+    std::cout << std::endl;
+    auto mode_name = input_string();
+    auto mode_config = std::find_if(modes.begin(), modes.end(), [&mode_name](const auto& mode)
+        {
+            return mode.get().name == mode_name;
+        }
+    );
+    if (mode_config == modes.end())
+    {
+        std::cout << "invalid mode name" << std::endl;
+        return nullptr;
+    }
+    using dog_torch::crypto::Param;
+    std::unordered_map<std::string, Param> tar_params;
+    for (auto [k, v] : mode_config->get().params)
+    {
+        std::cout << std::format("{}:{},", k, dog_torch::crypto::get_type_name(v));
+        if (v == dog_torch::crypto::ParamType::Bool)
+        {
+            auto arg = input_bool();
+            if (!arg.has_value()) return nullptr;
+            tar_params[k] = arg.value();
+        }
+        else if (v == dog_torch::crypto::ParamType::UInt64)
+        {
+            std::cout << "\n>";
+            std::cout.flush();
+            auto arg = input_uint64();
+            if (!arg.has_value()) return nullptr;
+            tar_params[k] = arg.value();
+        }
+        else if (v == dog_torch::crypto::ParamType::String)
+        {
+            auto arg = input_string();
+            tar_params[k] = arg;
+        }
+        else if (v == dog_torch::crypto::ParamType::Binary)
+        {
+            auto arg = input_binary(true, k == "iv", alg_ptr->get_block_size());
+            if (!arg.has_value()) return nullptr;
+            tar_params[k] = arg.value();
+        }
+    }
+
+    auto padding_name = get_padding();
+    if (padding_name == "")
+    {
+        return nullptr;
+    }
+    auto padding = block_crypto::padding::create(padding_name);
+
+    auto mode = block_crypto::mode::create(mode_config->get().name, *padding, tar_params);
+    if (mode == nullptr)
+    {
+        return nullptr;
+    }
+    return std::make_shared<block_crypto::BlockCipher>(*alg_ptr, *mode);
+}
+using dog_torch::serialize::tlv::Value;
+std::shared_ptr<block_crypto::BlockCipher> parse_block_cipher(Value value)
+{
+    namespace tlv = dog_torch::serialize::tlv;
+    using dog_torch::crypto::Param;
+    const auto& root_obj = value.to_object();
+    if (root_obj.size() != 1 || root_obj.find(tlv::MIBString{ "Block" }) == root_obj.end())
+    {
+        std::cout << "head not found" << std::endl;
+        return nullptr;
+    }
+    const auto& cipher_config = root_obj.at(tlv::MIBString{ "Block" }).to_array();
+    const auto& algorithm_configs = cipher_config.at(0).to_array();
+    std::string alg_name = algorithm_configs.at(0).to_string().string;
+    uint64_t block_size = algorithm_configs.at(1).to_integer().number;
+    uint64_t key_size = algorithm_configs.at(2).to_integer().number;
+    auto alg_ptr = block_crypto::algorithm::create(alg_name, block_size, key_size);
+    if (alg_ptr == nullptr)
+    {
+        std::cout << "algorithm not support" << std::endl;
+        return nullptr;
+    }
+    const auto& mode_configs = cipher_config.at(1).to_array();
+    std::string mode_name = mode_configs.at(0).to_string().string;
+    std::string paddding_name = mode_configs.at(1).to_string().string;
+    auto padding = block_crypto::padding::create(paddding_name);
+    if (padding == nullptr)
+    {
+        std::cout << "padding not support" << std::endl;
+        return nullptr;
+    }
+    const auto& mode_args = mode_configs.at(2).to_object();
+    std::unordered_map<std::string, Param> tar_params;
+    for (const auto& [key, value] : mode_args)
+    {
+        std::string key_name = key.string;
+        if (value.type() == tlv::Type::Bool)
+        {
+            tar_params[key_name] = value.to_bool();
+        }
+        else if (value.type() == tlv::Type::Integer)
+        {
+            tar_params[key_name] = value.to_integer().number;
+        }
+        else if (value.type() == tlv::Type::String)
+        {
+            tar_params[key_name] = value.to_string().string;
+        }
+        else if (value.type() == tlv::Type::Binary)
+        {
+            tar_params[key_name] = value.to_binary();
+        }
+    }
+    auto mode = block_crypto::mode::create(mode_name, *padding, tar_params);
+    if (mode == nullptr)
+    {
+        std::cout << "mode not support" << std::endl;
+        return nullptr;
+    }
+    return std::make_shared<block_crypto::BlockCipher>(*alg_ptr, *mode);
+
+}
+void handle_sym_crypt(PausedThreadPool& pool)
+{
+    using dog_torch::serialize::tlv::Value;
+    std::optional<uint64_t> op = 0;
+    std::cout << "1. encrypt" << "\n";
+    std::cout << "2. decrypt" << "\n>";
+    std::cout.flush();
+    op = input_uint64(true);
+    if (!op.has_value() || (op != 1 && op != 2))
+    {
+        std::cout << "invalid operation code" << std::endl;
+        return;
+    }
+    if (op == 1)
+    {
+        std::string str;
+        uint64_t type = 0;
+        std::cout << "plain ";
+        auto data = input_data(true, true, type, str);
+        auto ot = output_type(true);
+        if (!ot.has_value()) return;
+        if (data.value().index() != ot.value().index())
+        {
+            std::cout << "plain and crypt type not match" << std::endl;
+            return;
+        }
+        auto block_cipher = get_block_cipher();
+        std::cout << "key ";
+        std::string key_str = "";
+        uint64_t key_type = 0;
+        auto key = input_binary(false, false, 0, &key_str, &key_type);
+        if (!key.has_value()) return;
+        block_cipher->set_key(key.value());
+        std::cout << "add head in front of crypt data? (do not input how to do when decrypt)" << "\n";
+        auto add_head = input_bool();
+        if (!add_head.has_value()) return;
+
+        if (data.value().index() == 0)
+        {
+            clear_cmd();
+
+            auto out_type = std::get<0>(ot.value());
+
+            std::cout << "=====plain=====" << "\n";
+            std::cout << str << "\n";
+            std::cout << "=====key=====" << "\n";
+            std::cout << std::format("{}:{}", type_fmt_string(static_cast<serializeType>(key_type)), key_str) << "\n";
+            std::cout << "=====operate=====" << "\n";
+            std::cout << std::format("{}-[{}]->{}{}", 
+                type_fmt_string(static_cast<serializeType>(type)), 
+                block_cipher->fmt_string(),
+                add_head ? "BlockCipher config|" : "",
+                out_type.fmt_string()
+            ) << "\n";
+
+            try
+            {
+                BinaryData plain = std::get<0>(data.value());
+                BinaryData crypt;
+                if (add_head.value())
+                {
+                    crypt += BinaryData{ block_cipher->serialize().serialize() };
+                }
+                block_cipher->init();
+                crypt += block_cipher->encrypt(plain);
+                std::string out_str = out_type.fmt_BinaryData(crypt);
+
+                std::cout << "=====crypt=====" << "\n";
+                std::cout << out_str << "\n";
+            }
+            catch (std::exception& e)
+            {
+                std::cout << "=====error=====" << "\n";
+                std::cout << e.what() << std::endl;
+            }
+        }
+        else
+        {
+            auto plain_path = std::get<1>(data.value());
+            auto crypt_path = std::get<1>(ot.value());
+            std::string fmt_key = std::format("{}:{}", type_fmt_string(static_cast<serializeType>(key_type)), key_str);
+            auto task = pool.add_task(
+                [add_head_ = add_head.value(), block_cipher, fmt_key]
+                (dog_torch::async::thread::PauseableChannel& pc, fs::path plain, fs::path crypt) -> PauseableDetail
+                {
+                    //todo test
+                    pc.param("type") = TaskType::Crypt;
+                    pc.param("plain") = plain.string();
+                    pc.param("crypt") = crypt.string();
+                    pc.param("key") = fmt_key;
+                    uint64_t plain_size = fs::file_size(plain);
+                    std::ifstream plain_stream(plain, std::ios::binary);
+                    std::ofstream crypt_stream(crypt, std::ios::binary);
+                    if (add_head_)
+                    {
+                        BinaryData file_head;
+                        file_head += block_cipher->serialize().serialize();
+                        crypt_stream.write(file_head.data_stream(), file_head.size());
+                    }
+                    block_cipher->init();
+                    pc.param("config_str") = block_cipher->fmt_string();
+                    block_cipher->encryptp_stream(pc, plain_stream, plain_size, crypt_stream);
+                    return pc.to_detail();
+                },
+                plain_path, crypt_path
+            );
+            std::cout << "success to add task query, id is " << task.task_id << "\n";
+        }
+    }
+    else if (op == 2)
+    {
+        std::string str;
+        uint64_t type = 0;
+        std::cout << "plain ";
+        auto data = input_data(true, true, type, str);
+        auto ot = output_type(true);
+        if (!ot.has_value()) return;
+        if (data.value().index() != ot.value().index())
+        {
+            std::cout << "plain and crypt type not match" << std::endl;
+            return;
+        }
+        std::cout << "with head in front of crypt data? (Do you add head when encrypt?)" << "\n";
+        uint64_t head_size = 0;
+        auto add_head = input_bool();
+        if (!add_head.has_value()) return;
+        std::shared_ptr<block_crypto::BlockCipher> block_cipher = nullptr;
+        if (!add_head.value())
+        {
+            block_cipher = get_block_cipher();
+        }
+        else
+        {
+            namespace tlv = dog_torch::serialize::tlv;
+            using dog_torch::crypto::Param;
+            Value value;
+            if (data.value().index() == 0)
+            {
+                const auto& bin_data = std::get<0>(data.value());
+                std::vector<uint8_t>::const_iterator cit = bin_data.cbegin();
+                std::vector<uint8_t>::const_iterator end = bin_data.cend();
+                value = Value::parse(cit, end);
+                data = bin_data.sub_bytes_pos(cit, end);
+            }
+            else
+            {
+                std::ifstream ifs(std::get<1>(data.value()), std::ios::binary);
+                value = Value::parse(ifs);
+                head_size = ifs.tellg();
+            }
+            block_cipher = parse_block_cipher(value);
+        }
+        if (block_cipher == nullptr)
+        {
+            std::cout << "block cipher not support" << std::endl;
+            return;
+        }
+        std::cout << "key ";
+        std::string key_str = "";
+        uint64_t key_type = 0;
+        auto key = input_binary(false, false, 0, &key_str, &key_type);
+        if (!key.has_value()) return;
+        block_cipher->set_key(key.value());
+
+        if (data.value().index() == 0)
+        {
+            clear_cmd();
+
+            auto out_type = std::get<0>(ot.value());
+
+            std::cout << "=====crypt=====" << "\n";
+            std::cout << str << "\n";
+            std::cout << "=====key=====" << "\n";
+            std::cout << std::format("{}:{}", type_fmt_string(static_cast<serializeType>(key_type)), key_str) << "\n";
+            std::cout << "=====operate=====" << "\n";
+            std::cout << std::format("{}{}-[{}]->{}",
+                add_head ? "BlockCipher config|" : "",
+                type_fmt_string(static_cast<serializeType>(type)),
+                block_cipher->fmt_string(),
+                out_type.fmt_string()
+            ) << "\n";
+
+            try
+            {
+                BinaryData crypt = std::get<0>(data.value());
+                BinaryData plain;
+                block_cipher->init();
+                plain = block_cipher->decrypt(crypt);
+                std::string out_str = out_type.fmt_BinaryData(plain);
+
+                std::cout << "=====plain=====" << "\n";
+                std::cout << out_str << "\n";
+            }
+            catch (std::exception& e)
+            {
+                std::cout << "=====error=====" << "\n";
+                std::cout << e.what() << std::endl;
+            }
+        }
+        else
+        {
+            auto crypt_path = std::get<1>(data.value());
+            auto plain_path = std::get<1>(ot.value());
+            std::string fmt_key = std::format("{}:{}", type_fmt_string(static_cast<serializeType>(key_type)), key_str);
+            auto task = pool.add_task(
+                [add_head_ = add_head.value(), block_cipher, fmt_key, head_size]
+                (dog_torch::async::thread::PauseableChannel& pc, fs::path crypt, fs::path plain) -> PauseableDetail
+                {
+                    //todo test
+                    pc.param("type") = TaskType::Crypt;
+                    pc.param("plain") = plain.string();
+                    pc.param("crypt") = crypt.string();
+                    pc.param("key") = fmt_key;
+                    uint64_t crypt_size = fs::file_size(crypt) - head_size;
+                    std::ifstream crypt_stream(crypt, std::ios::binary);
+                    crypt_stream.seekg(head_size);
+                    std::ofstream plain_stream(plain, std::ios::binary);
+                    block_cipher->init();
+                    pc.param("config_str") = block_cipher->fmt_string();
+                    block_cipher->decryptp_stream(pc, crypt_stream, crypt_size, plain_stream);
+                    return pc.to_detail();
+                },
+                crypt_path, plain_path
+            );
+            std::cout << "success to add task query, id is " << task.task_id << "\n";
+        }
+    }
+}
 
 void using_mode()
 {
+    std::cout << "console mode only support fewer features" << "\n";
+    std::cout << "please use GUI mode" << "\n";
+    std::cout.flush();
 
     PausedThreadPool pool{ 1 };
     pool.start();
 
     std::unordered_map<uint64_t, HashResult> hash_results;
-    std::vector<std::pair<uint64_t, PauseableDetail>> task_results;
     std::optional<uint64_t> op = 0;
     do
     {
@@ -637,9 +1135,13 @@ void using_mode()
             {
                 handle_hash(pool, hash_results);
             }
+            else if (op == 3)
+            {
+                handle_sym_crypt(pool);
+            }
             else if (op == 5)
             {
-                task_manage(pool, hash_results, task_results);
+                task_manage(pool, hash_results);
             }
         }
         catch (std::exception& e)

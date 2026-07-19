@@ -2,7 +2,7 @@
 
 namespace NSROOT = dog_torch::crypto::hash::algorithm;
 
-std::array<std::reference_wrapper<const NSROOT::Config>, 3> NSROOT::get_all()
+std::vector<std::reference_wrapper<const NSROOT::Config>> NSROOT::get_all()
 {
     return {
         std::cref(SHA2::allowed_config()),
@@ -53,21 +53,21 @@ std::unique_ptr<NSROOT::Algorithm> NSROOT::create(const std::string& name, uint6
 #define SERIALIZE(name) dog_torch__serialize__##name
 #define UTILS(name)     dog_torch__utils__##name
 
-NAMESPACE(ConfigArray)* NAMESPACE(get_all)()
+NAMESPACE(ConfigVector)* NAMESPACE(get_all)()
 {
-    return new NAMESPACE(ConfigArray){ dog_torch::crypto::hash::algorithm::get_all() };
+    return new NAMESPACE(ConfigVector){ dog_torch::crypto::hash::algorithm::get_all() };
 }
-void NAMESPACE(ConfigArray_delete)(NAMESPACE(ConfigArray)** self)
+void NAMESPACE(ConfigVector_delete)(NAMESPACE(ConfigVector)** self)
 {
     DEFAULT_DESTOTY(self);
 }
 
-uint64_t NAMESPACE(ConfigArray_size)(const LVALUE(NAMESPACE(ConfigArray))self)
+uint64_t NAMESPACE(ConfigVector_size)(const LVALUE(NAMESPACE(ConfigVector))self)
 {
     if (self == nullptr) return 0;
     return self->size();
 }
-const LVALUE(CRYPTO_HASH_BASE(Config)) NAMESPACE(ConfigArray_at)(LVALUE(UTILS(CppResultSet))result_set, const LVALUE(NAMESPACE(ConfigArray))self, uint64_t index)
+const LVALUE(CRYPTO_HASH_BASE(Config)) NAMESPACE(ConfigVector_at)(LVALUE(UTILS(CppResultSet))result_set, const LVALUE(NAMESPACE(ConfigVector))self, uint64_t index)
 {
     using dog_torch::utils::CppResultSet_reset;
     if (self == nullptr)

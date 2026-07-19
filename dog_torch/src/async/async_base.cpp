@@ -12,6 +12,7 @@ std::string NSROOT::status_to_string(Status status)
 	case Status::Blocked: return "Blocked";
 	case Status::Stopped: return "Stopped";
 	}
+	return "";
 }
 
 #ifdef SHARED

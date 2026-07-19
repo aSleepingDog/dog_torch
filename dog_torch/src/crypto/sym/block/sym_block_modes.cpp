@@ -2,7 +2,7 @@
 
 namespace NSROOT = dog_torch::crypto::sym::block::mode;
 
-const std::array<std::reference_wrapper<const NSROOT::Config>, 10> NSROOT::get_all()
+const std::vector<std::reference_wrapper<const NSROOT::Config>> NSROOT::get_all()
 {
     return {
         std::cref(ECB::params_config()),
@@ -24,7 +24,7 @@ std::unique_ptr<NSROOT::Mode> NSROOT::create(const std::string& name, const padd
     {
         return std::make_unique<ECB>(padding);
     }
-    if (params.find("iv") == params.end() || params.at("iv").index() != 2)
+    if (params.find("iv") == params.end() || params.at("iv").index() != static_cast<uint64_t>(ParamType::Binary))
     {
         return nullptr;
     }
@@ -36,7 +36,7 @@ std::unique_ptr<NSROOT::Mode> NSROOT::create(const std::string& name, const padd
     {
         return std::make_unique<CBC>(std::get<BinaryData>(params.at("iv")), padding);
     }
-    if (params.find("shift") == params.end() || params.at("shift").index() != 0)
+    if (params.find("shift") == params.end() || params.at("shift").index() != static_cast<uint64_t>(ParamType::UInt64))
     {
         return nullptr;
     }
@@ -86,11 +86,11 @@ std::unique_ptr<NSROOT::Mode> NSROOT::create(const std::string& name, const padd
     {
         BinaryData aad;
         uint64_t tag_out = 16;
-        if (params.find("aad") != params.end() && params.at("aad").index() == 2)
+        if (params.find("aad") != params.end() && params.at("aad").index() == static_cast<uint64_t>(ParamType::Binary))
         {
             aad = std::get<BinaryData>(params.at("aad"));
         }
-        if (params.find("tag_out") != params.end() && params.at("tag_out").index() == 0)
+        if (params.find("tag_out") != params.end() && params.at("tag_out").index() == static_cast<uint64_t>(ParamType::UInt64))
         {
             tag_out = std::get<uint64_t>(params.at("tag_out"));
         }
@@ -112,21 +112,21 @@ std::unique_ptr<NSROOT::Mode> NSROOT::create(const std::string& name, const padd
 #define SERIALIZE(name) dog_torch__serialize__##name
 #define UTILS(name)     dog_torch__utils__##name
 
-NS_MODE(ConfigArray)* NS_MODE(get_all)()
+NS_MODE(ConfigVector)* NS_MODE(get_all)()
 {
-    return new NS_MODE(ConfigArray){
+    return new NS_MODE(ConfigVector){
         NSROOT::get_all()
     };
 }
-void NS_MODE(ConfigArray_delete)(NS_MODE(ConfigArray)** self)
+void NS_MODE(ConfigVector_delete)(NS_MODE(ConfigVector)** self)
 {
     DEFAULT_DESTOTY(self);
 }
-uint64_t NS_MODE(ConfigArray_size)(const LVALUE(NS_MODE(ConfigArray)) self)
+uint64_t NS_MODE(ConfigVector_size)(const LVALUE(NS_MODE(ConfigVector)) self)
 {
     return self == nullptr ? 0 : self->size();
 }
-const LVALUE(NS_MODE(Config)) NS_MODE(ConfigArray_at)(LVALUE(UTILS(CppResultSet)) result_set, const LVALUE(NS_MODE(ConfigArray)) self, uint64_t index)
+const LVALUE(NS_MODE(Config)) NS_MODE(ConfigVector_at)(LVALUE(UTILS(CppResultSet)) result_set, const LVALUE(NS_MODE(ConfigVector)) self, uint64_t index)
 {
     using namespace dog_torch::utils;
     if (self == nullptr)

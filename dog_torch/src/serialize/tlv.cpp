@@ -386,7 +386,7 @@ NSROOT::Value NSROOT::Value::parse(std::vector<uint8_t>::const_iterator& pos, st
 	}
 	else if ((tag >> 5) == 0b010)
 	{
-		char sign = tag >> 3 & 1 ? 1 : -1;
+		char sign = tag >> 3 & 1 ? -1 : 1;
 		uint8_t llen = (tag & 0b111) + 1;
 		uint64_t number = 0;
 		for (uint8_t i = 0; i < llen; i++)
@@ -446,7 +446,7 @@ NSROOT::Value NSROOT::Value::parse(std::vector<uint8_t>::const_iterator& pos, st
 	else if ((tag >> 5) == 0b101)
 	{
 		uint64_t mib = 106;
-		if (!((tag >> 3) & 0b11))
+		if (((tag >> 3) & 0b11))
 		{
 			uint8_t mlen = 1 << ((tag >> 3) & 0b11);
 			for (uint8_t i = 0; i < mlen; i++)
@@ -539,7 +539,11 @@ NSROOT::Value NSROOT::Value::parse(std::vector<uint8_t>::const_iterator& pos, st
 
 NSROOT::Value NSROOT::Value::parse(std::istream& input)
 {
-	uint8_t tag = input.get();
+	auto next = [&input]() -> uint8_t
+		{
+			return static_cast<uint8_t>(input.get());
+		};
+	uint8_t tag = next();
 	if ((tag >> 4) == 0b0010)
 	{
 		return Value(nullptr);
@@ -550,13 +554,13 @@ NSROOT::Value NSROOT::Value::parse(std::istream& input)
 	}
 	else if ((tag >> 5) == 0b010)
 	{
-		char sign = tag >> 3 & 1 ? 1 : -1;
-		uint8_t llen = tag & 0b111 + 1;
+		char sign = tag >> 3 & 1 ? -1 : 1;
+		uint8_t llen = (tag & 0b111) + 1;
 		uint64_t number = 0;
 		for (uint8_t i = 0; i < llen; i++)
 		{
 			number <<= 8;
-			number |= input.get();
+			number |= next();
 		}
 		return Value(sign, number);
 	}
@@ -564,14 +568,14 @@ NSROOT::Value NSROOT::Value::parse(std::istream& input)
 	{
 		if ((tag & 0b11) == 0b00 || (tag & 0b11) == 0b11)
 		{
-			throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_TAG));
+			throw DOG_EXCEPTION(array_to_view(ERROR_UNSUPPORT_FLOAT));
 		}
 		else if ((tag & 0b11) == 0b01)
 		{
 			float number = 0;
 			for (uint8_t i = 0; i < 4; i++)
 			{
-				uint8_t t = input.get();
+				uint8_t t = next();
 				memset(&number + i, t, 1);
 			}
 			return Value(number);
@@ -581,7 +585,7 @@ NSROOT::Value NSROOT::Value::parse(std::istream& input)
 			double number = 0;
 			for (uint8_t i = 0; i < 8; i++)
 			{
-				uint8_t t = input.get();
+				uint8_t t = next();
 				memset(&number + i, t, 1);
 			}
 			return Value(number);
@@ -593,54 +597,54 @@ NSROOT::Value NSROOT::Value::parse(std::istream& input)
 	}
 	else if ((tag >> 5) == 0b100)
 	{
-		uint8_t llen = tag & 0b111 + 1;
+		uint8_t llen = (tag & 0b111) + 1;
 		uint64_t size = 0;
 		for (uint8_t i = 0; i < llen; i++)
 		{
 			size <<= 8;
-			size |= input.get();
+			size |= next();
 		}
 		std::vector<uint8_t> value(size);
 		for (uint64_t i = 0; i < size; i++)
 		{
-			value[i] = input.get();
+			value[i] = next();
 		}
 		return Value(value);
 	}
 	else if ((tag >> 5) == 0b101)
 	{
 		uint64_t mib = 106;
-		if (!((tag >> 3) & 0b11))
+		if (((tag >> 3) & 0b11))
 		{
 			uint8_t mlen = 1 << ((tag >> 3) & 0b11);
 			for (uint8_t i = 0; i < mlen; i++)
 			{
 				mib <<= 8;
-				mib |= input.get();
+				mib |= next();
 			}
 		}
-		uint8_t llen = tag & 0b111 + 1;
+		uint8_t llen = (tag & 0b111) + 1;
 		uint64_t size = 0;
 		for (uint8_t i = 0; i < llen; i++)
 		{
 			size <<= 8;
-			size |= input.get();
+			size |= next();
 		}
 		std::string value(size, 0);
 		for (uint64_t i = 0; i < size; i++)
 		{
-			value[i] = input.get();
+			value[i] = next();
 		}
 		return Value(MIBString{ std::move(value),mib });
 	}
 	else if ((tag >> 6) == 0b11)
 	{
-		uint8_t llen = tag & 0b111 + 1;
+		uint8_t llen = (tag & 0b111) + 1;
 		uint64_t size = 0;
 		for (uint8_t i = 0; i < llen; i++)
 		{
 			size <<= 8;
-			size |= input.get();
+			size |= next();
 		}
 		if (((tag >> 3) & 0b111) == 0b000)
 		{
@@ -882,16 +886,16 @@ std::vector<uint8_t> NSROOT::Value::serialize() const
 		for (const auto& [key, val] : value)
 		{
 			tag = 0b10100000;
-			auto mibstr = this->to_string();
-			if (mibstr.mib != 106)
+			//
+			if (key.mib != 106)
 			{
-				uint8_t mibl = available_size(mibstr.mib);
+				uint8_t mibl = available_size(key.mib);
 				if (mibl <= 2) mibl = 0b01;
 				else if (mibl <= 4) mibl = 0b10;
 				else if (mibl <= 8) mibl = 0b11;
 				tag |= mibl << 3;
 			}
-			uint64_t size = mibstr.string.size();
+			uint64_t size = key.string.size();
 			uint8_t llen = available_size(size);
 			tag |= llen - 1;
 			result.push_back(tag);
@@ -901,7 +905,7 @@ std::vector<uint8_t> NSROOT::Value::serialize() const
 			}
 			for (uint64_t i = 0; i < size; ++i)
 			{
-				result.push_back(mibstr.string[i]);
+				result.push_back(key.string[i]);
 			}
 			auto vbs = val.serialize();
 			result.insert(result.end(), vbs.begin(), vbs.end());

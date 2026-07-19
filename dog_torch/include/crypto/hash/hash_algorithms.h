@@ -11,7 +11,7 @@
 
 namespace dog_torch::crypto::hash::algorithm
 {
-	DOG_TORCH_API std::array<std::reference_wrapper<const Config>,3> get_all();
+	DOG_TORCH_API std::vector<std::reference_wrapper<const Config>> get_all();
 	DOG_TORCH_API std::unique_ptr<Algorithm> create(const std::string& name, uint64_t effective, const std::unordered_map<std::string, Param>& params);
 }
 
@@ -23,12 +23,12 @@ namespace dog_torch::crypto::hash::algorithm
 
 extern "C"
 {
-	using NAMESPACE(ConfigArray) = std::array<std::reference_wrapper<const CRYPTO_HASH_BASE(Config)>, 3>;
+	using NAMESPACE(ConfigVector) = std::vector<std::reference_wrapper<const CRYPTO_HASH_BASE(Config)>>;
 
-	C_API(NAMESPACE(ConfigArray)*)                NAMESPACE(get_all)                          ();
-	C_API(void)                                   NAMESPACE(ConfigArray_delete)               (NAMESPACE(ConfigArray)** self);
-	C_API(uint64_t)                               NAMESPACE(ConfigArray_size)                 (const LVALUE(NAMESPACE(ConfigArray)) self);
-	C_API(const LVALUE(CRYPTO_HASH_BASE(Config))) NAMESPACE(ConfigArray_at)                   (LVALUE(UTILS(CppResultSet)) result_set, const LVALUE(NAMESPACE(ConfigArray)) self, uint64_t index);
+	C_API(NAMESPACE(ConfigVector)*)                NAMESPACE(get_all)                          ();
+	C_API(void)                                    NAMESPACE(ConfigVector_delete)               (NAMESPACE(ConfigVector)** self);
+	C_API(uint64_t)                                NAMESPACE(ConfigVector_size)                 (const LVALUE(NAMESPACE(ConfigVector)) self);
+	C_API(const LVALUE(CRYPTO_HASH_BASE(Config)))  NAMESPACE(ConfigVector_at)                   (LVALUE(UTILS(CppResultSet)) result_set, const LVALUE(NAMESPACE(ConfigVector)) self, uint64_t index);
 
 	C_API(CRYPTO_HASH_BASE(Algorithm)*)           CRYPTO_HASH_BASE(Algorithm_create_c_str)    (const char* name, uint64_t effective, const LVALUE(CRYPTO_BASE(ParamHashMap)) map);
 	C_API(CRYPTO_HASH_BASE(Algorithm)*)           CRYPTO_HASH_BASE(Algorithm_create_string)   (const LVALUE(UTILS(CppString)) name, uint64_t effective, const LVALUE(CRYPTO_BASE(ParamHashMap)) map);

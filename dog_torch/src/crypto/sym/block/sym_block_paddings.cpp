@@ -2,7 +2,7 @@
 
 namespace NSROOT = dog_torch::crypto::sym::block::padding;
 
-const std::array<std::reference_wrapper<const NSROOT::Config>, 6> NSROOT::get_all()
+const std::vector<std::reference_wrapper<const NSROOT::Config>> NSROOT::get_all()
 {
     return {
         std::cref(NoPadding::allowed_config()),
@@ -52,20 +52,20 @@ std::unique_ptr<NSROOT::Padding> NSROOT::create(const std::string& name)
 #define SERIALIZE(name) dog_torch__serialize__##name
 #define UTILS(name)     dog_torch__utils__##name
 
-NS_PADDING(ConfigArray)* NS_PADDING(get_all)()
+NS_PADDING(ConfigVector)* NS_PADDING(get_all)()
 {
-    return new NS_PADDING(ConfigArray)(NSROOT::get_all());
+    return new NS_PADDING(ConfigVector)(NSROOT::get_all());
 }
-void NS_PADDING(ConfigArray_delete)(NS_PADDING(ConfigArray)** self)
+void NS_PADDING(ConfigVector_delete)(NS_PADDING(ConfigVector)** self)
 {
     DEFAULT_DESTOTY(self);
 }
-uint64_t NS_PADDING(ConfigArray_size)(const LVALUE(NS_PADDING(ConfigArray)) self)
+uint64_t NS_PADDING(ConfigVector_size)(const LVALUE(NS_PADDING(ConfigVector)) self)
 {
     if (self == nullptr) return 0;
     return self->size();
 }
-const LVALUE(NS_PADDING(Config)) NS_PADDING(ConfigArray_at)(LVALUE(UTILS(CppResultSet)) result_set, const LVALUE(NS_PADDING(ConfigArray)) self, uint64_t index)
+const LVALUE(NS_PADDING(Config)) NS_PADDING(ConfigVector_at)(LVALUE(UTILS(CppResultSet)) result_set, const LVALUE(NS_PADDING(ConfigVector)) self, uint64_t index)
 {
     using namespace dog_torch::utils;
     if (self == nullptr)

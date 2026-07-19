@@ -2,6 +2,7 @@
 
 namespace NSROOT = dog_torch::crypto::sym::block::mode;
 using dog_torch::serialize::BinaryData;
+using Value = dog_torch::serialize::tlv::Value;
 using dog_torch::utils::from_c_str;
 
 using dog_torch::utils::from_uint64;
@@ -38,9 +39,16 @@ const NSROOT::Config& NSROOT::ECB::params_config()
     static const Config config = Config("ECB", {});
     return config;
 }
-NSROOT::Config dog_torch::crypto::sym::block::mode::ECB::config() const
+NSROOT::Config NSROOT::ECB::config() const
 {
     return params_config();
+}
+Value NSROOT::ECB::serialize() const
+{
+    using dog_torch::serialize::tlv::MIBString;
+    auto total = static_cast<Mode>(*this).serialize();
+    total.to_array()[0] = MIBString{ this->config().name };
+    return total;
 }
 std::string NSROOT::ECB::fmt_string() const
 {

@@ -63,6 +63,7 @@ Value NSROOT::PCBC::serialize() const
 	using dog_torch::serialize::tlv::MIBString;
 	auto total = static_cast<Mode>(*this).serialize();
 	Value params = std::unordered_map<MIBString, Value>{};
+	total.to_array()[0] = MIBString{ this->config().name };
 	params.to_object()[MIBString{ "iv" }] = Value{ this->iv_.get_data() };
 	total.to_array().push_back(params);
 	return total;

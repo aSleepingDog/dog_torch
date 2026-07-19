@@ -51,7 +51,7 @@ namespace dog_torch::crypto::sym
 namespace dog_torch::async::pool
 {
 	using cryptp_stream_func = std::function<void(PauseableChannel&, dog_torch::crypto::sym::Cipher&, std::istream&, uint64_t, std::ostream&)>;
-	template<> std::pair<uint64_t, std::future<void>> PausedThreadPool::add_task(cryptp_stream_func&&, dog_torch::crypto::sym::Cipher&, std::istream&, uint64_t&&, std::ostream&);
+	template<> Result<void> PausedThreadPool::add_task(cryptp_stream_func&&, dog_torch::crypto::sym::Cipher&, std::istream&, uint64_t&&, std::ostream&);
 };
 #endif // SHARED
 

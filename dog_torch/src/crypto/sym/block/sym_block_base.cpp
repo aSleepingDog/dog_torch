@@ -339,10 +339,13 @@ std::string NSROOT::BlockCipher::fmt_string() const
 }
 Value NSROOT::BlockCipher::serialize() const
 {
+	using dog_torch::serialize::tlv::MIBString;
+	Value tag_t = std::unordered_map<MIBString, Value>{};
 	Value total = std::vector<Value>{};
 	total.to_array().push_back(this->algorithm_->serialize());
 	total.to_array().push_back(this->mode_->serialize());
-	return total;
+	tag_t.to_object().insert({ MIBString{ "Block" } ,total });
+	return tag_t;
 }
 
 NSROOT::algorithm::Algorithm& NSROOT::BlockCipher::algorithm()

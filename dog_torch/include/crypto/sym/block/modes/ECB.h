@@ -29,6 +29,7 @@ namespace dog_torch::crypto::sym::block::mode
 		std::unique_ptr<Mode> clone() const override;
 		static const Config& params_config();
 		Config config() const override;
+		Value serialize() const override;
 
 		std::string fmt_string() const override;
 
