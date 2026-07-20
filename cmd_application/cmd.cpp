@@ -531,9 +531,13 @@ std::string fmt_iso_time(uint64_t milis_time)
     rs += std::format("{:0>3}", r[0]);
     return rs;
 }
+using dog_torch::async::pool::Result;
+using dog_torch::async::pool::SharedResult;
+using dog_torch::async::thread::PauseableDetail;
 void task_manage(
     PausedThreadPool& pool, 
-    std::unordered_map<uint64_t, HashResult>& hash_results
+    std::unordered_map<uint64_t, HashResult>& hash_results,
+    std::vector<SharedResult<PauseableDetail>>& crypto_result
 )
 {
     clear_cmd();
@@ -559,6 +563,24 @@ void task_manage(
             }
         }
         std::cout.flush();
+        for (auto& crypt : crypto_result)
+        {
+            using std::chrono::microseconds;
+            if (crypt.future.wait_for(microseconds(1)) == std::future_status::ready)
+            {
+                std::cout << std::format("id: {}\n", crypt.task_id);
+                std::cout << "=====plain=====" << "\n";
+                std::cout << std::any_cast<std::string>(crypt.future.get().params.at("plain")) << "\n";
+                std::cout << "=====key=====" << "\n";
+                std::cout << std::any_cast<std::string>(crypt.future.get().params.at("key")) << "\n";
+                std::cout << "=====operate=====" << "\n";
+                std::cout << std::any_cast<std::string>(crypt.future.get().params.at("config_str")) << "\n";
+                std::cout << "=====crypt=====" << "\n";
+                std::cout << std::any_cast<std::string>(crypt.future.get().params.at("crypt")) << "\n";
+                std::cout << "=====result=====" << "\n";
+                std::cout << std::any_cast<std::string>(crypt.future.get().params.at("status")) << "\n";
+            }
+        }
         std::cout << "=====tasks deatil=====" << "\n";
         for (auto& detail : details)
         {
@@ -872,7 +894,7 @@ std::shared_ptr<block_crypto::BlockCipher> parse_block_cipher(Value value)
     return std::make_shared<block_crypto::BlockCipher>(*alg_ptr, *mode);
 
 }
-void handle_sym_crypt(PausedThreadPool& pool)
+void handle_sym_crypt(PausedThreadPool& pool, std::vector<SharedResult<PauseableDetail>>& crypto_result)
 {
     using dog_torch::serialize::tlv::Value;
     std::optional<uint64_t> op = 0;
@@ -973,12 +995,21 @@ void handle_sym_crypt(PausedThreadPool& pool)
                     }
                     block_cipher->init();
                     pc.param("config_str") = block_cipher->fmt_string();
-                    block_cipher->encryptp_stream(pc, plain_stream, plain_size, crypt_stream);
+                    try
+                    {
+                        block_cipher->encryptp_stream(pc, plain_stream, plain_size, crypt_stream);
+                        pc.param("result") = std::string("success");
+                    }
+                    catch (std::exception& e)
+                    {
+                        pc.param("result") = std::string(e.what());
+                    }
                     return pc.to_detail();
                 },
                 plain_path, crypt_path
             );
             std::cout << "success to add task query, id is " << task.task_id << "\n";
+            crypto_result.emplace_back(task.share());
         }
     }
     else if (op == 2)
@@ -1091,11 +1122,20 @@ void handle_sym_crypt(PausedThreadPool& pool)
                     std::ofstream plain_stream(plain, std::ios::binary);
                     block_cipher->init();
                     pc.param("config_str") = block_cipher->fmt_string();
-                    block_cipher->decryptp_stream(pc, crypt_stream, crypt_size, plain_stream);
+                    try
+                    {
+                        block_cipher->decryptp_stream(pc, crypt_stream, crypt_size, plain_stream);
+                        pc.param("status") = std::string("success");
+                    }
+                    catch (std::exception& e)
+                    {
+                        pc.param("status") = std::string(e.what());
+                    }
                     return pc.to_detail();
                 },
                 crypt_path, plain_path
             );
+            crypto_result.emplace_back(task.share());
             std::cout << "success to add task query, id is " << task.task_id << "\n";
         }
     }
@@ -1111,6 +1151,7 @@ void using_mode()
     pool.start();
 
     std::unordered_map<uint64_t, HashResult> hash_results;
+    std::vector<SharedResult<PauseableDetail>> crypt_results;
     std::optional<uint64_t> op = 0;
     do
     {
@@ -1137,11 +1178,11 @@ void using_mode()
             }
             else if (op == 3)
             {
-                handle_sym_crypt(pool);
+                handle_sym_crypt(pool, crypt_results);
             }
             else if (op == 5)
             {
-                task_manage(pool, hash_results);
+                task_manage(pool, hash_results, crypt_results);
             }
         }
         catch (std::exception& e)
