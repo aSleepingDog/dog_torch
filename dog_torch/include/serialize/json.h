@@ -1,6 +1,7 @@
 #pragma once
 #include "export.h"
 
+#include <math.h>
 #include <stack>
 #include <vector>
 #include <string>

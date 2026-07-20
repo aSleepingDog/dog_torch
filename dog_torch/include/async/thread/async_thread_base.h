@@ -6,6 +6,7 @@
 #include <string>
 #include <chrono>
 #include <unordered_map>
+#include <condition_variable>
 #include <any>
 
 #include "math/number.h"

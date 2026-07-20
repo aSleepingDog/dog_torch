@@ -20,79 +20,96 @@ constexpr auto ERROR_UNSIGNED_SUBTRACT_LESS = "a<b when unsigned numbers subtrac
 #include <immintrin.h>
 void u64add(uint64_t carry_in, uint64_t a, uint64_t b, uint64_t* carry, uint64_t* result)
 {
-	*carry = _addcarry_u64(static_cast<unsigned char>(carry_in), a, b, result);
+    *carry = _addcarry_u64(static_cast<unsigned char>(carry_in), a, b, result);
 }
 void u64sub(uint64_t borrow_in, uint64_t a, uint64_t b, uint64_t* borrow, uint64_t* result)
 {
-	*borrow = _subborrow_u64(static_cast<unsigned char>(borrow_in), a, b, result);
+    *borrow = _subborrow_u64(static_cast<unsigned char>(borrow_in), a, b, result);
 }
+#if defined(_MSC_VER)
 void u64mul(uint64_t a, uint64_t b, uint64_t* result_high, uint64_t* result_low)
 {
-	*result_low = _umul128(a, b, result_high);
+    *result_low = _umul128(a, b, result_high);
 }
 void u128div(uint64_t a_h, uint64_t a_l, uint64_t b, uint64_t* q, uint64_t* r)
 {
-	*q = _udiv128(a_h, a_l, b, r);
+    *q = _udiv128(a_h, a_l, b, r);
 }
+#elif defined(__GNUC__)
+void u64mul(uint64_t a, uint64_t b, uint64_t* result_high, uint64_t* result_low)
+{
+    unsigned __int128 c = (unsigned __int128)a * (unsigned __int128)b;
+    *result_high = (uint64_t)(c >> 64);
+    *result_low = (uint64_t)c;
+}
+void u128div(uint64_t a_h, uint64_t a_l, uint64_t b, uint64_t* q, uint64_t* r)
+{
+    unsigned __int128 dividend = ((unsigned __int128)a_h << 64) | (unsigned __int128)a_l;
+    unsigned __int128 quotient = dividend / (unsigned __int128)b;
+    unsigned __int128 remainder = dividend % (unsigned __int128)b;
+    *q = (uint64_t)quotient;
+    *r = (uint64_t)remainder;
+}
+#endif
 // #elif defined(__aarch64__) || defined(_M_ARM64)
 #else
 //纯软件模拟
 void u64add(uint64_t carry_in, uint64_t a, uint64_t b, uint64_t* carry, uint64_t* result)
 {
-	uint64_t low = (a & 0xFFFFFFFF) + (b & 0xFFFFFFFF) + carry_in;
-	uint64_t high = (a >> 32) + (b >> 32) + (low >> 32);
-	*carry = high >> 32;
-	*result = high << 32 | low;
+    uint64_t low = (a & 0xFFFFFFFF) + (b & 0xFFFFFFFF) + carry_in;
+    uint64_t high = (a >> 32) + (b >> 32) + (low >> 32);
+    *carry = high >> 32;
+    *result = high << 32 | low;
 }
 void u64sub(uint64_t borrow_in, uint64_t a, uint64_t b, uint64_t* borrow, uint64_t* result)
 {
-	uint64_t carry = b == 0xFFFFFFFFFFFFFFFF && borrow_in == 1 ? 1 : 0;
-	b += borrow_in;
-	//carry|b = b + borrow_in
-	bool com = a >= b;
-	*borrow = carry | !com;
-	*result = com ? a - b : (~(b - a) + 1);
+    uint64_t carry = b == 0xFFFFFFFFFFFFFFFF && borrow_in == 1 ? 1 : 0;
+    b += borrow_in;
+    //carry|b = b + borrow_in
+    bool com = a >= b;
+    *borrow = carry | !com;
+    *result = com ? a - b : (~(b - a) + 1);
 }
 void u64mul(uint64_t a, uint64_t b, uint64_t* result_high, uint64_t* result_low)
 {
-	uint32_t a0 = a & 0xffffffff;
-	uint32_t a1 = a >> 32;
-	uint32_t b0 = b & 0xffffffff;
-	uint32_t b1 = b >> 32;
+    uint32_t a0 = a & 0xffffffff;
+    uint32_t a1 = a >> 32;
+    uint32_t b0 = b & 0xffffffff;
+    uint32_t b1 = b >> 32;
 
-	uint64_t low = (uint64_t)a0 * b0;
-	uint64_t high = (uint64_t)a1 * b1;
-	uint64_t mid0 = (uint64_t)a0 * b1;
-	uint64_t mid1 = (uint64_t)a1 * b0;
-	if (mid0 > 0xffffffffffffffff - mid1)
-	{
-		high += 0x100000000;
-	}
-	mid0 += mid1;
-	high += (mid0) >> 32;
-	if (low > 0xffffffffffffffff - (mid0 << 32))
-	{
-		high++;
-	}
-	low += mid0 << 32;
+    uint64_t low = (uint64_t)a0 * b0;
+    uint64_t high = (uint64_t)a1 * b1;
+    uint64_t mid0 = (uint64_t)a0 * b1;
+    uint64_t mid1 = (uint64_t)a1 * b0;
+    if (mid0 > 0xffffffffffffffff - mid1)
+    {
+        high += 0x100000000;
+    }
+    mid0 += mid1;
+    high += (mid0) >> 32;
+    if (low > 0xffffffffffffffff - (mid0 << 32))
+    {
+        high++;
+    }
+    low += mid0 << 32;
 
-	*result_high = high;
-	*result_low = low;
+    *result_high = high;
+    *result_low = low;
 }
 void u128div(uint64_t a_h, uint64_t a_l, uint64_t b, uint64_t* q, uint64_t* r)
 {
-	for (uint64_t i = 0; i < 64; ++i)
-	{
-		a_h = a_h << 1 | a_l >> 63;
-		a_l = a_l << 1;
-		if (a_h > b)
-		{
-			a_h -= b;
-			a_l |= 1;
-		}
-	}
-	*q = a_l;
-	*r = a_h;
+    for (uint64_t i = 0; i < 64; ++i)
+    {
+        a_h = a_h << 1 | a_l >> 63;
+        a_l = a_l << 1;
+        if (a_h > b)
+        {
+            a_h -= b;
+            a_l |= 1;
+        }
+    }
+    *q = a_l;
+    *r = a_h;
 }
 #endif
 
@@ -141,59 +158,59 @@ NSROOT::UnsignedInteger128::UnsignedInteger128() : high_(0), low_(0) {}
 NSROOT::UnsignedInteger128::UnsignedInteger128(uint64_t high, uint64_t low) : high_(high), low_(low) {}
 NSROOT::UnsignedInteger128::UnsignedInteger128(uint64_t low) : high_(0), low_(low) {}
 
-NSROOT::UnsignedInteger128::UnsignedInteger128(const UnsignedInteger128 & other) : high_(other.high_), low_(other.low_) {}
-NSROOT::UnsignedInteger128& NSROOT::UnsignedInteger128::operator=(const UnsignedInteger128 & other)
+NSROOT::UnsignedInteger128::UnsignedInteger128(const UnsignedInteger128& other) : high_(other.high_), low_(other.low_) {}
+NSROOT::UnsignedInteger128& NSROOT::UnsignedInteger128::operator=(const UnsignedInteger128& other)
 {
-	this->high_ = other.high_;
-	this->low_ = other.low_;
-	return *this;
+    this->high_ = other.high_;
+    this->low_ = other.low_;
+    return *this;
 }
 NSROOT::UnsignedInteger128::UnsignedInteger128(UnsignedInteger128&& other) noexcept : high_(other.high_), low_(other.low_) {}
-NSROOT::UnsignedInteger128& NSROOT::UnsignedInteger128::operator=(UnsignedInteger128 && other) noexcept
+NSROOT::UnsignedInteger128& NSROOT::UnsignedInteger128::operator=(UnsignedInteger128&& other) noexcept
 {
     if (this == &other) return *this;
-	this->high_ = other.high_;
-	this->low_ = other.low_;
-	return *this;
+    this->high_ = other.high_;
+    this->low_ = other.low_;
+    return *this;
 }
 
 NSROOT::CompareResult NSROOT::UnsignedInteger128::compare(const UnsignedInteger128& a, const UnsignedInteger128& b) noexcept
 {
-	if (a.high_ < b.high_)
-		return CompareResult::LESS;
-	if (a.high_ > b.high_)
-		return CompareResult::GREATER;
-	if (a.low_ < b.low_)
-		return CompareResult::LESS;
-	if (a.low_ > b.low_)
-		return CompareResult::GREATER;
-	return CompareResult::EQUAL;
+    if (a.high_ < b.high_)
+        return CompareResult::LESS;
+    if (a.high_ > b.high_)
+        return CompareResult::GREATER;
+    if (a.low_ < b.low_)
+        return CompareResult::LESS;
+    if (a.low_ > b.low_)
+        return CompareResult::GREATER;
+    return CompareResult::EQUAL;
 }
 
 
 bool NSROOT::UnsignedInteger128::operator==(const UnsignedInteger128& other) const noexcept
 {
-	return compare(*this, other) == CompareResult::EQUAL;
+    return compare(*this, other) == CompareResult::EQUAL;
 }
 bool NSROOT::UnsignedInteger128::operator!=(const UnsignedInteger128& other) const noexcept
 {
-	return compare(*this, other) != CompareResult::EQUAL;
+    return compare(*this, other) != CompareResult::EQUAL;
 }
 bool NSROOT::UnsignedInteger128::operator<(const UnsignedInteger128& other) const noexcept
 {
-	return compare(*this, other) == CompareResult::LESS;
+    return compare(*this, other) == CompareResult::LESS;
 }
 bool NSROOT::UnsignedInteger128::operator>(const UnsignedInteger128& other) const noexcept
 {
-	return compare(*this, other) == CompareResult::GREATER;
+    return compare(*this, other) == CompareResult::GREATER;
 }
 bool NSROOT::UnsignedInteger128::operator<=(const UnsignedInteger128& other) const noexcept
 {
-	return compare(*this, other) != CompareResult::GREATER;
+    return compare(*this, other) != CompareResult::GREATER;
 }
 bool NSROOT::UnsignedInteger128::operator>=(const UnsignedInteger128& other) const noexcept
 {
-	return compare(*this, other) != CompareResult::LESS;
+    return compare(*this, other) != CompareResult::LESS;
 }
 bool NSROOT::UnsignedInteger128::operator()() const noexcept
 {
@@ -432,7 +449,7 @@ NSROOT::BigUnsignedInteger::BigUnsignedInteger(const vec64& num) : num_(num)
 {
     trims(this->num_);
 }
-NSROOT::BigUnsignedInteger::BigUnsignedInteger(vec64 && num) : num_(std::move(num))
+NSROOT::BigUnsignedInteger::BigUnsignedInteger(vec64&& num) : num_(std::move(num))
 {
     trims(this->num_);
 }
@@ -442,13 +459,13 @@ NSROOT::BigUnsignedInteger::BigUnsignedInteger(uint64_t n)
 }
 
 NSROOT::BigUnsignedInteger::BigUnsignedInteger(const BigUnsignedInteger& other) : num_(other.num_) {};
-NSROOT::BigUnsignedInteger& NSROOT::BigUnsignedInteger::operator=(const BigUnsignedInteger & other)
+NSROOT::BigUnsignedInteger& NSROOT::BigUnsignedInteger::operator=(const BigUnsignedInteger& other)
 {
     num_ = other.num_;
     return *this;
 }
 NSROOT::BigUnsignedInteger::BigUnsignedInteger(BigUnsignedInteger&& other) noexcept : num_(std::move(other.num_)) {};
-NSROOT::BigUnsignedInteger& NSROOT::BigUnsignedInteger::operator=(BigUnsignedInteger && other) noexcept
+NSROOT::BigUnsignedInteger& NSROOT::BigUnsignedInteger::operator=(BigUnsignedInteger&& other) noexcept
 {
     if (this == &other) return *this;
     this->num_ = std::move(other.num_); return *this;
