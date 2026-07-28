@@ -216,7 +216,7 @@ bool NSROOT::UnsignedInteger128::operator()() const noexcept
 {
     return high_ == 0 && low_ == 0;
 }
-bool dog_torch::math::number::UnsignedInteger128::operator!() const noexcept
+bool NSROOT::UnsignedInteger128::operator!() const noexcept
 {
     return high_ != 0 || low_ != 0;
 }
@@ -995,7 +995,7 @@ std::vector<uint64_t> NSROOT::BigUnsignedInteger::v_multiply_distributive(const 
     }
     return result;
 }
-std::vector<uint64_t> dog_torch::math::number::BigUnsignedInteger::v_multiply(const vec64& a, const vec64& b) noexcept
+std::vector<uint64_t> NSROOT::BigUnsignedInteger::v_multiply(const vec64& a, const vec64& b) noexcept
 {
     vec64 result;
     if (a == vec64{ 0 } || b == vec64{ 0 }) return { 0 };
@@ -1214,4 +1214,89 @@ NSROOT::BigUnsignedInteger NSROOT::BigUnsignedInteger::operator>>(uint64_t n) co
 void NSROOT::BigUnsignedInteger::operator>>=(uint64_t n) noexcept
 {
     v_move_bit_self(this->num_, n, true, true);
+}
+
+NSROOT::BigInteger::BigInteger()
+{
+    this->num_ = 0;
+    this->sign_ = 0;
+}
+NSROOT::BigInteger::BigInteger(const BigUnsignedInteger & num)
+{
+    this->num_ = num.num_;
+    if (num == 0) this->sign_ = 0;
+    else this->sign_ = 1;
+}
+NSROOT::BigInteger::BigInteger(char sign, const BigUnsignedInteger & num)
+{
+    this->num_ = num.num_;
+    this->sign_ = sign;
+    if (num == 0) this->sign_ = 0;
+}
+NSROOT::BigInteger::BigInteger(const BigInteger & other)
+{
+    this->sign_ = other.sign_;
+    this->num_ = other.num_;
+}
+NSROOT::BigInteger& NSROOT::BigInteger::operator=(const BigInteger & other)
+{
+    this->sign_ = other.sign_;
+    this->num_ = other.num_;
+    return *this;
+}
+NSROOT::BigInteger::BigInteger(BigInteger&& other) noexcept
+{
+    this->num_ = std::move(other.num_);
+    this->sign_ = other.sign_;
+}
+NSROOT::BigInteger& NSROOT::BigInteger::operator=(BigInteger && other) noexcept
+{
+    if (this == &other) return *this;
+    this->num_ = std::move(other.num_);
+    this->sign_ = other.sign_;
+    return *this;
+}
+std::string NSROOT::BigInteger::to_num_str(uint64_t radix, bool is_upper) const
+{
+    std::string str = this->sign_ == -1 ? "-" : "";
+    str += this->num_.to_num_str(radix, is_upper);
+    return str;
+}
+NSROOT::BigInteger NSROOT::BigInteger::operator+(const BigInteger& other) const
+{
+    if (this->sign_ == other.sign_)
+    {
+        return BigInteger{ this->sign_,this->num_ + other.num_ };
+    }
+    else
+    {
+        if (this->num_ > other.num_)
+        {
+            return BigInteger{ this->sign_,this->num_ - other.num_ };
+        }
+        else if (this->num_ < other.num_)
+        {
+            return BigInteger{ other.sign_,other.num_ - this->num_ };
+        }
+        else
+        {
+            return BigInteger{ 0,0 };
+        }
+    }
+}
+NSROOT::BigInteger NSROOT::BigInteger::operator-() const
+{
+    return BigInteger{ static_cast<char>(-this->sign_) ,this->num_};
+}
+NSROOT::BigInteger NSROOT::BigInteger::operator-(const BigInteger& other) const
+{
+    return *this + (-other);
+}
+NSROOT::BigInteger NSROOT::BigInteger::operator*(const BigInteger& other) const
+{
+    return BigInteger{ static_cast<char>(other.sign_ * this->sign_),other.num_ * this->num_ };
+}
+NSROOT::BigInteger NSROOT::BigInteger::operator/(const BigInteger& other) const
+{
+    return BigInteger{ static_cast<char>(other.sign_ * this->sign_),other.num_ / this->num_ };
 }

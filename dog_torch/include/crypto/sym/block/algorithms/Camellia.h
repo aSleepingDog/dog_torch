@@ -11,7 +11,7 @@
 
 namespace dog_torch::crypto::sym::block::algorithm
 {
-    struct DOG_TORCH_API Camellia : public Algorithm
+    struct CPP_API Camellia : public Algorithm
     {
 		Camellia(uint64_t key_size);
 		~Camellia() override = default;

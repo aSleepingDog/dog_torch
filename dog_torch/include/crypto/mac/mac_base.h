@@ -11,7 +11,7 @@ namespace dog_torch::crypto::mac
 	using BinaryData = dog_torch::serialize::BinaryData;
 	using PauseableChannel = dog_torch::async::thread::PauseableChannel;
 
-	class DOG_TORCH_API MacGenerator
+	class CPP_API MacGenerator
 	{
 	protected:
 		BinaryData key_;

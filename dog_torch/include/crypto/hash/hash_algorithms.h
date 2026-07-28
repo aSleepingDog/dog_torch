@@ -11,8 +11,8 @@
 
 namespace dog_torch::crypto::hash::algorithm
 {
-	DOG_TORCH_API std::vector<std::reference_wrapper<const Config>> get_all();
-	DOG_TORCH_API std::unique_ptr<Algorithm> create(const std::string& name, uint64_t effective, const std::unordered_map<std::string, Param>& params);
+	CPP_API std::vector<std::reference_wrapper<const Config>> get_all();
+	CPP_API std::unique_ptr<Algorithm> create(const std::string& name, uint64_t effective, const std::unordered_map<std::string, Param>& params);
 }
 
 #define NAMESPACE(name) dog_torch__crypto__hash__algorithm__##name

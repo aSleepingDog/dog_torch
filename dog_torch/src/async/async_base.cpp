@@ -16,21 +16,21 @@ std::string NSROOT::status_to_string(Status status)
 }
 
 #ifdef SHARED
-extern template class DOG_TORCH_API NSROOT::Clock<std::chrono::nanoseconds>;
-extern template class DOG_TORCH_API NSROOT::Clock<std::chrono::microseconds>;
-extern template class DOG_TORCH_API NSROOT::Clock<std::chrono::milliseconds>;
-extern template class DOG_TORCH_API NSROOT::Clock<std::chrono::seconds>;
-extern template class DOG_TORCH_API NSROOT::Clock<std::chrono::minutes>;
-extern template class DOG_TORCH_API NSROOT::Clock<std::chrono::hours>;
-extern template class DOG_TORCH_API NSROOT::Clock<std::chrono::days>;
-extern template class DOG_TORCH_API NSROOT::Clock<std::chrono::weeks>;
+extern template class CPP_API NSROOT::Clock<std::chrono::nanoseconds>;
+extern template class CPP_API NSROOT::Clock<std::chrono::microseconds>;
+extern template class CPP_API NSROOT::Clock<std::chrono::milliseconds>;
+extern template class CPP_API NSROOT::Clock<std::chrono::seconds>;
+extern template class CPP_API NSROOT::Clock<std::chrono::minutes>;
+extern template class CPP_API NSROOT::Clock<std::chrono::hours>;
+extern template class CPP_API NSROOT::Clock<std::chrono::days>;
+extern template class CPP_API NSROOT::Clock<std::chrono::weeks>;
 
-extern template class DOG_TORCH_API NSROOT::AutoClock<std::chrono::nanoseconds>;
-extern template class DOG_TORCH_API NSROOT::AutoClock<std::chrono::microseconds>;
-extern template class DOG_TORCH_API NSROOT::AutoClock<std::chrono::milliseconds>;
-extern template class DOG_TORCH_API NSROOT::AutoClock<std::chrono::seconds>;
-extern template class DOG_TORCH_API NSROOT::AutoClock<std::chrono::minutes>;
-extern template class DOG_TORCH_API NSROOT::AutoClock<std::chrono::hours>;
-extern template class DOG_TORCH_API NSROOT::AutoClock<std::chrono::days>;
-extern template class DOG_TORCH_API NSROOT::AutoClock<std::chrono::weeks>;
+extern template class CPP_API NSROOT::AutoClock<std::chrono::nanoseconds>;
+extern template class CPP_API NSROOT::AutoClock<std::chrono::microseconds>;
+extern template class CPP_API NSROOT::AutoClock<std::chrono::milliseconds>;
+extern template class CPP_API NSROOT::AutoClock<std::chrono::seconds>;
+extern template class CPP_API NSROOT::AutoClock<std::chrono::minutes>;
+extern template class CPP_API NSROOT::AutoClock<std::chrono::hours>;
+extern template class CPP_API NSROOT::AutoClock<std::chrono::days>;
+extern template class CPP_API NSROOT::AutoClock<std::chrono::weeks>;
 #endif

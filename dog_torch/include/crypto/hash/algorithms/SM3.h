@@ -11,7 +11,7 @@
 
 namespace dog_torch::crypto::hash::algorithm
 {
-	class DOG_TORCH_API SM3 : public Algorithm
+	class CPP_API SM3 : public Algorithm
 	{
 	private:
 		bool is_padding_80_ = false;

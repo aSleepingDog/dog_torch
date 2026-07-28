@@ -15,7 +15,7 @@ namespace dog_torch::crypto::hash
 
 	namespace algorithm
 	{
-		struct DOG_TORCH_API Config
+		struct CPP_API Config
 		{
 			std::string name;
 			std::string region;
@@ -31,7 +31,7 @@ namespace dog_torch::crypto::hash
 		using update_func = std::function<void(const BinaryData&, BinaryData&)>;
 		using trims_func = std::function<void(BinaryData&)>;
 
-		struct DOG_TORCH_API Algorithm
+		struct CPP_API Algorithm
 		{
 			uint64_t effective;
 			
@@ -62,7 +62,7 @@ namespace dog_torch::crypto::hash
 		};
 	}
 
-	class DOG_TORCH_API Generator
+	class CPP_API Generator
 	{
 	private:
 		std::unique_ptr<algorithm::Algorithm> algorithm_ = nullptr;

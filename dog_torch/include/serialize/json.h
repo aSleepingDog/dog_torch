@@ -14,7 +14,7 @@
 
 namespace dog_torch::serialize::json
 {
-	enum class DOG_TORCH_API Type : uint8_t
+	enum class CPP_API Type : uint8_t
 	{
 		Undefined = 0,
 		Null = 1,
@@ -25,13 +25,13 @@ namespace dog_torch::serialize::json
 		Object = 6
 	};
 
-	class DOG_TORCH_API Value;
-	class DOG_TORCH_API Object;
-	class DOG_TORCH_API Array;
+	class CPP_API Value;
+	class CPP_API Object;
+	class CPP_API Array;
 
-	DOG_TORCH_API void skip_whitespace(std::string_view::iterator& it, const std::string_view::iterator& end);
+	CPP_API void skip_whitespace(std::string_view::iterator& it, const std::string_view::iterator& end);
 
-	class DOG_TORCH_API Value
+	class CPP_API Value
 	{
 	private:
 		std::variant<
@@ -85,7 +85,7 @@ namespace dog_torch::serialize::json
 		bool operator!=(const Value& other) const;
 	};
 
-	class DOG_TORCH_API Object
+	class CPP_API Object
 	{
 	private:
 		using it = std::unordered_map<std::string, Value>::iterator;
@@ -162,7 +162,7 @@ namespace dog_torch::serialize::json
 		Type get_type(const std::string& str) const;
 	};
 
-	class DOG_TORCH_API Array
+	class CPP_API Array
 	{
 	private:
 		using it = std::vector<Value>::iterator;

@@ -68,15 +68,15 @@ NSROOT::BigUInt NSROOT::get_power_2_minus_1(uint64_t n)
 }
 
 #ifdef SHARED
-extern template DOG_TORCH_API uint8_t NSROOT::uirotl<uint8_t>(uint8_t n, uint8_t i);
-extern template DOG_TORCH_API uint16_t NSROOT::uirotl<uint16_t>(uint16_t n, uint8_t i);
-extern template DOG_TORCH_API uint32_t NSROOT::uirotl<uint32_t>(uint32_t n, uint8_t i);
-extern template DOG_TORCH_API uint64_t NSROOT::uirotl<uint64_t>(uint64_t n, uint8_t i);
+extern template CPP_API uint8_t NSROOT::uirotl<uint8_t>(uint8_t n, uint8_t i);
+extern template CPP_API uint16_t NSROOT::uirotl<uint16_t>(uint16_t n, uint8_t i);
+extern template CPP_API uint32_t NSROOT::uirotl<uint32_t>(uint32_t n, uint8_t i);
+extern template CPP_API uint64_t NSROOT::uirotl<uint64_t>(uint64_t n, uint8_t i);
 
-extern template DOG_TORCH_API uint8_t NSROOT::uirotr<uint8_t>(uint8_t n, uint8_t i);
-extern template DOG_TORCH_API uint16_t NSROOT::uirotr<uint16_t>(uint16_t n, uint8_t i);
-extern template DOG_TORCH_API uint32_t NSROOT::uirotr<uint32_t>(uint32_t n, uint8_t i);
-extern template DOG_TORCH_API uint64_t NSROOT::uirotr<uint64_t>(uint64_t n, uint8_t i);
+extern template CPP_API uint8_t NSROOT::uirotr<uint8_t>(uint8_t n, uint8_t i);
+extern template CPP_API uint16_t NSROOT::uirotr<uint16_t>(uint16_t n, uint8_t i);
+extern template CPP_API uint32_t NSROOT::uirotr<uint32_t>(uint32_t n, uint8_t i);
+extern template CPP_API uint64_t NSROOT::uirotr<uint64_t>(uint64_t n, uint8_t i);
 #endif // SHARED
 
 #undef NSROOT

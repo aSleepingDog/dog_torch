@@ -16,8 +16,8 @@
 
 namespace dog_torch::crypto::sym::block::mode
 {
-	DOG_TORCH_API const std::vector<std::reference_wrapper<const Config>> get_all();
-	DOG_TORCH_API std::unique_ptr<Mode> create(const std::string& name, const padding::Padding& padding, const std::unordered_map<std::string, Param>& params);
+	CPP_API const std::vector<std::reference_wrapper<const Config>> get_all();
+	CPP_API std::unique_ptr<Mode> create(const std::string& name, const padding::Padding& padding, const std::unordered_map<std::string, Param>& params);
 }
 
 #define NS_ROOT(name) dog_torch__crypto__sym__block__##name

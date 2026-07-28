@@ -10,7 +10,7 @@
 
 namespace dog_torch::crypto::sym::block::padding
 {
-	struct DOG_TORCH_API ANSIX923 : public Padding
+	struct CPP_API ANSIX923 : public Padding
 	{
 		static void padding(BinaryData& data, uint64_t block_size);
 		static void unpadding(BinaryData& data, uint64_t block_size);

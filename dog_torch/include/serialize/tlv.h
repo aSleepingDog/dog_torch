@@ -19,7 +19,7 @@
 
 namespace dog_torch::serialize::tlv
 {
-	struct DOG_TORCH_API MIBString
+	struct CPP_API MIBString
 	{
 		uint64_t mib;//utf-8 = 106
 		std::string string;
@@ -29,19 +29,19 @@ namespace dog_torch::serialize::tlv
 		bool operator==(const MIBString& other) const;
 	};
 
-	class DOG_TORCH_API Value;
+	class CPP_API Value;
 
 }
 namespace std
 {
 	template<>
-	struct DOG_TORCH_API hash<dog_torch::serialize::tlv::MIBString>
+	struct CPP_API hash<dog_torch::serialize::tlv::MIBString>
 	{
 		size_t operator()(const dog_torch::serialize::tlv::MIBString& value) const;
 	};
 
 	template<>
-	struct DOG_TORCH_API hash<dog_torch::serialize::tlv::Value>
+	struct CPP_API hash<dog_torch::serialize::tlv::Value>
 	{
 		size_t operator()(const dog_torch::serialize::tlv::Value& value_) const;
 	};
@@ -65,7 +65,7 @@ namespace std
 */
 namespace dog_torch::serialize::tlv
 {
-	enum class DOG_TORCH_API Type : uint8_t
+	enum class CPP_API Type : uint8_t
 	{
 		Null = 0,
 		Bool = 1,
@@ -82,7 +82,7 @@ namespace dog_torch::serialize::tlv
 
 	using Integer64 = dog_torch::math::number::Integer64;
 
-	class DOG_TORCH_API Value
+	class CPP_API Value
 	{
 	public:
 		using _store = std::variant<

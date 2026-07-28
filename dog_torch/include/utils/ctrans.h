@@ -37,11 +37,11 @@ struct NAMESPACE(CppResultSet)
 
 namespace dog_torch::utils
 {
-	DOG_TORCH_API NAMESPACE(CppString)* to_c_style(const std::string& cppstr);
-	DOG_TORCH_API std::string to_string(const LVALUE(NAMESPACE(CppString)) cstr);
-	DOG_TORCH_API NAMESPACE(CppUint64Array)* to_c_style(const std::vector<uint64_t>& cppvec);
+	CPP_API NAMESPACE(CppString)* to_c_style(const std::string& cppstr);
+	CPP_API std::string to_string(const LVALUE(NAMESPACE(CppString)) cstr);
+	CPP_API NAMESPACE(CppUint64Array)* to_c_style(const std::vector<uint64_t>& cppvec);
 
-	DOG_TORCH_API void CppResultSet_reset(LVALUE(NAMESPACE(CppResultSet)) self, int64_t code, const std::string& msg);
+	CPP_API void CppResultSet_reset(LVALUE(NAMESPACE(CppResultSet)) self, int64_t code, const std::string& msg);
 }
 
 extern "C"

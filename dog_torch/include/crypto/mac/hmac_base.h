@@ -9,7 +9,7 @@
 
 namespace dog_torch::crypto::mac
 {
-	class DOG_TORCH_API HMacGenerator : public MacGenerator
+	class CPP_API HMacGenerator : public MacGenerator
 	{
 	private:
 		using hash_algorithm_t = hash::algorithm::Algorithm;

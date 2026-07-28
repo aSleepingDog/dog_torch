@@ -14,7 +14,7 @@
 
 namespace dog_torch::crypto::sym::block::mode
 {
-	class DOG_TORCH_API PCBC : public Mode
+	class CPP_API PCBC : public Mode
 	{
 	private:
 		BinaryData iv_;

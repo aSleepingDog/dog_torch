@@ -181,7 +181,7 @@ NSROOT::BinaryData::BinaryData(std::string_view str, uint64_t type)
         {
             throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_FORMAT));
         }
-        this->data_.resize((size / 4) * 3);
+        this->data_.reserve((size / 4) * 3);
         uint64_t i = 0;
         uint8_t b1 = 0, b2 = 0, b3 = 0, b4 = 0, r1 = 0, r2 = 0, r3 = 0;
         for (i = 0; i < size - 4; i += 4)
@@ -478,9 +478,9 @@ std::string NSROOT::BinaryData::to_base64_string(char emplace_add, char emplace_
 {
     if (this->data_.empty()) return "";
     char list[66] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
-    list[63] = emplace_add;
-    list[64] = emplace_handle;
-    list[65] = emplace_equal;
+    list[62] = emplace_add;
+    list[63] = emplace_handle;
+    list[64] = emplace_equal;
     std::string result;
     result.reserve(this->data_.size() * 4 / 3);
     uint64_t i = 0;
@@ -501,11 +501,11 @@ std::string NSROOT::BinaryData::to_base64_string(char emplace_add, char emplace_
     if (this->data_.size() - i == 1)
     {
         buf |= this->data_[i];
-        buf <<= 8;
+        buf <<= 16;
         result.push_back(list[(buf >> 18) & 0x3F]);
         result.push_back(list[(buf >> 12) & 0x3F]);
-        result.push_back(list[65]);
-        result.push_back(list[65]);
+        result.push_back(list[64]);
+        result.push_back(list[64]);
     }
     else if (this->data_.size() - i == 2)
     {
@@ -516,7 +516,7 @@ std::string NSROOT::BinaryData::to_base64_string(char emplace_add, char emplace_
         result.push_back(list[(buf >> 18) & 0x3F]);
         result.push_back(list[(buf >> 12) & 0x3F]);
         result.push_back(list[(buf >> 6) & 0x3F]);
-        result.push_back(list[65]);
+        result.push_back(list[64]);
     }
     return result;
 }

@@ -15,7 +15,7 @@
 
 namespace dog_torch::async::thread
 {
-	struct DOG_TORCH_API PauseableDetail
+	struct CPP_API PauseableDetail
 	{
 		uint64_t task_id = 0;
 		Status status;
@@ -24,7 +24,7 @@ namespace dog_torch::async::thread
 		std::unordered_map<std::string, std::any> params;
 	};
 
-	class DOG_TORCH_API PauseableChannel
+	class CPP_API PauseableChannel
 	{
 	private:
 		std::mutex mutex_;

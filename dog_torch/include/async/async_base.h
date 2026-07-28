@@ -16,7 +16,7 @@ namespace dog_torch::async
 	*                                v | resume
 	*                              Blocked
 	*/
-	enum class DOG_TORCH_API Status : uint8_t
+	enum class CPP_API Status : uint8_t
 	{
 		Created = 0,
 		Ready = 1,
@@ -25,7 +25,7 @@ namespace dog_torch::async
 		Stopped = 4
 	};
 
-	DOG_TORCH_API std::string status_to_string(Status status);
+	CPP_API std::string status_to_string(Status status);
 
 	template<typename Dur>
 	concept is_std_duration =
@@ -38,7 +38,7 @@ namespace dog_torch::async
 		std::is_same_v<Dur, std::chrono::days> ||
 		std::is_same_v<Dur, std::chrono::weeks>;
 
-	enum class DOG_TORCH_API TimeUnit : uint8_t
+	enum class CPP_API TimeUnit : uint8_t
 	{
 		Nanoseconds = 0,
 		Microseconds = 1,
@@ -66,7 +66,7 @@ namespace dog_torch::async
 	}
 
 	template<is_std_duration T>
-	class DOG_TORCH_API Clock
+	class CPP_API Clock
 	{
 	private:
 		Status stage_ = Status::Ready;

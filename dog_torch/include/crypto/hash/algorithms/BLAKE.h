@@ -12,7 +12,7 @@
 namespace dog_torch::crypto::hash::algorithm
 {
 	using dog_torch::math::number::UnsignedInteger128;
-	class DOG_TORCH_API BLAKE2 : public Algorithm
+	class CPP_API BLAKE2 : public Algorithm
 	{
 	private:
 		uint64_t t_low = 0;

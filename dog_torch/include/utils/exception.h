@@ -2,7 +2,7 @@
 #ifdef SHARED
 #include "export.h"
 #else
-#define DOG_TORCH_API
+#define CPP_API
 #endif
 #include <exception>
 #include <thread>
@@ -58,7 +58,7 @@
 namespace dog_torch::utils
 {
 
-	class DOG_TORCH_API Exception : public std::exception
+	class CPP_API Exception : public std::exception
 	{
 	private:
 		std::string msg_;

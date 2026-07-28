@@ -13,9 +13,9 @@ namespace dog_torch::math::region
 	// X,X|X|X
 	// [a,b|c]
 
-	DOG_TORCH_API uint64_t identify_integer(std::string_view::const_iterator& pos, const std::string_view::const_iterator& end);
+	CPP_API uint64_t identify_integer(std::string_view::const_iterator& pos, const std::string_view::const_iterator& end);
 
-	class DOG_TORCH_API NumberIterator
+	class CPP_API NumberIterator
 	{
 	private:
 		bool is_list_ = false;

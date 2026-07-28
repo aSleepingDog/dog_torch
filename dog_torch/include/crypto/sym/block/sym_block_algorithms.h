@@ -11,8 +11,8 @@
 
 namespace dog_torch::crypto::sym::block::algorithm
 {
-	DOG_TORCH_API const std::vector<std::reference_wrapper<const Config>> get_all();
-	DOG_TORCH_API std::unique_ptr<Algorithm> create(const std::string& name, uint64_t block_size, uint64_t key_size);
+	CPP_API const std::vector<std::reference_wrapper<const Config>> get_all();
+	CPP_API std::unique_ptr<Algorithm> create(const std::string& name, uint64_t block_size, uint64_t key_size);
 }
 
 #define NS_ROOT(name) dog_torch__crypto__sym__block__##name

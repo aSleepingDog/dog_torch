@@ -20,8 +20,8 @@ namespace dog_torch::math::integer
 
 	BigUInt get_power_2_minus_1(uint64_t n);
 
-	DOG_TORCH_API uint8_t available_size(uint64_t n);
-	DOG_TORCH_API uint8_t pick_byte(uint64_t n, uint8_t i);
+	CPP_API uint8_t available_size(uint64_t n);
+	CPP_API uint8_t pick_byte(uint64_t n, uint8_t i);
 
 	/*
 	* 循环左移

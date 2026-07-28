@@ -25,7 +25,8 @@ KeyPair NSROOT::RSA::create_key_pair(uint64_t key_size, uint64_t public_key)
     * 512  =  4096   r-40s
     */
     using BigUInt = dog_torch::math::number::BigUnsignedInteger;
-    using dog_torch::serialize::tlv::Value;
+    using BigInt = dog_torch::math::number::BigInteger;
+    using dog_torch::serialize::asn1::Value;
     using dog_torch::math::number_theory::generate_prime;
     using dog_torch::math::number_theory::exgcd_inverse;
     BigUInt e = public_key;
@@ -38,18 +39,47 @@ KeyPair NSROOT::RSA::create_key_pair(uint64_t key_size, uint64_t public_key)
     //std::cout << std::format("n:{}", n.to_num_str(10)) << std::endl;
     BigUInt t = n - p - q + 1;
     BigUInt d = exgcd_inverse(e, t);
+    BigUInt b = exgcd_inverse(q, p) % p;
     //std::cout << std::format("d:{}", d.to_num_str(10)) << std::endl;
+    /**
+         RSAPublicKey ::= SEQUENCE {
+             modulus           INTEGER,  -- n
+             publicExponent    INTEGER   -- e
+         }
+    */
     Value pub_collect = std::vector<Value>{};
-    pub_collect.to_array().reserve(2);
-    pub_collect.to_array().push_back(Value(n.to_bytes(true)));
-    pub_collect.to_array().push_back(Value(e.to_bytes(true)));
+    pub_collect.to_sequence().reserve(2);
+    pub_collect.to_sequence().emplace_back(Value{ n });
+    pub_collect.to_sequence().emplace_back(Value{ e });
+    /**
+        Version ::= INTEGER { two-prime(0), multi(1) }
+           (CONSTRAINED BY
+           {-- version must be multi if otherPrimeInfos present --})
+     RSAPrivateKey ::= SEQUENCE {
+         0 version           Version,
+         1 modulus           INTEGER,  -- n
+         2 publicExponent    INTEGER,  -- e
+         3 privateExponent   INTEGER,  -- d
+         4 prime1            INTEGER,  -- p
+         5 prime2            INTEGER,  -- q
+         6 exponent1         INTEGER,  -- d mod (p-1)
+         7 exponent2         INTEGER,  -- d mod (q-1)
+         8 coefficient       INTEGER,  -- (inverse of q) mod p
+         9 otherPrimeInfos   OtherPrimeInfos OPTIONAL
+     }
+*/
     Value pri_collect = std::vector<Value>{};
-    pri_collect.to_array().reserve(5);
-    pri_collect.to_array().push_back(Value(p.to_bytes(true)));
-    pri_collect.to_array().push_back(Value(q.to_bytes(true)));
-    pri_collect.to_array().push_back(Value(e.to_bytes(true)));
-    pri_collect.to_array().push_back(Value(n.to_bytes(true)));
-    pri_collect.to_array().push_back(Value(d.to_bytes(true)));
+    pri_collect.to_sequence().reserve(10);
+    pri_collect.to_sequence().emplace_back(Value{ BigInt{0,0} });//two prime
+    pri_collect.to_sequence().emplace_back(Value{ n });
+    pri_collect.to_sequence().emplace_back(Value{ e });
+    pri_collect.to_sequence().emplace_back(Value{ d });
+    pri_collect.to_sequence().emplace_back(Value{ p });
+    pri_collect.to_sequence().emplace_back(Value{ q });
+    pri_collect.to_sequence().emplace_back(Value{ d % (p - 1) });
+    pri_collect.to_sequence().emplace_back(Value{ d % (q - 1) });
+    pri_collect.to_sequence().emplace_back(Value{ b });
+    pri_collect.to_sequence().emplace_back(Value{ std::vector<Value>{} });
     return { pub_collect.serialize(), pri_collect.serialize() };
 }
 
@@ -61,12 +91,12 @@ BinaryData NSROOT::RSA::encrypt(const BinaryData& plain, const BinaryData& key, 
     }
     using BigUInt = dog_torch::math::number::BigUnsignedInteger;
     using dog_torch::math::number_theory::power_remainder;
-    using dog_torch::serialize::tlv::Value;
+    using dog_torch::serialize::asn1::Value;
     auto pos = key.cbegin();
     Value k_v = Value::parse(pos, key.cend());
-    BigUInt n = BigUInt::from_bytes(k_v.to_array()[0].to_binary(), true);
+    BigUInt n = k_v.to_sequence()[0].to_integer().num_;
     //std::cout << std::format("n:{}", n.to_num_str(10)) << std::endl;
-    BigUInt e = BigUInt::from_bytes(k_v.to_array()[1].to_binary(), true);
+    BigUInt e = k_v.to_sequence()[1].to_integer().num_;
     //std::cout << std::format("e:{}", e.to_num_str(10)) << std::endl;
     BigUInt p = BigUInt::from_bytes(plain.get_data(), false);
     if (p > n)
@@ -84,12 +114,12 @@ BinaryData NSROOT::RSA::decrypt(const BinaryData& crypt, const BinaryData& key, 
     }
     using BigUInt = dog_torch::math::number::BigUnsignedInteger;
     using dog_torch::math::number_theory::power_remainder;
-    using dog_torch::serialize::tlv::Value;
+    using dog_torch::serialize::asn1::Value;
     auto pos = key.cbegin();
     Value k_v = Value::parse(pos, key.cend());
-    BigUInt n = BigUInt::from_bytes(k_v.to_array()[3].to_binary(), true);
+    BigUInt n = k_v.to_sequence()[1].to_integer().num_;
     //std::cout << std::format("n:{}", n.to_num_str(10)) << std::endl;
-    BigUInt d = BigUInt::from_bytes(k_v.to_array()[4].to_binary(), true);
+    BigUInt d = k_v.to_sequence()[3].to_integer().num_;
     //std::cout << std::format("d:{}", d.to_num_str(10)) << std::endl;
     BigUInt c = BigUInt::from_bytes(crypt.get_data(), false);
     if (c > n)

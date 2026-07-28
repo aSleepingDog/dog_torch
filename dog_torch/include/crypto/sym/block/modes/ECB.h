@@ -14,7 +14,7 @@
 
 namespace dog_torch::crypto::sym::block::mode
 {
-	class DOG_TORCH_API ECB : public Mode
+	class CPP_API ECB : public Mode
 	{
 	public:
 		ECB(const padding::Padding& padding);

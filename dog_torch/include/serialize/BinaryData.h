@@ -12,8 +12,8 @@
 namespace dog_torch::serialize
 {
     // !\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~
-    DOG_TORCH_API std::string to_utf8(uint64_t code);
-    class DOG_TORCH_API BinaryData
+    CPP_API std::string to_utf8(uint64_t code);
+    class CPP_API BinaryData
     {
     private:
         using it = std::vector<uint8_t>::iterator;
@@ -116,7 +116,7 @@ namespace dog_torch::serialize
         std::string to_string() const;
         std::string to_bin_string() const;
         std::string to_hex_string(bool is_upper) const;
-        std::string to_base64_string(char emplace_add, char emplace_handle, char emplace_equal) const;
+        std::string to_base64_string(char emplace_add = '+', char emplace_handle = '/', char emplace_equal = '=') const;
 
         //[start,end)
         BinaryData sub_bytes_pos(uint64_t start, uint64_t end) const;

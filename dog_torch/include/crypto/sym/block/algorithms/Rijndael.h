@@ -21,7 +21,7 @@ namespace dog_torch::crypto::sym::block::algorithm
 		static uint8_t Xtime(uint8_t a, uint8_t b);
 	};
 
-    struct DOG_TORCH_API AES : public Algorithm
+    struct CPP_API AES : public Algorithm
     {
         AES(uint64_t key_size);
         ~AES() override = default;

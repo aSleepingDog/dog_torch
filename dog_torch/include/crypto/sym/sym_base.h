@@ -14,7 +14,7 @@ namespace dog_torch::crypto::sym
 	using Value = dog_torch::serialize::tlv::Value;
 	using PauseableChannel = dog_torch::async::thread::PauseableChannel;
 
-	class DOG_TORCH_API Cipher
+	class CPP_API Cipher
 	{
 	protected:
 		bool is_effective_ = false;

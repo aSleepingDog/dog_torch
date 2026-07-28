@@ -50,7 +50,7 @@ namespace dog_torch::async::pool
 	};
 
 
-	class DOG_TORCH_API PausedThreadPool
+	class CPP_API PausedThreadPool
 	{
 	private:
 		class Worker

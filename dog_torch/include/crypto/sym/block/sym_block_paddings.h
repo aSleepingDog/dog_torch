@@ -12,8 +12,8 @@
 
 namespace dog_torch::crypto::sym::block::padding
 {
-	DOG_TORCH_API const std::vector<std::reference_wrapper<const Config>> get_all();
-	DOG_TORCH_API std::unique_ptr<Padding> create(const std::string& name);
+	CPP_API const std::vector<std::reference_wrapper<const Config>> get_all();
+	CPP_API std::unique_ptr<Padding> create(const std::string& name);
 }
 
 #define NS_ROOT(name) dog_torch__crypto__sym__block__##name

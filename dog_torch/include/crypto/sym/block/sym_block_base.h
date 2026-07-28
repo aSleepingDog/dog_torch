@@ -16,7 +16,7 @@ namespace dog_torch::crypto::sym::block
 
 	namespace algorithm
 	{
-		struct DOG_TORCH_API Config
+		struct CPP_API Config
 		{
 			std::string name;
 			std::string block_size_region;
@@ -28,7 +28,7 @@ namespace dog_torch::crypto::sym::block
 		using block_self_cryption_func = std::function<void(BinaryData&, uint64_t, const BinaryData&, uint64_t)>;
 		using block_cryption_func = std::function<BinaryData(const BinaryData&, uint64_t, const BinaryData&, uint64_t)>;
 
-		class DOG_TORCH_API Algorithm
+		class CPP_API Algorithm
 		{
 		protected:
 			uint64_t block_size_;
@@ -58,7 +58,7 @@ namespace dog_torch::crypto::sym::block
 	namespace padding
 	{
 
-		struct DOG_TORCH_API Config
+		struct CPP_API Config
 		{
 			std::string name;
 			std::string allowed_block_size_region;
@@ -67,7 +67,7 @@ namespace dog_torch::crypto::sym::block
 
 		using padding_func = std::function<void(BinaryData&, uint64_t)>;
 
-		struct DOG_TORCH_API Padding
+		struct CPP_API Padding
 		{
 			Padding() = default;
 
@@ -87,7 +87,7 @@ namespace dog_torch::crypto::sym::block
 			virtual padding_func get_unpadding() const;
 		};
 
-		struct DOG_TORCH_API NoPadding : public Padding
+		struct CPP_API NoPadding : public Padding
 		{
 			static const Config& allowed_config();
 			Config config() const override;
@@ -107,7 +107,7 @@ namespace dog_torch::crypto::sym::block
 		using streamp_crypt_func = std::function<void(PauseableChannel&, std::istream&, uint64_t, std::ostream&, const BinaryData&, const algorithm::Algorithm&)>;
 
 
-		struct DOG_TORCH_API Config
+		struct CPP_API Config
 		{
 			std::string name;
 			std::map<std::string, ParamType> params;
@@ -115,7 +115,7 @@ namespace dog_torch::crypto::sym::block
 			std::string fmt_string();
 		};
 
-		class DOG_TORCH_API Mode
+		class CPP_API Mode
 		{
 		protected:
 			std::unique_ptr<padding::Padding> padding_ = nullptr;
@@ -157,7 +157,7 @@ namespace dog_torch::crypto::sym::block
 		};
 	}
 
-	class DOG_TORCH_API BlockCipher : public Cipher
+	class CPP_API BlockCipher : public Cipher
 	{
 	private:
 		BinaryData available_key_;

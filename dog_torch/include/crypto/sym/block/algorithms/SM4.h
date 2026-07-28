@@ -10,7 +10,7 @@
 
 namespace dog_torch::crypto::sym::block::algorithm
 {
-    struct DOG_TORCH_API SM4 : public Algorithm
+    struct CPP_API SM4 : public Algorithm
     {
 		SM4();
 		~SM4() override = default;

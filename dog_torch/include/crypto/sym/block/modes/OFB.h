@@ -13,7 +13,7 @@
 
 namespace dog_torch::crypto::sym::block::mode
 {
-	class DOG_TORCH_API OFB : public Mode
+	class CPP_API OFB : public Mode
 	{
 	private:
 		uint64_t shift_ = 0;

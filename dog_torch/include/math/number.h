@@ -25,7 +25,7 @@ void u128div(uint64_t a_h, uint64_t a_l, uint64_t b, uint64_t* q, uint64_t* r);
 
 namespace dog_torch::math::number
 {
-    struct DOG_TORCH_API Integer64
+    struct CPP_API Integer64
     {
         char sign;
         uint64_t number;
@@ -34,14 +34,14 @@ namespace dog_torch::math::number
         bool operator==(const Integer64& other) const noexcept;
     };
 
-    enum class DOG_TORCH_API CompareResult : char
+    enum class CPP_API CompareResult : char
     {
         EQUAL = 0,
         LESS = -1,
         GREATER = 1
     };
 
-    class DOG_TORCH_API UnsignedInteger128
+    class CPP_API UnsignedInteger128
     {
     public:
         uint64_t high_;
@@ -93,7 +93,7 @@ namespace dog_torch::math::number
         UnsignedInteger128 operator%(const UnsignedInteger128& other) const;
     };
 
-    class DOG_TORCH_API BigUnsignedInteger
+    class CPP_API BigUnsignedInteger
     {
         using BigUInt = BigUnsignedInteger;
         using vec64 = std::vector<uint64_t>;
@@ -177,6 +177,31 @@ namespace dog_torch::math::number
         void operator>>=(uint64_t n) noexcept;
 
     };
+
+    class CPP_API BigInteger
+    {
+    public:
+        char sign_;
+        BigUnsignedInteger num_;
+
+        BigInteger();
+        BigInteger(const BigUnsignedInteger& num);
+        BigInteger(char sign, const BigUnsignedInteger& num);
+
+        BigInteger(const BigInteger& other);
+        BigInteger& operator=(const BigInteger& other);
+        BigInteger(BigInteger&& other) noexcept;
+        BigInteger& operator=(BigInteger&& other) noexcept;
+
+        std::string to_num_str(uint64_t radix = 10, bool is_upper = false) const;
+
+        BigInteger operator+(const BigInteger& other) const;
+        BigInteger operator-() const;
+        BigInteger operator-(const BigInteger& other) const;
+        BigInteger operator*(const BigInteger& other) const;
+        BigInteger operator/(const BigInteger& other) const;
+    };
+
 }
 namespace std
 {

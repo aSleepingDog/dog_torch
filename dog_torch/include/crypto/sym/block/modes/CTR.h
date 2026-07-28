@@ -13,7 +13,7 @@
 
 namespace dog_torch::crypto::sym::block::mode
 {
-	class DOG_TORCH_API CTR : public Mode
+	class CPP_API CTR : public Mode
 	{
 	private:
 		uint64_t shift_ = 0;
