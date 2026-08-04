@@ -16,9 +16,16 @@ namespace dog_torch::crypto
 		Bool = 0,
 		UInt64 = 1,
 		String = 2,
-		Binary = 3
+		Binary = 3,
+		Hash = 4,
 	};
 	std::string get_type_name(ParamType type);
+	struct ParamInfo
+	{
+		ParamType type;
+		std::string msg;
+		ParamInfo(ParamType type_, const std::string& msg_ = "");
+	};
 }
 
 #define NAMESPACE(name) dog_torch__crypto__##name
@@ -29,7 +36,8 @@ extern "C"
 {
 	using NAMESPACE(ParamType) = dog_torch::crypto::ParamType;
 	using NAMESPACE(Param) = dog_torch::crypto::Param;
-	using NAMESPACE(ParamTypeTreeMap) = std::map<std::string, NAMESPACE(ParamType)>;
+	using NAMESPACE(ParamInfo) = dog_torch::crypto::ParamInfo;
+	using NAMESPACE(ParamInfoTreeMap) = std::map<std::string, NAMESPACE(ParamInfo)>;
 	using NAMESPACE(ParamTreeMap) = std::map<std::string, NAMESPACE(Param)>;
 	using NAMESPACE(ParamHashMap) = std::unordered_map<std::string, NAMESPACE(Param)>;
 	//ParamType
@@ -47,6 +55,10 @@ extern "C"
 	C_API(uint64_t)                  NAMESPACE(Param_to_uint64)                   (LVALUE(UTILS(CppResultSet)) result_set, const LVALUE(NAMESPACE(Param)) self);
 	C_API(UTILS(CppString)*)         NAMESPACE(Param_to_string)                   (LVALUE(UTILS(CppResultSet)) result_set, const LVALUE(NAMESPACE(Param)) self);
 	C_API(SERIALIZE(BinaryData)*)    NAMESPACE(Param_to_binary)                   (LVALUE(UTILS(CppResultSet)) result_set, const LVALUE(NAMESPACE(Param)) self);
+	//ParamInfo
+	C_API(uint64_t)                  NAMESPACE(ParamInfo_get_type)                (const LVALUE(NAMESPACE(ParamInfo)) self);
+	C_API(UTILS(CppString)*)         NAMESPACE(ParamInfo_get_msg)                 (const LVALUE(NAMESPACE(ParamInfo)) self);
+
 	//ParamTreeMap
 	C_API(NAMESPACE(ParamTreeMap)*)  NAMESPACE(ParamTreeMap_create)               ();
 	C_API(NAMESPACE(ParamTreeMap)*)  NAMESPACE(ParamTreeMap_create_from_hash)     (const LVALUE(NAMESPACE(ParamHashMap)) hash_map);
@@ -62,10 +74,10 @@ extern "C"
 	C_API(LVALUE(NAMESPACE(Param)))  NAMESPACE(ParamHashMap_at_c_str)             (LVALUE(UTILS(CppResultSet)) result_set, LVALUE(NAMESPACE(ParamHashMap)) self, const char* key);
 	C_API(LVALUE(NAMESPACE(Param)))  NAMESPACE(ParamHashMap_at_string)            (LVALUE(UTILS(CppResultSet)) result_set, LVALUE(NAMESPACE(ParamHashMap)) self, const LVALUE(UTILS(CppString)) key);
 	//ParamTypeTreeMap
-	C_API(void)                      NAMESPACE(ParamTypeTreeMap_delete)           (NAMESPACE(ParamTypeTreeMap)* self);
+	C_API(void)                      NAMESPACE(ParamInfoTreeMap_delete)           (NAMESPACE(ParamInfoTreeMap)* self);
 
-	C_API(uint64_t)                  NAMESPACE(ParamTypeTreeMap_at_c_str)         (LVALUE(UTILS(CppResultSet)) result_set, LVALUE(NAMESPACE(ParamTypeTreeMap)) self, const char* key);
-	C_API(uint64_t)                  NAMESPACE(ParamTypeTreeMap_at_string)        (LVALUE(UTILS(CppResultSet)) result_set, LVALUE(NAMESPACE(ParamTypeTreeMap)) self, const LVALUE(UTILS(CppString)) key);
+	C_API(uint64_t)                  NAMESPACE(ParamInfoTreeMap_at_c_str)         (LVALUE(UTILS(CppResultSet)) result_set, LVALUE(NAMESPACE(ParamInfoTreeMap)) self, const char* key);
+	C_API(uint64_t)                  NAMESPACE(ParamInfoTreeMap_at_string)        (LVALUE(UTILS(CppResultSet)) result_set, LVALUE(NAMESPACE(ParamInfoTreeMap)) self, const LVALUE(UTILS(CppString)) key);
 }
 
 #undef NAMESPACE

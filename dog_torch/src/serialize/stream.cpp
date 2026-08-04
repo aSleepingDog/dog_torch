@@ -15,6 +15,7 @@ uint64_t NSROOT::read_bytes(const BinaryData& input, uint64_t total, uint64_t& n
 uint64_t NSROOT::read_bytes(std::istream& input, uint64_t total, uint64_t& now, BinaryData& buffer, uint64_t size, uint64_t& read_size)
 {
     if (total == 0 || size == 0) return 0;
+    if (total - now < size) size = total - now;
     buffer.resize(size);
     input.read(buffer.data_stream(), size);
     uint64_t read = input.gcount();

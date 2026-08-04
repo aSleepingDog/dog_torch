@@ -34,7 +34,7 @@ std::unique_ptr<NSROOT::Mode> NSROOT::create(const std::string& name, const padd
     }
     else if (name == "PCBC")
     {
-        return std::make_unique<CBC>(std::get<BinaryData>(params.at("iv")), padding);
+        return std::make_unique<PCBC>(std::get<BinaryData>(params.at("iv")), padding);
     }
     if (params.find("shift") == params.end() || params.at("shift").index() != static_cast<uint64_t>(ParamType::UInt64))
     {

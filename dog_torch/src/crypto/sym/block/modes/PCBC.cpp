@@ -46,7 +46,7 @@ std::unique_ptr<NSROOT::Mode> NSROOT::PCBC::clone() const
 const NSROOT::Config& NSROOT::PCBC::params_config()
 {
 	static const Config config = Config("PCBC", {
-		{"iv",ParamType::Binary},
+		{"iv",ParamInfo(ParamType::Binary)},
 		});
 	return config;
 }

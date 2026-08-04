@@ -158,18 +158,28 @@ uint64_t NSROOT::algorithm::Algorithm::get_key_size() const
 	return this->block_size_;
 }
 
-NSROOT::mode::Config::Config(const std::string& name, const std::map<std::string, ParamType> params)
+NSROOT::mode::Config::Config(const std::string& name, const std::map<std::string, ParamInfo> params)
 	: name(name), params(params){}
 std::string NSROOT::mode::Config::fmt_string()
 {
 	std::string fmt = this->name;
 	fmt += '(';
-	for (auto&[key, type] : this->params)
+	for (auto&[key, type_info] : this->params)
 	{
 		fmt += key;
-		fmt += ':';
-		fmt += get_type_name(type);
-		fmt += ',';
+		fmt += ":{";
+		fmt += get_type_name(type_info.type);
+		std::string msg = type_info.msg;
+		for (auto cit = msg.begin(); cit != msg.end(); ++cit)
+		{
+			if (*cit == '\"' || *cit == '\\')
+			{
+				cit = msg.insert(cit, '\\');
+			}
+		}
+		fmt += ", \"";
+		fmt += msg;
+		fmt += "\"},";
 	}
 	fmt.back() = ')';
 	return fmt;
@@ -434,10 +444,10 @@ UTILS(CppString)* NS_MODE(Config_name)              (const LVALUE(NS_MODE(Config
 	if (self == nullptr) return nullptr;
 	return dog_torch::utils::to_c_style(self->name);
 }
-CRYPTO_BASE(ParamTypeTreeMap)* NS_MODE(Config_params)            (const LVALUE(NS_MODE(Config)) self)
+CRYPTO_BASE(ParamInfoTreeMap)* NS_MODE(Config_params)            (const LVALUE(NS_MODE(Config)) self)
 {
 	if (self == nullptr) return nullptr;
-	return new CRYPTO_BASE(ParamTypeTreeMap)(self->params);
+	return new CRYPTO_BASE(ParamInfoTreeMap)(self->params);
 }
 UTILS(CppString)* NS_MODE(Mode_fmt_string)          (const LVALUE(NS_ROOT(Mode)) self)
 {

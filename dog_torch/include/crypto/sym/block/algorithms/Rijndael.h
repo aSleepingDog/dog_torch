@@ -4,6 +4,7 @@
 #include <iostream>
 #include <functional>
 
+#include "math/galois_field.h"
 #include "utils/compile.h"
 #include "serialize/serialize.h"
 #include "crypto/sym/sym_base.h"
@@ -18,7 +19,9 @@ namespace dog_torch::crypto::sym::block::algorithm
 		static const uint8_t MixTable[16];
 		static const uint8_t UMixTable[16];
 		static const uint8_t round[16];
-		static uint8_t Xtime(uint8_t a, uint8_t b);
+		static const std::array<uint8_t, 256> GF11B;
+		static const std::array<uint8_t, 256> GFi11B;
+		static uint8_t xtimes(uint32_t a, uint32_t b);
 	};
 
     struct CPP_API AES : public Algorithm
@@ -37,8 +40,11 @@ namespace dog_torch::crypto::sym::block::algorithm
 		block_self_cryption_func get_encrypt_self() const override;
 		block_self_cryption_func get_decrypt_self() const override;
 
-		static void middle_encryption(BinaryData& datablock, uint64_t flag, uint64_t mode);
-		static void middle_decryption(BinaryData& datablock, uint64_t flag, uint64_t mode);
+		static void en_middle0(std::array<uint8_t, 16>& datablock);
+		static void en_middle1(std::array<uint8_t, 16>& datablock);
+
+		static void de_middle0(std::array<uint8_t, 16>& datablock);
+		static void de_middle1(std::array<uint8_t, 16>& datablock);
 
 		static BinaryData extend_key(const BinaryData& key, uint64_t block_size, uint64_t key_size);
 

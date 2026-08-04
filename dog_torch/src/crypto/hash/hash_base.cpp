@@ -2,7 +2,7 @@
 
 namespace NSROOT = dog_torch::crypto::hash;
 
-NSROOT::algorithm::Config::Config(const std::string& name, const std::string& region, const std::map<std::string, ParamType>& params) 
+NSROOT::algorithm::Config::Config(const std::string& name, const std::string& region, const std::map<std::string, ParamInfo>& params)
 	: name(name), region(region), params(params)
 {}
 
@@ -232,9 +232,9 @@ UTILS(CppString)*NAMESPACE(Config_region)(const LVALUE(NAMESPACE(Config))config)
 	return dog_torch::utils::to_c_style(config->region);
 }
 
-CRYPTO_BASE(ParamTypeTreeMap)* NAMESPACE(Config_params)(const LVALUE(NAMESPACE(Config))config)
+CRYPTO_BASE(ParamInfoTreeMap)* NAMESPACE(Config_params)(const LVALUE(NAMESPACE(Config))config)
 {
-	return new CRYPTO_BASE(ParamTypeTreeMap)(config->params);
+	return new CRYPTO_BASE(ParamInfoTreeMap)(config->params);
 }
 
 void NAMESPACE(Algorithm_delete)(NAMESPACE(Algorithm)** self)

@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include <random>
 
 #include "utils/ctrans.h"
 #include "utils/compile.h"
@@ -156,6 +157,48 @@ namespace dog_torch::serialize
         BinaryData operator+(const BinaryData& other) const;
         void operator+=(const BinaryData& other);
         void operator+=(uint8_t elem);
+    };
+
+    class BinaryBuffer : public std::basic_streambuf<char>
+    {
+    private:
+        BinaryData data_;
+    public:
+        BinaryBuffer(const BinaryData& data);
+
+        int_type underflow() override;
+
+        int_type uflow() override;
+
+        std::streamsize xsgetn(char_type* s, std::streamsize count) override;
+
+        std::streamsize showmanyc() override;
+    };
+
+    class RandomBuffer : public std::basic_streambuf<char>
+    {
+    private:
+        std::mt19937 rd;
+        std::basic_streambuf<char>::traits_type::int_type peeked;
+    public:
+        RandomBuffer(uint64_t seed);
+
+        int_type underflow() override;
+
+        int_type uflow() override;
+
+        std::streamsize xsgetn(char_type* s, std::streamsize count) override;
+
+        std::streamsize showmanyc() override;
+    };
+
+    class EmptyBuffer : public std::basic_streambuf<char>
+    {
+    public:
+        EmptyBuffer();
+
+        int_type overflow(int_type ch = traits_type::eof());
+        std::streamsize xsputn(const char_type* s, std::streamsize count) override;
     };
 
     template<size_t N>

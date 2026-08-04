@@ -10,9 +10,14 @@ std::string NSROOT::get_type_name(ParamType type)
     case ParamType::UInt64: return "UInt64";
     case ParamType::String: return "String";
     case ParamType::Binary: return "Binary";
+    case ParamType::Hash: return "Hash";
     }
     return "";
 }
+
+NSROOT::ParamInfo::ParamInfo(ParamType type_, const std::string& msg_)
+    : type(type_), msg(msg_)
+{}
 
 #define NAMESPACE(name) dog_torch__crypto__##name
 #define SERIALIZE(name) dog_torch__serialize__##name
@@ -246,12 +251,12 @@ LVALUE(NAMESPACE(Param)) NAMESPACE(ParamHashMap_at_string)(LVALUE(UTILS(CppResul
     return &(self->at(key_));
 }
 
-void NAMESPACE(ParamTypeTreeMap_delete)(NAMESPACE(ParamTypeTreeMap)** self)
+void NAMESPACE(ParamInfoTreeMap_delete)(NAMESPACE(ParamInfoTreeMap)** self)
 {
     DEFAULT_DESTOTY(self);
 }
 
-uint64_t NAMESPACE(ParamTypeTreeMap_at_c_str)(LVALUE(UTILS(CppResultSet))result_set, LVALUE(NAMESPACE(ParamTypeTreeMap))self, const char* key)
+uint64_t NAMESPACE(ParamInfoTreeMap_at_c_str)(LVALUE(UTILS(CppResultSet))result_set, LVALUE(NAMESPACE(ParamInfoTreeMap))self, const char* key)
 {
     using dog_torch::utils::CppResultSet_reset;
     if (self == nullptr)
@@ -269,10 +274,10 @@ uint64_t NAMESPACE(ParamTypeTreeMap_at_c_str)(LVALUE(UTILS(CppResultSet))result_
         CppResultSet_reset(result_set, -3, "key not found");
         return 0;
     }
-    return static_cast<uint64_t>(self->at(key));
+    return static_cast<uint64_t>(self->at(key).type);
 }
 
-uint64_t NAMESPACE(ParamTypeTreeMap_at_string)(LVALUE(UTILS(CppResultSet))result_set, LVALUE(NAMESPACE(ParamTypeTreeMap))self, const LVALUE(UTILS(CppString))key)
+uint64_t NAMESPACE(ParamInfoTreeMap_at_string)(LVALUE(UTILS(CppResultSet))result_set, LVALUE(NAMESPACE(ParamInfoTreeMap))self, const LVALUE(UTILS(CppString))key)
 {
     using dog_torch::utils::CppResultSet_reset;
     using dog_torch::utils::to_string;
@@ -292,7 +297,7 @@ uint64_t NAMESPACE(ParamTypeTreeMap_at_string)(LVALUE(UTILS(CppResultSet))result
         CppResultSet_reset(result_set, -3, "key not found");
         return 0;
     }
-    return static_cast<uint64_t>(self->at(key_));
+    return static_cast<uint64_t>(self->at(key_).type);
 }
 
 #undef NAMESPACE

@@ -51,57 +51,21 @@ const uint8_t NSROOT::Rijndael::InvSBox[16][16] = {
 const uint8_t NSROOT::Rijndael::MixTable[16] = { 0x02,0x03,0x01,0x01, 0x01,0x02,0x03,0x01, 0x01,0x01,0x02,0x03, 0x03,0x01,0x01,0x02 };
 const uint8_t NSROOT::Rijndael::UMixTable[16] = { 0x0E,0x0B,0x0D,0x09, 0x09,0x0E,0x0B,0x0D, 0x0D,0x09,0x0E,0x0B, 0x0B,0x0D,0x09,0x0E };
 const uint8_t NSROOT::Rijndael::round[16] = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36 };//todo 使用循环元0x011b填充后续元素……
-uint8_t NSROOT::Rijndael::Xtime(uint8_t a, uint8_t b)
+const std::array<uint8_t,256> NSROOT::Rijndael::GF11B = dog_torch::math::galois_field::gf256_mult_table(0x11B);
+const std::array<uint8_t,256> NSROOT::Rijndael::GFi11B = dog_torch::math::galois_field::gf256_mult_itable(0x11B);
+uint8_t NSROOT::Rijndael::xtimes(uint32_t a, uint32_t b)
 {
-	//1 2 4 8
-	if (a == 0x01)
-	{
-		return b;
-	}
-	else if (a == 0x02)
-	{
-		if (b >> 7 == 0)
-		{
-			return b << 1;
-		}
-		else//  <==> else if (b >> 7 == 1)
-		{
-			return (b << 1) ^ 0x1b;
-		}
-	}
-	else if (a == 0x04)
-	{
-		return Xtime(0x02, Xtime(0x02, b));
-	}
-	else if (a == 0x08)
-	{
-		return Xtime(0x02, Xtime(0x02, Xtime(0x02, b)));
-	}
-	else if (a == 0x03) //02+01
-	{
-		return Xtime(0x02, b) ^ b;
-	}
-	else if (a == 0x09) //08+01=09
-	{
-		return Xtime(0x08, b) ^ b;
-	}
-	else if (a == 0x0b) //08+02+01=13=0b
-	{
-		return Xtime(0x08, b) ^ Xtime(0x02, b) ^ b;
-	}
-	else if (a == 0x0d) //08+04+01
-	{
-		return Xtime(0x08, b) ^ Xtime(0x04, b) ^ b;
-	}
-	else if (a == 0x0e) //08+04+02=0e=14
-	{
-		return Xtime(0x08, b) ^ Xtime(0x04, b) ^ Xtime(0x02, b);
-	}
-	else
-	{
-		//return dog_torch::math::galois_field::GF2_mult(a, b, 0x11B);
-		return 0;
-	}
+    using namespace dog_torch::math::galois_field;
+    uint32_t n = 0;
+    uint8_t* a_ = (uint8_t*)&a;
+    uint8_t* b_ = (uint8_t*)&b;
+    uint8_t* n_ = (uint8_t*)&n;
+    n_[0] = gf256_mult_t(a_[0], b_[0], GF11B, GFi11B);
+    n_[1] = gf256_mult_t(a_[1], b_[1], GF11B, GFi11B);
+    n_[2] = gf256_mult_t(a_[2], b_[2], GF11B, GFi11B);
+    n_[3] = gf256_mult_t(a_[3], b_[3], GF11B, GFi11B);
+    n_[0] ^= n_[1] ^ n_[2] ^ n_[3];
+    return n;
 }
 
 NSROOT::AES::AES(uint64_t key_size) : Algorithm(16, key_size) 
@@ -152,21 +116,12 @@ NSROOT::block_self_cryption_func NSROOT::AES::get_decrypt_self() const
     return AES::decoding_self;
 }
 
-void NSROOT::AES::middle_encryption(BinaryData& datablock, uint64_t flag, uint64_t mode)
+void NSROOT::AES::en_middle0(std::array<uint8_t, 16>& datablock)
 {
-    BinaryData res;
-    res.reserve(16);
-    //字节代换(00 04 08 12)
     for (int i = 0; i < 16; i++)
     {
-        datablock[i] = Rijndael::SBox[datablock.at(i) >> 4][datablock.at(i) & 0x0f];
+        datablock[i] = NSROOT::Rijndael::SBox[datablock[i] >> 4][datablock[i] & 0x0f];
     }
-
-    /*printf("字节代换后数据\n");
-    ShowBlock(datablock);*/
-
-    //行位移
-    //01 05 09 13 左移1位
     uint8_t b1, b2;
     b1 = datablock[1];
     datablock[1] = datablock[5];
@@ -186,102 +141,107 @@ void NSROOT::AES::middle_encryption(BinaryData& datablock, uint64_t flag, uint64
     datablock[11] = datablock[7];
     datablock[7] = datablock[3];
     datablock[3] = b1;
-
-    /*printf("行移位后数据\n");
-    ShowBlock(datablock);*/
-
-    //列混合
-    if ((mode == 128 && flag != 9) || (mode == 192 && flag != 11) || (mode == 256 && flag != 13))
+}
+void NSROOT::AES::en_middle1(std::array<uint8_t, 16>& datablock)
+{
+    std::array<uint8_t, 16> res;
+    uint8_t i = 0;
+    for (int i0 = 0; i0 < 16; i0 += 4)
     {
-        for (int i0 = 0; i0 < 16; i0 += 4)
-        {
-            for (int i1 = 0; i1 < 16; i1 += 4)
-            {
-                uint8_t tempB = 0;
-                for (int i2 = 0; i2 < 4; i2++)
-                {
-                    tempB ^= Rijndael::Xtime(Rijndael::MixTable[i1 + i2], datablock[i0 + i2]);
-                }
-                res.push_back(tempB);
-            }
-        }
-    }
-    else
-    {
-        for (int i0 = 0; i0 < 16; i0++)
-        {
-            res.push_back(datablock[i0]);
-        }
+        uint32_t a = 0, b = 0;
+        uint8_t tempB = 0;
+
+        a = 0, b = 0;
+        memcpy(&a, &NSROOT::Rijndael::MixTable[0], 4);
+        memcpy(&b, &datablock[i0], 4);
+        tempB = NSROOT::Rijndael::xtimes(a, b);
+        res[i++] = tempB;
+
+        a = 0, b = 0;
+        memcpy(&a, &NSROOT::Rijndael::MixTable[4], 4);
+        memcpy(&b, &datablock[i0], 4);
+        tempB = NSROOT::Rijndael::xtimes(a, b);
+        res[i++] = tempB;
+
+        a = 0, b = 0;
+        memcpy(&a, &NSROOT::Rijndael::MixTable[8], 4);
+        memcpy(&b, &datablock[i0], 4);
+        tempB = NSROOT::Rijndael::xtimes(a, b);
+        res[i++] = tempB;
+
+        a = 0, b = 0;
+        memcpy(&a, &NSROOT::Rijndael::MixTable[12], 4);
+        memcpy(&b, &datablock[i0], 4);
+        tempB = NSROOT::Rijndael::xtimes(a, b);
+        res[i++] = tempB;
+
     }
     std::copy(res.begin(), res.end(), datablock.begin());
 }
-void NSROOT::AES::middle_decryption(BinaryData& datablock, uint64_t flag, uint64_t mode)
+void NSROOT::AES::de_middle1(std::array<uint8_t, 16>& datablock)
 {
-    BinaryData res;
-    res.reserve(16);
-    //列混合
-    if (flag != 0)
+    std::array<uint8_t, 16> res;
+    uint8_t i = 0;
+    for (int i0 = 0; i0 < 16; i0 += 4)
     {
-        for (int i0 = 0; i0 < 16; i0 += 4)
-        {
-            for (int i1 = 0; i1 < 16; i1 += 4)
-            {
-                uint8_t tempB = 0;
-                for (int i2 = 0; i2 < 4; i2++)
-                {
-                    tempB ^= Rijndael::Xtime(Rijndael::UMixTable[i1 + i2], datablock[i0 + i2]);
-                }
-                res.push_back(tempB);
-            }
-        }
-    }
-    else
-    {
-        for (int i0 = 0; i0 < 16; i0++)
-        {
-            res.push_back(datablock[i0]);
-        }
-    }
+        uint32_t a = 0, b = 0;
+        uint8_t tempB = 0;
 
-    /*printf("列混合后数据\n");
-    ShowBlock(res);*/
+        a = 0, b = 0;
+        memcpy(&a, &NSROOT::Rijndael::UMixTable[0], 4);
+        memcpy(&b, &datablock[i0], 4);
+        tempB = NSROOT::Rijndael::xtimes(a, b);
+        res[i++] = tempB;
 
-    //行位移
+        a = 0, b = 0;
+        memcpy(&a, &NSROOT::Rijndael::UMixTable[4], 4);
+        memcpy(&b, &datablock[i0], 4);
+        tempB = NSROOT::Rijndael::xtimes(a, b);
+        res[i++] = tempB;
+
+        a = 0, b = 0;
+        memcpy(&a, &NSROOT::Rijndael::UMixTable[8], 4);
+        memcpy(&b, &datablock[i0], 4);
+        tempB = NSROOT::Rijndael::xtimes(a, b);
+        res[i++] = tempB;
+
+        a = 0, b = 0;
+        memcpy(&a, &NSROOT::Rijndael::UMixTable[12], 4);
+        memcpy(&b, &datablock[i0], 4);
+        tempB = NSROOT::Rijndael::xtimes(a, b);
+        res[i++] = tempB;
+
+    }
+    std::copy(res.begin(), res.end(), datablock.begin());
+}
+void NSROOT::AES::de_middle0(std::array<uint8_t, 16>& datablock)
+{
     uint8_t b1, b2;
     //01 05 09 13 右移1位
-    b1 = res[13];
-    res[13] = res[9];
-    res[9] = res[5];
-    res[5] = res[1];
-    res[1] = b1;
+    b1 = datablock[13];
+    datablock[13] = datablock[9];
+    datablock[9] = datablock[5];
+    datablock[5] = datablock[1];
+    datablock[1] = b1;
     //02 06 10 14 右移2位
-    b1 = res[14];
-    b2 = res[10];
-    res[14] = res[6];
-    res[10] = res[2];
-    res[2] = b2;
-    res[6] = b1;
+    b1 = datablock[14];
+    b2 = datablock[10];
+    datablock[14] = datablock[6];
+    datablock[10] = datablock[2];
+    datablock[2] = b2;
+    datablock[6] = b1;
     //03 07 11 15 左移1位代替右移3位
-    b1 = res[3];
-    res[3] = res[7];
-    res[7] = res[11];
-    res[11] = res[15];
-    res[15] = b1;
+    b1 = datablock[3];
+    datablock[3] = datablock[7];
+    datablock[7] = datablock[11];
+    datablock[11] = datablock[15];
+    datablock[15] = b1;
 
-    /*printf("行移位后数据\n");
-    ShowBlock(res);*/
-
-    //字节代换
     for (int i = 0; i < 16; i++)
     {
-        res[i] = Rijndael::InvSBox[res[i] >> 4][res[i] & 0x0f];
+        datablock[i] = NSROOT::Rijndael::InvSBox[datablock[i] >> 4][datablock[i] & 0x0f];
     }
-
-    /*printf("字节代换后数据\n");
-    ShowBlock(res);*/
-    std::copy(res.begin(), res.end(), datablock.begin());
 }
-
 BinaryData NSROOT::AES::extend_key(const BinaryData& key, uint64_t block_size, uint64_t key_size)
 {
     if (key_size != 16 && key_size != 24 && key_size != 32)
@@ -467,47 +427,82 @@ BinaryData NSROOT::AES::extend_key(const BinaryData& key, uint64_t block_size, u
 
 BinaryData NSROOT::AES::encoding(const BinaryData& plain, uint64_t block_size, const BinaryData& key, uint64_t key_size)
 {
-    BinaryData temp_key = key.sub_bytes_pos(0, 16);
-    BinaryData mid_block = plain ^ temp_key;
-    for (int i = 0; i < ((key_size / 4) + 6); i++)
+    auto bxor = [](std::array<uint8_t, 16>& dest, std::vector<uint8_t>::const_iterator start, std::vector<uint8_t>::const_iterator end)
+        {
+            std::transform(start, end, dest.begin(), dest.begin(), [](uint8_t a, uint8_t b) { return a ^ b; });
+        };
+    std::array<uint8_t, 16> mid_block{ 0 };
+    std::copy(plain.cbegin(), plain.cend(), mid_block.begin());
+    bxor(mid_block, key.cbegin(), key.cbegin() + 16);
+    uint32_t i = 0;
+    for (; i < ((key_size / 4) + 5); i++)
     {
-        AES::middle_encryption(mid_block, i, key_size << 3);
-        temp_key = key.sub_bytes_pos(16 * (i + 1), 16 * (i + 2));
-        mid_block = mid_block ^ temp_key;
+        //std::cout << mid_block.to_hex_string(true) << std::endl;
+        NSROOT::AES::en_middle0(mid_block);
+        NSROOT::AES::en_middle1(mid_block);
+        bxor(mid_block, key.cbegin() + 16 * (i + 1), key.cbegin() + 16 * (i + 2));
     }
+    NSROOT::AES::en_middle0(mid_block);
+    bxor(mid_block, key.cbegin() + 16 * (i + 1), key.cbegin() + 16 * (i + 2));
     return mid_block;
 }
 BinaryData NSROOT::AES::decoding(const BinaryData& crypt, uint64_t block_size, const BinaryData& key, uint64_t key_size)
 {
-    BinaryData tempKey = key.sub_bytes_pos((key_size * 4) + 96, (key_size * 4) + 112);
-    BinaryData mid_block = crypt ^ tempKey;
-    for (int i = 0; i < ((key_size / 4) + 6); i++)
+    auto bxor = [](std::array<uint8_t, 16>& dest, std::vector<uint8_t>::const_iterator start, std::vector<uint8_t>::const_iterator end)
+        {
+            std::transform(start, end, dest.begin(), dest.begin(), [](uint8_t a, uint8_t b) { return a ^ b; });
+        };
+    std::array<uint8_t, 16> mid_block{ 0 };
+    std::copy(crypt.cbegin(), crypt.cend(), mid_block.begin());
+    bxor(mid_block, key.cbegin() + (key_size * 4) + 96, key.cbegin() + (key_size * 4) + 112);
+    de_middle0(mid_block);
+    bxor(mid_block, key.cbegin() + 16 * ((key_size / 4) + 4), key.cbegin() + 16 * ((key_size / 4) + 5));
+    for (uint32_t i = 1; i < ((key_size / 4) + 6); i++)
     {
-        AES::middle_decryption(mid_block, i, key_size << 3);
-        tempKey = key.sub_bytes_pos(16 * ((key_size / 4) + 5 - i), 16 * ((key_size / 4) + 6 - i));
-        mid_block = mid_block ^ tempKey;
+        de_middle1(mid_block);
+        de_middle0(mid_block);
+        bxor(mid_block, key.cbegin() + 16 * ((key_size / 4) + 5 - i), key.cbegin() + 16 * ((key_size / 4) + 6 - i));
     }
     return mid_block;
 }
 void NSROOT::AES::encoding_self(BinaryData& plain, uint64_t block_size, const BinaryData& key, uint64_t key_size)
 {
-    BinaryData tempKey = key.sub_bytes_pos(0, 16);
-    plain ^= tempKey;
-    for (int i = 0; i < ((key_size / 4) + 6); i++)
+    auto bxor = [](std::array<uint8_t, 16>& dest, std::vector<uint8_t>::const_iterator start, std::vector<uint8_t>::const_iterator end)
+        {
+            std::transform(start, end, dest.begin(), dest.begin(), [](uint8_t a, uint8_t b) { return a ^ b; });
+        };
+    std::array<uint8_t, 16> mid_block{ 0 };
+    std::copy(plain.cbegin(), plain.cend(), mid_block.begin());
+    bxor(mid_block, key.cbegin(), key.cbegin() + 16);
+    uint32_t i = 0;
+    for (; i < ((key_size / 4) + 5); i++)
     {
-        AES::middle_encryption(plain, i, key_size << 3);
-        tempKey = key.sub_bytes_pos(16 * (i + 1), 16 * (i + 2));
-        plain ^= tempKey;
+        //std::cout << mid_block.to_hex_string(true) << std::endl;
+        NSROOT::AES::en_middle0(mid_block);
+        NSROOT::AES::en_middle1(mid_block);
+        bxor(mid_block, key.cbegin() + 16 * (i + 1), key.cbegin() + 16 * (i + 2));
     }
+    NSROOT::AES::en_middle0(mid_block);
+    bxor(mid_block, key.cbegin() + 16 * (i + 1), key.cbegin() + 16 * (i + 2));
+    std::copy(mid_block.cbegin(), mid_block.cend(), plain.begin());
 }
 void NSROOT::AES::decoding_self(BinaryData& crypt, uint64_t block_size, const BinaryData & key, uint64_t key_size)
 {
-    BinaryData tempKey = key.sub_bytes_pos((key_size * 4) + 96, (key_size * 4) + 112);
-    crypt ^= tempKey;
-    for (int i = 0; i < ((key_size / 4) + 6); i++)
+    auto bxor = [](std::array<uint8_t, 16>& dest, std::vector<uint8_t>::const_iterator start, std::vector<uint8_t>::const_iterator end)
+        {
+            std::transform(start, end, dest.begin(), dest.begin(), [](uint8_t a, uint8_t b) { return a ^ b; });
+        };
+    std::array<uint8_t, 16> mid_block{ 0 };
+    std::copy(crypt.cbegin(), crypt.cend(), mid_block.begin());
+    bxor(mid_block, key.cbegin() + (key_size * 4) + 96, key.cbegin() + (key_size * 4) + 112);
+    de_middle0(mid_block);
+    bxor(mid_block, key.cbegin() + 16 * ((key_size / 4) + 4), key.cbegin() + 16 * ((key_size / 4) + 5));
+    for (uint32_t i = 1; i < ((key_size / 4) + 6); i++)
     {
-        middle_decryption(crypt, i, key_size << 3);
-        tempKey = key.sub_bytes_pos(16 * ((key_size / 4) + 5 - i), 16 * ((key_size / 4) + 6 - i));
-        crypt ^= tempKey;
+        de_middle1(mid_block);
+        de_middle0(mid_block);
+        bxor(mid_block, key.cbegin() + 16 * ((key_size / 4) + 5 - i), key.cbegin() + 16 * ((key_size / 4) + 6 - i));
     }
+    std::copy(mid_block.begin(), mid_block.end(), crypt.begin());
+
 }

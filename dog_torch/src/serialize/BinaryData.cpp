@@ -278,7 +278,7 @@ uint8_t* NSROOT::BinaryData::data_ptr()
 {
     return this->data_.data();
 }
-char* dog_torch::serialize::BinaryData::data_stream()
+char* NSROOT::BinaryData::data_stream()
 {
     return (char*)this->data_.data();
 }
@@ -684,19 +684,19 @@ void NSROOT::BinaryData::bit_move_self(bool is_right, bool allow_resize, uint64_
     }
 }
 
-NSROOT::BinaryData dog_torch::serialize::BinaryData::operator<<(uint64_t shift) const
+NSROOT::BinaryData NSROOT::BinaryData::operator<<(uint64_t shift) const
 {
     return this->bit_move(false, true, shift);
 }
-void dog_torch::serialize::BinaryData::operator<<=(uint64_t shift)
+void NSROOT::BinaryData::operator<<=(uint64_t shift)
 {
     this->bit_move_self(false, true, shift);
 }
-NSROOT::BinaryData dog_torch::serialize::BinaryData::operator>>(uint64_t shift) const
+NSROOT::BinaryData NSROOT::BinaryData::operator>>(uint64_t shift) const
 {
     return this->bit_move(true, true, shift);
 }
-void dog_torch::serialize::BinaryData::operator>>=(uint64_t shift)
+void NSROOT::BinaryData::operator>>=(uint64_t shift)
 {
     this->bit_move_self(true, true, shift);
 }
@@ -883,6 +883,95 @@ void NSROOT::BinaryData::operator+=(uint8_t elem)
     this->data_.push_back(elem);
 }
 
+NSROOT::BinaryBuffer::BinaryBuffer(const BinaryData& data)
+    : data_(data)
+{
+    this->setg(
+        data_.data_stream(),
+        data_.data_stream(),
+        data_.data_stream() + data_.size()
+    );
+}
+std::basic_streambuf<char>::int_type NSROOT::BinaryBuffer::underflow()
+{
+    return traits_type::eof();
+}
+std::basic_streambuf<char>::int_type NSROOT::BinaryBuffer::uflow()
+{
+    return traits_type::eof();
+}
+std::streamsize NSROOT::BinaryBuffer::xsgetn(char_type* s, std::streamsize count)
+{
+    if (this->gptr() + count > this->egptr())
+    {
+        count = this->egptr() - this->gptr();
+    }
+    std::copy(this->gptr(), this->gptr() + count, s);
+    this->gbump(count);
+    return count;
+}
+std::streamsize NSROOT::BinaryBuffer::showmanyc()
+{
+    if (this->gptr() < this->egptr())
+    {
+        return this->egptr() - this->gptr();
+    }
+    else
+    {
+        return 0;
+    }
+}
+
+NSROOT::RandomBuffer::RandomBuffer(uint64_t seed)
+{
+    this->rd = std::mt19937(seed);
+    this->peeked = traits_type::eof();
+}
+std::basic_streambuf<char>::int_type NSROOT::RandomBuffer::underflow()
+{
+    std::basic_streambuf<char>::int_type r;
+    if (this->peeked != traits_type::eof())
+    {
+        r = this->peeked;
+        this->peeked = traits_type::eof();
+    }
+    else
+    {
+        r = this->rd() % 256;
+    }
+    return r;
+}
+std::basic_streambuf<char>::int_type NSROOT::RandomBuffer::uflow()
+{
+    return this->underflow();
+}
+std::streamsize NSROOT::RandomBuffer::xsgetn(char_type* s, std::streamsize count)
+{
+    uint64_t count_ = count;
+    if (this->peeked != traits_type::eof())
+    {
+        *s = this->peeked;
+        this->peeked = traits_type::eof();
+        count_--;
+        s++;
+    }
+    std::generate_n(s, count_, [&]() { return this->rd() % 256; });
+    return count;
+}
+std::streamsize NSROOT::RandomBuffer::showmanyc()
+{
+    return std::numeric_limits<std::streamsize>::max();
+}
+
+NSROOT::EmptyBuffer::EmptyBuffer(){}
+std::basic_streambuf<char>::int_type NSROOT::EmptyBuffer::overflow(int_type ch)
+{
+    return traits_type::not_eof(0);
+}
+std::streamsize NSROOT::EmptyBuffer::xsputn(const char_type* s, std::streamsize count)
+{
+    return count;
+}
 
 #define NAMESPACE(name) dog_torch__serialize__##name
 #define UTILS(name) dog_torch__utils__##name

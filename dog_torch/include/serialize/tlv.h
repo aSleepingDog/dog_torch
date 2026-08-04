@@ -6,6 +6,7 @@
 #include <stack>
 #include <vector>
 #include <string>
+#include <cstring>
 #include <variant>
 #include <iostream>
 #include <unordered_map>

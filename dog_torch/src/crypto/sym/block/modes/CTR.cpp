@@ -154,18 +154,22 @@ NSROOT::streamp_crypt_func NSROOT::CTR::get_streamp_decrypt() const
 
 void NSROOT::CTR::update_iv_self(BinaryData& iv)
 {
+    if (iv.size() == 0) return;
     uint64_t count = 0;
-    uint64_t size = iv.size();
-    uint8_t s = static_cast<uint8_t>(size - size / 2);
-    for (uint64_t i = 0; i < s; i++)
+    uint64_t size = iv.size() / 2;
+    if (size == 0) size = 1;
+    else if (size > 8) size = 8;
+    memcpy(((uint8_t*)&count) + (8 - size), iv.data_ptr() + (iv.size() - size), size);
+    if constexpr (std::endian::native == std::endian::little)
     {
-        count |= uint64_t(iv[size / 2 + i]) << ((s - i - 1) << 3);
+        count = std::byteswap(count);
     }
     count++;
-    for (uint64_t i = 0; i < s; i++)
+    if constexpr (std::endian::native == std::endian::little)
     {
-        iv[iv.size() / 2 + i] = static_cast<uint8_t>(count >> ((s - i - 1) << 3));
+        count = std::byteswap(count);
     }
+    memcpy(iv.data_ptr() + (iv.size() - size), ((uint8_t*)&count) + (8 - size), size);
 }
 
 #define CTR_INIT \

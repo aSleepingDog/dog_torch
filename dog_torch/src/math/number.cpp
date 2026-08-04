@@ -154,35 +154,117 @@ size_t std::hash<NSROOT::Integer64>::operator()(const NSROOT::Integer64& value) 
     return dog_torch::utils::hash::combine(h0, h1);
 }
 
-NSROOT::UnsignedInteger128::UnsignedInteger128() : high_(0), low_(0) {}
-NSROOT::UnsignedInteger128::UnsignedInteger128(uint64_t high, uint64_t low) : high_(high), low_(low) {}
-NSROOT::UnsignedInteger128::UnsignedInteger128(uint64_t low) : high_(0), low_(low) {}
+//NSROOT::UnsignedInteger128::UnsignedInteger128() : high_(0), low_(0) {}
+NSROOT::UnsignedInteger128::UnsignedInteger128()
+{
+    this->num_[0] = 0;
+    this->num_[1] = 0;
+}
+//NSROOT::UnsignedInteger128::UnsignedInteger128(uint64_t high, uint64_t low) : high_(high), low_(low) {}
+NSROOT::UnsignedInteger128::UnsignedInteger128(uint64_t high, uint64_t low)
+{
+    this->high() = high;
+    this->low() = low;
+}
+//NSROOT::UnsignedInteger128::UnsignedInteger128(uint64_t low) : high_(0), low_(low) {}
+NSROOT::UnsignedInteger128::UnsignedInteger128(uint64_t low)
+{
+    this->high() = 0;
+    this->low() = low;
+}
 
-NSROOT::UnsignedInteger128::UnsignedInteger128(const UnsignedInteger128& other) : high_(other.high_), low_(other.low_) {}
+//NSROOT::UnsignedInteger128::UnsignedInteger128(const UnsignedInteger128& other) : high_(other.high_), low_(other.low_) {}
+NSROOT::UnsignedInteger128::UnsignedInteger128(const UnsignedInteger128& other) : num_(other.num_) {}
+//NSROOT::UnsignedInteger128& NSROOT::UnsignedInteger128::operator=(const UnsignedInteger128& other)
+//{
+//    this->high_ = other.high_;
+//    this->low_ = other.low_;
+//    return *this;
+//}
 NSROOT::UnsignedInteger128& NSROOT::UnsignedInteger128::operator=(const UnsignedInteger128& other)
 {
-    this->high_ = other.high_;
-    this->low_ = other.low_;
+    this->num_ = other.num_;
     return *this;
 }
-NSROOT::UnsignedInteger128::UnsignedInteger128(UnsignedInteger128&& other) noexcept : high_(other.high_), low_(other.low_) {}
+//NSROOT::UnsignedInteger128::UnsignedInteger128(UnsignedInteger128&& other) noexcept : high_(other.high_), low_(other.low_) {}
+NSROOT::UnsignedInteger128::UnsignedInteger128(UnsignedInteger128&& other) noexcept : num_(std::move(other.num_)) {}
+//NSROOT::UnsignedInteger128& NSROOT::UnsignedInteger128::operator=(UnsignedInteger128&& other) noexcept
+//{
+//    if (this == &other) return *this;
+//    this->high_ = other.high_;
+//    this->low_ = other.low_;
+//    return *this;
+//}
 NSROOT::UnsignedInteger128& NSROOT::UnsignedInteger128::operator=(UnsignedInteger128&& other) noexcept
 {
     if (this == &other) return *this;
-    this->high_ = other.high_;
-    this->low_ = other.low_;
+    this->num_ = std::move(other.num_);
     return *this;
+}
+
+uint64_t& dog_torch::math::number::UnsignedInteger128::high()
+{
+    if constexpr (std::endian::native == std::endian::little)
+    {
+        return this->num_[1];
+    }
+    else
+    {
+        return this->num_[0];
+    }
+}
+const uint64_t& dog_torch::math::number::UnsignedInteger128::high() const
+{
+    if constexpr (std::endian::native == std::endian::little)
+    {
+        return this->num_[1];
+    }
+    else
+    {
+        return this->num_[0];
+    }
+}
+uint64_t& dog_torch::math::number::UnsignedInteger128::low()
+{
+    if constexpr (std::endian::native == std::endian::little)
+    {
+        return this->num_[0];
+    }
+    else
+    {
+        return this->num_[1];
+    }
+}
+const uint64_t& dog_torch::math::number::UnsignedInteger128::low() const
+{
+    if constexpr (std::endian::native == std::endian::little)
+    {
+        return this->num_[0];
+    }
+    else
+    {
+        return this->num_[1];
+    }
 }
 
 NSROOT::CompareResult NSROOT::UnsignedInteger128::compare(const UnsignedInteger128& a, const UnsignedInteger128& b) noexcept
 {
-    if (a.high_ < b.high_)
+    //if (a.high_ < b.high_)
+    //    return CompareResult::LESS;
+    //if (a.high_ > b.high_)
+    //    return CompareResult::GREATER;
+    //if (a.low_ < b.low_)
+    //    return CompareResult::LESS;
+    //if (a.low_ > b.low_)
+    //    return CompareResult::GREATER;
+    //return CompareResult::EQUAL;
+    if (a.high() < b.high())
         return CompareResult::LESS;
-    if (a.high_ > b.high_)
+    if (a.high() > b.high())
         return CompareResult::GREATER;
-    if (a.low_ < b.low_)
+    if (a.low() < b.low())
         return CompareResult::LESS;
-    if (a.low_ > b.low_)
+    if (a.low() > b.low())
         return CompareResult::GREATER;
     return CompareResult::EQUAL;
 }
@@ -214,33 +296,37 @@ bool NSROOT::UnsignedInteger128::operator>=(const UnsignedInteger128& other) con
 }
 bool NSROOT::UnsignedInteger128::operator()() const noexcept
 {
-    return high_ == 0 && low_ == 0;
+    return high() == 0 && low() == 0;
 }
 bool NSROOT::UnsignedInteger128::operator!() const noexcept
 {
-    return high_ != 0 || low_ != 0;
+    return high() != 0 || low() != 0;
 }
 
 
 NSROOT::UnsignedInteger128 NSROOT::UnsignedInteger128::operator~() const noexcept
 {
-    return UnsignedInteger128(~high_, ~low_);
+    return UnsignedInteger128(~this->high(), ~this->low());
 }
 
 NSROOT::UnsignedInteger128 NSROOT::UnsignedInteger128::operator&(const UnsignedInteger128& other) const noexcept
 {
-    return UnsignedInteger128(high_ & other.high_, low_ & other.low_);
+    return UnsignedInteger128(high() & other.high(), low() & other.low());
 }
 
 NSROOT::UnsignedInteger128 NSROOT::UnsignedInteger128::operator|(const UnsignedInteger128& other) const noexcept
 {
-    return UnsignedInteger128(high_ | other.high_, low_ | other.low_);
+    return UnsignedInteger128(high() | other.high(), low() | other.low());
 }
 NSROOT::UnsignedInteger128 NSROOT::UnsignedInteger128::operator^(const UnsignedInteger128& other) const noexcept
 {
-    return UnsignedInteger128(high_ ^ other.high_, low_ ^ other.low_);
+    return UnsignedInteger128(high() ^ other.high(), low() ^ other.low());
 }
-
+void NSROOT::UnsignedInteger128::operator^=(const UnsignedInteger128& other) noexcept
+{
+    high() ^= other.high();
+    low() ^= other.low();
+}
 NSROOT::UnsignedInteger128 NSROOT::UnsignedInteger128::operator<<(uint64_t shift) const noexcept
 {
     if (shift >= 128)
@@ -249,11 +335,29 @@ NSROOT::UnsignedInteger128 NSROOT::UnsignedInteger128::operator<<(uint64_t shift
     }
     else if (shift >= 64)
     {
-        return UnsignedInteger128(low_ << (shift - 64), 0);
+        return UnsignedInteger128(low() << (shift - 64), 0);
     }
     else
     {
-        return UnsignedInteger128((high_ << shift) | (low_ >> (64 - shift)), low_ << shift);
+        return UnsignedInteger128((high() << shift) | (low() >> (64 - shift)), low() << shift);
+    }
+}
+void NSROOT::UnsignedInteger128::operator<<=(uint64_t shift) noexcept
+{
+    if (shift >= 128)
+    {
+        high() = 0;
+        low() = 0;
+    }
+    else if (shift >= 64)
+    {
+        high() = low() << (shift - 64);
+        low() = 0;
+    }
+    else
+    {
+        high() = (high() << shift) | (low() >> (64 - shift));
+        low() <<= shift;
     }
 }
 NSROOT::UnsignedInteger128 NSROOT::UnsignedInteger128::operator>>(uint64_t shift) const noexcept
@@ -264,68 +368,85 @@ NSROOT::UnsignedInteger128 NSROOT::UnsignedInteger128::operator>>(uint64_t shift
     }
     else if (shift >= 64)
     {
-        return UnsignedInteger128(0, high_ >> (shift - 64));
+        return UnsignedInteger128(0, high() >> (shift - 64));
     }
     else
     {
-        return UnsignedInteger128(high_ >> shift, (low_ >> shift) | (high_ << (64 - shift)));
+        return UnsignedInteger128(high() >> shift, (low() >> shift) | (high() << (64 - shift)));
     }
 }
-
+void NSROOT::UnsignedInteger128::operator>>=(uint64_t shift) noexcept
+{
+    if (shift >= 128)
+    {
+        high() = 0;
+        low() = 0;
+    }
+    else if (shift >= 64)
+    {
+        high() = 0;
+        low() = high() >> (shift - 64);
+    }
+    else
+    {
+        low() = (low() >> shift) | (high() << (64 - shift));
+        high() >>= shift;
+    }
+}
 NSROOT::UnsignedInteger128 NSROOT::UnsignedInteger128::operator+(const UnsignedInteger128& other) const noexcept
 {
     UnsignedInteger128 result;
     uint64_t carry = 0;
-    u64add(0, this->low_, other.low_, &carry, &result.low_);
-    u64add(carry, this->high_, other.high_, &carry, &result.high_);
+    u64add(0, low(), other.low(), &carry, &result.low());
+    u64add(carry, high(), other.high(), &carry, &result.high());
     return result;
 }
 void NSROOT::UnsignedInteger128::operator+=(const UnsignedInteger128& other) noexcept
 {
     uint64_t carry = 0;
-    u64add(0, this->low_, other.low_, &carry, &this->low_);
-    u64add(carry, this->high_, other.high_, &carry, &this->high_);
+    u64add(0, low(), other.low(), &carry, &low());
+    u64add(carry, high(), other.high(), &carry, &high());
 }
 void NSROOT::UnsignedInteger128::operator++() noexcept
 {
     uint64_t carry = 1;
-    u64add(carry, this->low_, 0, &carry, &this->low_);
-    u64add(carry, this->high_, 0, &carry, &this->high_);
+    u64add(carry, low(), 0, &carry, &low());
+    u64add(carry, high(), 0, &carry, &high());
 }
 NSROOT::UnsignedInteger128 NSROOT::UnsignedInteger128::operator++(int) noexcept
 {
     UnsignedInteger128 temp = *this;
     uint64_t carry = 1;
-    u64add(carry, this->low_, 0, &carry, &this->low_);
-    u64add(carry, this->high_, 0, &carry, &this->high_);
+    u64add(carry, low(), 0, &carry, &low());
+    u64add(carry, high(), 0, &carry, &high());
     return temp;
 }
 NSROOT::UnsignedInteger128 NSROOT::UnsignedInteger128::operator-(const UnsignedInteger128& other) const noexcept
 {
     UnsignedInteger128 result;
     uint64_t borrow = 0;
-    u64sub(0, this->low_, other.low_, &borrow, &result.low_);
-    u64sub(borrow, this->high_, other.high_, &borrow, &result.high_);
+    u64sub(0, low(), other.low(), &borrow, &result.low());
+    u64sub(borrow, high(), other.high(), &borrow, &result.high());
     return result;
 }
 void NSROOT::UnsignedInteger128::operator-=(const UnsignedInteger128& other) noexcept
 {
     uint64_t borrow = 0;
-    u64sub(0, this->low_, other.low_, &borrow, &this->low_);
-    u64sub(borrow, this->high_, other.high_, &borrow, &this->high_);
+    u64sub(0, low(), other.low(), &borrow, &low());
+    u64sub(borrow, high(), other.high(), &borrow, &high());
 }
 void NSROOT::UnsignedInteger128::operator--() noexcept
 {
     uint64_t borrow = 1;
-    u64sub(borrow, this->low_, 0, &borrow, &this->low_);
-    u64sub(borrow, this->high_, 0, &borrow, &this->high_);
+    u64sub(borrow, low(), 0, &borrow, &low());
+    u64sub(borrow, high(), 0, &borrow, &high());
 }
 NSROOT::UnsignedInteger128 NSROOT::UnsignedInteger128::operator--(int) noexcept
 {
     UnsignedInteger128 temp = *this;
     uint64_t borrow = 1;
-    u64sub(borrow, this->low_, 0, &borrow, &this->low_);
-    u64sub(borrow, this->high_, 0, &borrow, &this->high_);
+    u64sub(borrow, low(), 0, &borrow, &low());
+    u64sub(borrow, high(), 0, &borrow, &high());
     return temp;
 }
 NSROOT::UnsignedInteger128 NSROOT::UnsignedInteger128::operator*(const UnsignedInteger128& other) const noexcept
@@ -336,9 +457,9 @@ NSROOT::UnsignedInteger128 NSROOT::UnsignedInteger128::operator*(const UnsignedI
     uint64_t r3 = 0;
     uint64_t r4 = 0;
     uint64_t r5 = 0;
-    u64mul(this->low_, other.low_, &r1, &r0);
-    u64mul(this->high_, other.low_, &r3, &r2);
-    u64mul(other.high_, this->low_, &r5, &r4);
+    u64mul(low(), other.low(), &r1, &r0);
+    u64mul(high(), other.low(), &r3, &r2);
+    u64mul(other.high(), low(), &r5, &r4);
     u64add(0, r1, r2, &r2, &r1);
     u64add(0, r1, r4, &r4, &r1);
     return UnsignedInteger128(r1, r0);
@@ -348,9 +469,9 @@ void NSROOT::UnsignedInteger128::operator*=(const UnsignedInteger128& other) noe
 {
     uint64_t r0s = 0;
     uint64_t r1s = 0;
-    u64mul(this->low_, other.low_, &this->high_, &this->low_);
-    u64mul(this->high_, other.low_, &r1s, &r0s);
-    u64add(0, this->high_, r0s, &r1s, &this->high_);
+    u64mul(low(), other.low(), &high(), &low());
+    u64mul(high(), other.low(), &r1s, &r0s);
+    u64add(0, high(), r0s, &r1s, &high());
 }
 
 NSROOT::UnsignedInteger128 NSROOT::UnsignedInteger128::operator/(const UnsignedInteger128& other) const
@@ -361,23 +482,23 @@ NSROOT::UnsignedInteger128 NSROOT::UnsignedInteger128::operator/(const UnsignedI
     {
         return 0;
     }
-    else if (this->high_ == 0 && other.high_ == 0)
+    else if (high() == 0 && other.high() == 0)
     {
-        return UnsignedInteger128(this->low_ / other.low_);
+        return UnsignedInteger128(low() / other.low());
     }
-    else if (other.high_ == 0)
+    else if (other.high() == 0)
     {
-        uint64_t this_high = this->high_;
-        uint64_t res_high = this_high / other.low_;
-        this_high %= other.low_;
+        uint64_t this_high = high();
+        uint64_t res_high = this_high / other.low();
+        this_high %= other.low();
         uint64_t res_low = 0;
         uint64_t res_r = 0;
-        u128div(this_high, this->low_, other.low_, &res_low, &res_r);
+        u128div(this_high, low(), other.low(), &res_low, &res_r);
         return UnsignedInteger128(res_high, res_low);
     }
     else
     {
-        uint64_t max = this->high_ / other.high_ + 1;
+        uint64_t max = high() / other.high() + 1;
         uint64_t min = 0;
         uint64_t now = max / 2;
         const UnsignedInteger128& a_ = *this;
@@ -401,23 +522,23 @@ NSROOT::UnsignedInteger128 NSROOT::UnsignedInteger128::operator%(const UnsignedI
     {
         return 0;
     }
-    else if (this->high_ == 0 && other.high_ == 0)
+    else if (high() == 0 && other.high() == 0)
     {
-        return UnsignedInteger128(this->low_ % other.low_);
+        return UnsignedInteger128(low() % other.low());
     }
-    else if (other.high_ == 0)
+    else if (other.high() == 0)
     {
-        uint64_t this_high = this->high_;
-        uint64_t res_high = this_high / other.low_;
-        this_high %= other.low_;
+        uint64_t this_high = high();
+        uint64_t res_high = this_high / other.low();
+        this_high %= other.low();
         uint64_t res_low = 0;
         uint64_t res_r = 0;
-        u128div(this_high, this->low_, other.low_, &res_low, &res_r);
+        u128div(this_high, low(), other.low(), &res_low, &res_r);
         return UnsignedInteger128(0, res_r);
     }
     else
     {
-        uint64_t max = this->high_ / other.high_ + 1;
+        uint64_t max = high() / other.high() + 1;
         uint64_t min = 0;
         uint64_t now = max / 2;
         const UnsignedInteger128& a_ = *this;

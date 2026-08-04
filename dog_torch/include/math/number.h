@@ -44,8 +44,9 @@ namespace dog_torch::math::number
     class CPP_API UnsignedInteger128
     {
     public:
-        uint64_t high_;
-        uint64_t low_;
+        //uint64_t high_;
+        //uint64_t low_;
+        std::array<uint64_t,2> num_;
 
         UnsignedInteger128();
         UnsignedInteger128(uint64_t high, uint64_t low);
@@ -55,6 +56,11 @@ namespace dog_torch::math::number
         UnsignedInteger128& operator=(const UnsignedInteger128& other);
         UnsignedInteger128(UnsignedInteger128&& other) noexcept;
         UnsignedInteger128& operator=(UnsignedInteger128&& other) noexcept;
+
+        uint64_t& high();
+        const uint64_t& high() const;
+        uint64_t& low();
+        const uint64_t& low() const;
 
         static CompareResult compare(const UnsignedInteger128& a, const UnsignedInteger128& b) noexcept;
 
@@ -74,9 +80,12 @@ namespace dog_torch::math::number
 
         UnsignedInteger128 operator|(const UnsignedInteger128& other) const noexcept;
         UnsignedInteger128 operator^(const UnsignedInteger128& other) const noexcept;
+        void operator^=(const UnsignedInteger128& other) noexcept;
 
         UnsignedInteger128 operator<<(uint64_t shift) const noexcept;
+        void operator<<=(uint64_t shift) noexcept;
         UnsignedInteger128 operator>>(uint64_t shift) const noexcept;
+        void operator>>=(uint64_t shift) noexcept;
 
         UnsignedInteger128 operator+(const UnsignedInteger128& other) const noexcept;
         void operator+=(const UnsignedInteger128& other) noexcept;

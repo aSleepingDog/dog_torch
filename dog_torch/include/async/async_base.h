@@ -1,6 +1,6 @@
 #pragma once
 #include "export.h"
-
+#include <iostream>
 #include <vector>
 #include <string>
 #include <chrono>
@@ -140,6 +140,7 @@ namespace dog_torch::async
 		{
 			this->end_time_ = std::chrono::steady_clock::now();
 			if (this->total_ != nullptr) *this->total_ += std::chrono::duration_cast<T>(this->end_time_ - this->start_time_).count();
+			std::cout << "Elapsed: " << std::chrono::duration_cast<T>(this->end_time_ - this->start_time_).count() << std::endl;
 		}
 	};
 }

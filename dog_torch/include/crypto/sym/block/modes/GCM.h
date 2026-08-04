@@ -4,6 +4,7 @@
 #include <iostream>
 #include <functional>
 
+#include "math/math.h"
 #include "serialize/serialize.h"
 #include "crypto/sym/sym_base.h"
 #include "crypto/sym/block/sym_block_base.h"
@@ -52,8 +53,8 @@ namespace dog_torch::crypto::sym::block::mode
 		streamp_crypt_func get_streamp_decrypt() const override;
 
 		static void incr(BinaryData& conter, uint64_t s_bit);
-		static BinaryData mult(const BinaryData& x, const BinaryData& y);
-		static BinaryData GHASH(const BinaryData& h, const BinaryData& x);
+		//static BinaryData mult(const BinaryData& x, const BinaryData& y);
+		//static BinaryData GHASH(const BinaryData& h, const BinaryData& x);
 		static uint64_t fill_size(uint64_t l);
 
 		static BinaryData encrypt(

@@ -19,8 +19,8 @@ namespace dog_torch::crypto::hash
 		{
 			std::string name;
 			std::string region;
-			std::map<std::string, ParamType> params;
-			Config(const std::string& name, const std::string& region, const std::map<std::string, ParamType>& params);
+			std::map<std::string, ParamInfo> params;
+			Config(const std::string& name, const std::string& region, const std::map<std::string, ParamInfo>& params);
 
 			Config(const Config& config);
 			Config& operator=(const Config& config);
@@ -108,7 +108,7 @@ extern "C"
 
 	C_API(UTILS(CppString)*)                NAMESPACE(Config_name)                     (const LVALUE(NAMESPACE(Config)) config);
 	C_API(UTILS(CppString)*)                NAMESPACE(Config_region)                   (const LVALUE(NAMESPACE(Config)) config);
-	C_API(CRYPTO_BASE(ParamTypeTreeMap)*)   NAMESPACE(Config_params)                   (const LVALUE(NAMESPACE(Config)) config);
+	C_API(CRYPTO_BASE(ParamInfoTreeMap)*)   NAMESPACE(Config_params)                   (const LVALUE(NAMESPACE(Config)) config);
 
 	C_API(void)                             NAMESPACE(Algorithm_delete)                (NAMESPACE(Algorithm)** self);
 	C_API(UTILS(CppString)*)                NAMESPACE(Algorithm_fmt_string)            (const LVALUE(NAMESPACE(Algorithm)) self);

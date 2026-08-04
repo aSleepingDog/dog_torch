@@ -110,8 +110,8 @@ namespace dog_torch::crypto::sym::block
 		struct CPP_API Config
 		{
 			std::string name;
-			std::map<std::string, ParamType> params;
-			Config(const std::string& name, const std::map<std::string, ParamType> params);
+			std::map<std::string, ParamInfo> params;
+			Config(const std::string& name, const std::map<std::string, ParamInfo> params);
 			std::string fmt_string();
 		};
 
@@ -217,7 +217,7 @@ extern "C"
 	C_API(void)                               NS_ROOT(Algorithm_delete)         (NS_ROOT(Algorithm)** self);
 
 	C_API(UTILS(CppString)*)                  NS_MODE(Config_name)              (const LVALUE(NS_MODE(Config)) self);
-	C_API(CRYPTO_BASE(ParamTypeTreeMap)*)     NS_MODE(Config_params)            (const LVALUE(NS_MODE(Config)) self);
+	C_API(CRYPTO_BASE(ParamInfoTreeMap)*)     NS_MODE(Config_params)            (const LVALUE(NS_MODE(Config)) self);
 	C_API(UTILS(CppString)*)                  NS_MODE(Mode_fmt_string)          (const LVALUE(NS_ROOT(Mode)) self);
 	C_API(void)                               NS_ROOT(Mode_delete)              (NS_ROOT(Mode)** self);
 
