@@ -425,6 +425,71 @@ BinaryData NSROOT::AES::extend_key(const BinaryData& key, uint64_t block_size, u
     return BinaryData();
 }
 
+#ifdef EN_AES_IN
+#include <wmmintrin.h>
+BinaryData NSROOT::AES::encoding(const BinaryData& plain, uint64_t block_size, const BinaryData& key, uint64_t key_size)
+{
+	std::array<uint8_t, 16> mid_block{ 0 };
+	std::copy(plain.cbegin(), plain.cend(), mid_block.begin());
+	__m128i* tmp = (__m128i*) (&mid_block[0]);
+	__m128i* keyp = (__m128i*) (&key[0]);
+	*tmp = _mm_xor_si128(*tmp, keyp[0]);
+	uint32_t i = 0;
+	for (; i < ((key_size / 4) + 5); i++)
+	{
+		*tmp = _mm_aesenc_si128(*tmp, keyp[i + 1]);
+	}
+	*tmp = _mm_aesenclast_si128(*tmp, keyp[i + 1]);
+	return mid_block;
+}
+void NSROOT::AES::encoding_self(BinaryData& plain, uint64_t block_size, const BinaryData& key, uint64_t key_size)
+{
+    __m128i* tmp = (__m128i*) (&plain[0]);
+    __m128i* keyp = (__m128i*) (&key[0]);
+    *tmp = _mm_xor_si128(*tmp, keyp[0]);
+    uint32_t i = 0;
+    for (; i < ((key_size / 4) + 5); i++)
+    {
+        *tmp = _mm_aesenc_si128(*tmp, keyp[i + 1]);
+    }
+    *tmp = _mm_aesenclast_si128(*tmp, keyp[i + 1]);
+}
+BinaryData NSROOT::AES::decoding(const BinaryData& crypt, uint64_t block_size, const BinaryData& key, uint64_t key_size)
+{
+    std::array<uint8_t, 16> mid_block{ 0 };
+    std::copy(crypt.cbegin(), crypt.cend(), mid_block.begin());
+    __m128i* tmp = (__m128i*)(&mid_block[0]);
+    __m128i* keyp = (__m128i*)(&key[0]);
+
+    uint32_t nr = (key_size / 4) + 5;
+    uint32_t total_rounds = nr + 1;
+
+    *tmp = _mm_xor_si128(*tmp, keyp[total_rounds]);
+    for (int i = nr; i >= 1; i--)
+    {
+        __m128i round_key = _mm_aesimc_si128(keyp[i]);
+        *tmp = _mm_aesdec_si128(*tmp, round_key);
+    }
+    *tmp = _mm_aesdeclast_si128(*tmp, keyp[0]);
+    return mid_block;
+}
+void NSROOT::AES::decoding_self(BinaryData& crypt, uint64_t block_size, const BinaryData& key, uint64_t key_size)
+{
+    __m128i* tmp = (__m128i*)(&crypt[0]);
+    __m128i* keyp = (__m128i*)(&key[0]);
+
+    uint32_t nr = (key_size / 4) + 5;
+    uint32_t total_rounds = nr + 1;
+
+    *tmp = _mm_xor_si128(*tmp, keyp[total_rounds]);
+    for (int i = nr; i >= 1; i--)
+    {
+        __m128i round_key = _mm_aesimc_si128(keyp[i]);
+        *tmp = _mm_aesdec_si128(*tmp, round_key);
+    }
+    *tmp = _mm_aesdeclast_si128(*tmp, keyp[0]);
+}
+#else
 BinaryData NSROOT::AES::encoding(const BinaryData& plain, uint64_t block_size, const BinaryData& key, uint64_t key_size)
 {
     auto bxor = [](std::array<uint8_t, 16>& dest, std::vector<uint8_t>::const_iterator start, std::vector<uint8_t>::const_iterator end)
@@ -437,32 +502,12 @@ BinaryData NSROOT::AES::encoding(const BinaryData& plain, uint64_t block_size, c
     uint32_t i = 0;
     for (; i < ((key_size / 4) + 5); i++)
     {
-        //std::cout << mid_block.to_hex_string(true) << std::endl;
         NSROOT::AES::en_middle0(mid_block);
         NSROOT::AES::en_middle1(mid_block);
         bxor(mid_block, key.cbegin() + 16 * (i + 1), key.cbegin() + 16 * (i + 2));
     }
     NSROOT::AES::en_middle0(mid_block);
     bxor(mid_block, key.cbegin() + 16 * (i + 1), key.cbegin() + 16 * (i + 2));
-    return mid_block;
-}
-BinaryData NSROOT::AES::decoding(const BinaryData& crypt, uint64_t block_size, const BinaryData& key, uint64_t key_size)
-{
-    auto bxor = [](std::array<uint8_t, 16>& dest, std::vector<uint8_t>::const_iterator start, std::vector<uint8_t>::const_iterator end)
-        {
-            std::transform(start, end, dest.begin(), dest.begin(), [](uint8_t a, uint8_t b) { return a ^ b; });
-        };
-    std::array<uint8_t, 16> mid_block{ 0 };
-    std::copy(crypt.cbegin(), crypt.cend(), mid_block.begin());
-    bxor(mid_block, key.cbegin() + (key_size * 4) + 96, key.cbegin() + (key_size * 4) + 112);
-    de_middle0(mid_block);
-    bxor(mid_block, key.cbegin() + 16 * ((key_size / 4) + 4), key.cbegin() + 16 * ((key_size / 4) + 5));
-    for (uint32_t i = 1; i < ((key_size / 4) + 6); i++)
-    {
-        de_middle1(mid_block);
-        de_middle0(mid_block);
-        bxor(mid_block, key.cbegin() + 16 * ((key_size / 4) + 5 - i), key.cbegin() + 16 * ((key_size / 4) + 6 - i));
-    }
     return mid_block;
 }
 void NSROOT::AES::encoding_self(BinaryData& plain, uint64_t block_size, const BinaryData& key, uint64_t key_size)
@@ -477,7 +522,6 @@ void NSROOT::AES::encoding_self(BinaryData& plain, uint64_t block_size, const Bi
     uint32_t i = 0;
     for (; i < ((key_size / 4) + 5); i++)
     {
-        //std::cout << mid_block.to_hex_string(true) << std::endl;
         NSROOT::AES::en_middle0(mid_block);
         NSROOT::AES::en_middle1(mid_block);
         bxor(mid_block, key.cbegin() + 16 * (i + 1), key.cbegin() + 16 * (i + 2));
@@ -486,7 +530,7 @@ void NSROOT::AES::encoding_self(BinaryData& plain, uint64_t block_size, const Bi
     bxor(mid_block, key.cbegin() + 16 * (i + 1), key.cbegin() + 16 * (i + 2));
     std::copy(mid_block.cbegin(), mid_block.cend(), plain.begin());
 }
-void NSROOT::AES::decoding_self(BinaryData& crypt, uint64_t block_size, const BinaryData & key, uint64_t key_size)
+BinaryData NSROOT::AES::decoding(const BinaryData& crypt, uint64_t block_size, const BinaryData& key, uint64_t key_size)
 {
     auto bxor = [](std::array<uint8_t, 16>& dest, std::vector<uint8_t>::const_iterator start, std::vector<uint8_t>::const_iterator end)
         {
@@ -495,14 +539,34 @@ void NSROOT::AES::decoding_self(BinaryData& crypt, uint64_t block_size, const Bi
     std::array<uint8_t, 16> mid_block{ 0 };
     std::copy(crypt.cbegin(), crypt.cend(), mid_block.begin());
     bxor(mid_block, key.cbegin() + (key_size * 4) + 96, key.cbegin() + (key_size * 4) + 112);
-    de_middle0(mid_block);
-    bxor(mid_block, key.cbegin() + 16 * ((key_size / 4) + 4), key.cbegin() + 16 * ((key_size / 4) + 5));
+    NSROOT::AES::de_middle0(mid_block);
+    bxor(mid_block, key.cbegin() + 16 * ((key_size / 4) + 5), key.cbegin() + 16 * ((key_size / 4) + 6));
     for (uint32_t i = 1; i < ((key_size / 4) + 6); i++)
     {
-        de_middle1(mid_block);
-        de_middle0(mid_block);
+        NSROOT::AES::de_middle1(mid_block);
+        NSROOT::AES::de_middle0(mid_block);
+        bxor(mid_block, key.cbegin() + 16 * ((key_size / 4) + 5 - i), key.cbegin() + 16 * ((key_size / 4) + 6 - i));
+    }
+    return mid_block;
+}
+void NSROOT::AES::decoding_self(BinaryData& crypt, uint64_t block_size, const BinaryData& key, uint64_t key_size)
+{
+    auto bxor = [](std::array<uint8_t, 16>& dest, std::vector<uint8_t>::const_iterator start, std::vector<uint8_t>::const_iterator end)
+        {
+            std::transform(start, end, dest.begin(), dest.begin(), [](uint8_t a, uint8_t b) { return a ^ b; });
+        };
+    std::array<uint8_t, 16> mid_block{ 0 };
+    std::copy(crypt.cbegin(), crypt.cend(), mid_block.begin());
+    bxor(mid_block, key.cbegin() + (key_size * 4) + 96, key.cbegin() + (key_size * 4) + 112);
+    NSROOT::AES::de_middle0(mid_block);
+    bxor(mid_block, key.cbegin() + 16 * ((key_size / 4) + 5), key.cbegin() + 16 * ((key_size / 4) + 6));
+    for (uint32_t i = 1; i < ((key_size / 4) + 6); i++)
+    {
+        NSROOT::AES::de_middle1(mid_block);
+        NSROOT::AES::de_middle0(mid_block);
         bxor(mid_block, key.cbegin() + 16 * ((key_size / 4) + 5 - i), key.cbegin() + 16 * ((key_size / 4) + 6 - i));
     }
     std::copy(mid_block.begin(), mid_block.end(), crypt.begin());
 
 }
+#endif

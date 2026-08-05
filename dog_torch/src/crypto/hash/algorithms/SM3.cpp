@@ -132,14 +132,15 @@ BinaryData NSROOT::SM3::next_block(const BinaryData& data, uint64_t start, uint6
 }
 BinaryData NSROOT::SM3::next_block(std::istream& data, uint64_t& data_pos, uint64_t data_total)
 {
+	using dog_torch::serialize::stream::read_bytes;
 	if (data_total > this->max())
 	{
 		throw DOG_EXCEPTION(array_to_view(ERROR_LARGE_DATA_SIZE));
 	}
 	BinaryData res(64);
-	data.read((char*)res.data_ptr(), 64);
-	for (uint64_t i = data.gcount(); i < 64; i++) res.pop_back();
-	data_pos += data.gcount();
+	uint64_t read_size = 0;
+	read_bytes(data, data_total, data_pos, res, 64, read_size);
+	data_pos += read_size;
 	if (res.size() >= 64) return res;
 	else
 	{

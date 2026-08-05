@@ -381,14 +381,13 @@ bool NSROOT::SHA2::have_next_block(uint64_t data_pos, uint64_t data_total)
 	{
 		throw DOG_EXCEPTION(array_to_view(ERROR_LARGE_DATA_SIZE));
 	}
+	uint64_t dur = (data_total - data_pos);
 	if (this->effective == 32 || this->effective == 28)
 	{
-		auto dur = (data_total - data_pos);
 		return dur >= 64 ? true : !this->is_padding_num_;
 	}
 	else if (this->effective == 64 || this->effective == 48)
 	{
-		auto dur = (data_total - data_pos);
 		return dur >= 128 ? true : !this->is_padding_num_;
 	}
 	else
@@ -468,6 +467,7 @@ BinaryData NSROOT::SHA2::next_block(const BinaryData& data, uint64_t start, uint
 }
 BinaryData NSROOT::SHA2::next_block(std::istream& data, uint64_t& data_pos, uint64_t data_total)
 {
+	using dog_torch::serialize::stream::read_bytes;
 	if (data_total > this->max())
 	{
 		throw DOG_EXCEPTION(array_to_view(ERROR_LARGE_DATA_SIZE));
@@ -475,9 +475,9 @@ BinaryData NSROOT::SHA2::next_block(std::istream& data, uint64_t& data_pos, uint
 	if (this->effective == 32 || this->effective == 28)
 	{
 		BinaryData res(64);
-		data.read((char*)res.data_ptr(), 64);
-		for (uint64_t i = data.gcount(); i < 64; i++) res.pop_back();
-		data_pos += data.gcount();
+		uint64_t read_size = 0;
+		read_bytes(data, data_total, data_pos, res, 64, read_size);
+		data_pos += read_size;
 		if (res.size() >= 64) return res;
 		else
 		{
@@ -505,10 +505,10 @@ BinaryData NSROOT::SHA2::next_block(std::istream& data, uint64_t& data_pos, uint
 	}
 	else if (this->effective == 64 || this->effective == 48)
 	{
-		BinaryData res(64);
-		data.read((char*)res.data_ptr(), 64);
-		for (uint64_t i = data.gcount(); i < 64; i++) res.pop_back();
-		data_pos += data.gcount();
+		BinaryData res(128);
+		uint64_t read_size = 0;
+		read_bytes(data, data_total, data_pos, res, 128, read_size);
+		data_pos += read_size;
 		if (res.size() >= 128) return res;
 		else
 		{

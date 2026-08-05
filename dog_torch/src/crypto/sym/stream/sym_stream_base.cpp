@@ -2,6 +2,7 @@
 
 namespace NSROOT = dog_torch::crypto::sym::stream;
 using BinaryData = dog_torch::serialize::BinaryData;
+using Value = dog_torch::serialize::tlv::Value;
 
 using dog_torch::utils::from_c_str;
 using dog_torch::utils::from_uint64;
@@ -29,6 +30,27 @@ void NSROOT::algorithm::Algorithm::init()
 {
 
 }
+std::string NSROOT::algorithm::Algorithm::fmt_string() const
+{
+    return "";
+}
+Value NSROOT::algorithm::Algorithm::serialize() const
+{
+    using dog_torch::serialize::tlv::MIBString;
+    using dog_torch::math::number::Integer64;
+    if (this->config().name == "")
+    {
+        return nullptr;
+    }
+    Value name = MIBString{ this->config().name };
+    Value effective = Integer64{ this->effective_};
+    Value key_size = Integer64{ this->key_size_ };
+    Value total = std::vector<Value>{};
+    total.to_array().push_back(std::move(name));
+    total.to_array().push_back(std::move(effective));
+    total.to_array().push_back(std::move(key_size));
+    return total;
+}
 std::unique_ptr<NSROOT::algorithm::Algorithm> NSROOT::algorithm::Algorithm::clone() const
 {
     return std::make_unique<Algorithm>(*this);
@@ -41,20 +63,18 @@ NSROOT::algorithm::UpdateFunc NSROOT::algorithm::Algorithm::update_func()
 {
 	return UpdateFunc();
 }
-
 NSROOT::algorithm::CombineFunc NSROOT::algorithm::Algorithm::combine_func()
 {
     return XOR_combine;
 }
-
 void NSROOT::algorithm::Algorithm::XOR_combine(BinaryData& dst, const BinaryData& src)
 {
     dst ^= src;
 }
 
 
-NSROOT::StreamCipher::StreamCipher(const BinaryData& key, const algorithm::Algorithm& alg, uint64_t shift, bool is_bit)
-	: Cipher(key), alg_(alg.clone()), shift_(shift), is_bit_(is_bit)
+NSROOT::StreamCipher::StreamCipher(const algorithm::Algorithm& alg, uint64_t shift, bool is_bit)
+	: alg_(alg.clone()), shift_(shift), is_bit_(is_bit)
 {}
 
 void NSROOT::StreamCipher::init()
@@ -78,6 +98,20 @@ bool NSROOT::StreamCipher::effective() const
         return false;
     }
     return true;
+}
+
+std::string NSROOT::StreamCipher::fmt_string() const
+{
+    return std::format("StreamCipher<{}>", alg_->fmt_string());
+}
+Value NSROOT::StreamCipher::serialize() const
+{
+    using dog_torch::serialize::tlv::MIBString;
+    Value tag_t = std::unordered_map<MIBString, Value>{};
+    Value total = std::vector<Value>{};
+    total.to_array().push_back(this->alg_->serialize());
+    tag_t.to_object().insert({ MIBString{ "Stream" } ,total });
+    return tag_t;
 }
 
 BinaryData NSROOT::StreamCipher::encrypt(const BinaryData& plain)
@@ -232,3 +266,59 @@ void NSROOT::StreamCipher::decryptp_stream(PauseableChannel& pc, std::istream& c
 {
     encryptp_stream(pc, crypt, total, plain);
 }
+
+#define NS_ROOT(name) dog_torch__crypto__sym__stream__##name
+#define NS_ALG(name) dog_torch__crypto__sym__stream__algorithm__##name
+#define UTILS(name)  dog_torch__utils__##name
+
+UTILS(CppString)* NS_ALG(Config_name)(const LVALUE(NS_ALG(Config)) self)
+{
+    if (self == nullptr) return nullptr;
+    return dog_torch::utils::to_c_style(self->name);
+}
+UTILS(CppString)* NS_ALG(Config_effective_region)(const LVALUE(NS_ALG(Config)) self)
+{
+    if (self == nullptr) return nullptr;
+    return dog_torch::utils::to_c_style(self->effective_region);
+}
+UTILS(CppString)* NS_ALG(Config_key_region)(const LVALUE(NS_ALG(Config)) self)
+{
+    if (self == nullptr) return nullptr;
+    return dog_torch::utils::to_c_style(self->key_size_region);
+}
+
+UTILS(CppString)* NS_ROOT(Algorithm_fmt_string)(const LVALUE(NS_ROOT(Algorithm)) self)
+{
+    if (self == nullptr) return nullptr;
+    return dog_torch::utils::to_c_style(self->fmt_string());
+}
+void NS_ROOT(Algorithm_delete)(NS_ROOT(Algorithm)** self)
+{
+    DEFAULT_DESTOTY(self);
+}
+
+NS_ROOT(StreamCipher)* NS_ROOT(StreamCipher_create)(LVALUE(UTILS(CppResultSet)) result_set, const LVALUE(NS_ROOT(Algorithm)) alg, uint64_t shift, uint8_t is_bit)
+{
+    if (alg == nullptr)
+    {
+        dog_torch::utils::CppResultSet_reset(result_set, -1, "algorithm is null");
+        return nullptr;
+    }
+    try
+    {
+        return new NS_ROOT(StreamCipher)(*alg, shift, is_bit);
+    }
+    catch (const std::exception& e)
+    {
+        dog_torch::utils::CppResultSet_reset(result_set, -1, e.what());
+        return nullptr;
+    }
+}
+void NS_ROOT(StreamCipher_delete)(NS_ROOT(StreamCipher)** self)
+{
+    DEFAULT_DESTOTY(self);
+}
+
+#undef NS_ROOT
+#undef NS_ALG
+#undef UTILS

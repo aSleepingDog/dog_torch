@@ -19,7 +19,7 @@ namespace dog_torch::crypto::sym::stream::algorithm
     public:
         ChaCha(uint64_t round);
 
-        static Config allowed_config();
+        static const Config& allowed_config();
         Config config() const override;
         std::unique_ptr<algorithm::Algorithm> clone() const override;
 
@@ -27,6 +27,7 @@ namespace dog_torch::crypto::sym::stream::algorithm
         static BinaryData generate_stream(const BinaryData& key_nonce, uint64_t count, uint64_t round);
 
         void init() override;
+        std::string fmt_string() const override;
         uint64_t updata_size() const override;
         UpdateFunc update_func() override;
     };

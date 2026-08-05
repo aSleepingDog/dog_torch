@@ -14,7 +14,7 @@ NSROOT::ChaCha::ChaCha(uint64_t round)
 	: Algorithm(round, 40),count_(0)
 {}
 
-NSROOT::Config NSROOT::ChaCha::allowed_config()
+const NSROOT::Config& NSROOT::ChaCha::allowed_config()
 {
 	static Config config("ChaCha", "8,12,20", "40");
 	return config;
@@ -93,6 +93,10 @@ std::unique_ptr<NSROOT::Algorithm> NSROOT::ChaCha::clone() const
 void NSROOT::ChaCha::init()
 {
 	this->count_ = 0;
+}
+std::string NSROOT::ChaCha::fmt_string() const
+{
+	return std::format("ChaCha({})", this->effective_);
 }
 uint64_t NSROOT::ChaCha::updata_size() const
 {
