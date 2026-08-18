@@ -23,6 +23,14 @@ namespace dog_torch::serialize
         using crit = std::vector<uint8_t>::const_reverse_iterator;
         std::vector<uint8_t> data_;
     public:
+        enum class Type : uint64_t
+        {
+            UTF8 = 0,
+            Binary = 1,
+            Hex = 2,
+            Base64 = 3,
+        };
+
         BinaryData();
         explicit BinaryData(uint64_t size);
         BinaryData(const std::vector<uint8_t>& data);
@@ -34,10 +42,10 @@ namespace dog_torch::serialize
             data_ = std::vector<uint8_t>(data.begin(), data.end());
         }
 
-        BinaryData(std::string_view str, uint64_t type);
-        BinaryData(const std::string& str, uint64_t type);
-        BinaryData(const char* str, uint64_t type);
-        template<size_t N, uint64_t Type>
+        BinaryData(std::string_view str, Type type);
+        BinaryData(const std::string& str, Type type);
+        BinaryData(const char* str, Type type);
+        template<size_t N, Type Type>
         BinaryData(const std::array<char, N>& str) : BinaryData(dog_torch::utils::array_to_view(str), Type) {};
 
         BinaryData& operator=(uint64_t);

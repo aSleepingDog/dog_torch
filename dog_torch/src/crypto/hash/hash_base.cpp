@@ -276,7 +276,7 @@ SERIALIZE(BinaryData)* NAMESPACE(Generator_calculate_binary)(LVALUE(NAMESPACE(Ge
 	if (self == nullptr) return nullptr;
 	if (data == nullptr)
 	{
-		return new SERIALIZE(BinaryData){ self->calculate({"",0}) };
+		return new SERIALIZE(BinaryData){ self->calculate({"",NSROOT::BinaryData::Type::Hex}) };
 	}
 	return new SERIALIZE(BinaryData){ self->calculate(*data) };
 }

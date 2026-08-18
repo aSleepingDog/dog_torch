@@ -135,31 +135,22 @@ uint64_t NSROOT::identify_integer(std::string_view::const_iterator& pos, const s
         }
         else if (stage == 4)
         {
+            // Validate the digit BEFORE shifting, so a trailing delimiter
+            // ends the number without corrupting it (and without a spurious
+            // overflow check on an already-complete value).
+            uint8_t digit;
+            if (c >= '0' && c <= '9') { digit = c - '0'; }
+            else if (c >= 'A' && c <= 'F') { digit = c - 'A' + 10; }
+            else if (c >= 'a' && c <= 'f') { digit = c - 'a' + 10; }
+            else { stage = 127;break; }
+
             if (number > UINT64_MAX / 16)
             {
                 stage = -2;
                 break;
             }
             number <<= 4;
-            if (c >= '0' && c <= '9')
-            {
-                number |= c - '0';
-                stage = 4;
-            }
-            else if (c >= 'A' && c <= 'F')
-            {
-                number |= c - 'A' + 10;
-                stage = 4;
-            }
-            else if (c >= 'a' && c <= 'f')
-            {
-                number |= c - 'a' + 10;
-                stage = 4;
-            }
-            else
-            {
-                stage = 127;break;
-            }
+            number |= digit;
         }
         else if (stage == 5)
         {
@@ -175,20 +166,14 @@ uint64_t NSROOT::identify_integer(std::string_view::const_iterator& pos, const s
         }
         else if (stage == 6)
         {
+            if (c < '0' || c > '7') { stage = 127;break; }
             if (number > UINT64_MAX / 8)
             {
                 stage = -2;
                 break;
             }
             number <<= 3;
-            if (c >= '0' && c <= '7')
-            {
-                number += (c - '0');
-            }
-            else
-            {
-                stage = 127;break;
-            }
+            number += (c - '0');
         }
         else if (stage == 7)
         {
@@ -204,20 +189,14 @@ uint64_t NSROOT::identify_integer(std::string_view::const_iterator& pos, const s
         }
         else if (stage == 8)
         {
+            if (c != '0' && c != '1') { stage = 127;break; }
             if (number > UINT64_MAX / 2)
             {
                 stage = -2;
                 break;
             }
             number <<= 1;
-            if (c == '0' || c == '1')
-            {
-                number += (c - '0');
-            }
-            else
-            {
-                stage = 127;break;
-            }
+            number += (c - '0');
         }
         else if (stage == 127 || stage < 0)
         {

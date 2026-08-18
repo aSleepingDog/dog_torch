@@ -15,4 +15,5 @@ std::unique_ptr<NSROOT::Algorithm> NSROOT::create(const std::string& name, uint6
 	{
 		return std::make_unique<NSROOT::ChaCha>(effective);
 	}
+	return nullptr;
 }

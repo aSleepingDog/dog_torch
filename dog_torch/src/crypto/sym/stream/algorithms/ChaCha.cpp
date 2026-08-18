@@ -32,7 +32,7 @@ void inline NSROOT::ChaCha::trans(uint32_t& a, uint32_t& b, uint32_t& c, uint32_
 BinaryData NSROOT::ChaCha::generate_stream(const BinaryData& key_nonce, uint64_t count, uint64_t round)
 {
 	using dog_torch::math::integer::pick_byte;
-	BinaryData xor_stream = { "expand 32-byte k",0 };
+	BinaryData xor_stream = { "expand 32-byte k",BinaryData::Type::UTF8 };
 	xor_stream.reserve(64);
 	xor_stream += key_nonce;
 	xor_stream.resize(64);

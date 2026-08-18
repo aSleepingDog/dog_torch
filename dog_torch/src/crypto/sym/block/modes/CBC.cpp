@@ -181,9 +181,13 @@ BinaryData NSROOT::CBC::encrypt(
         iv_ = buffer;
     }
     padding(buffer, block_size);
-    buffer ^= iv_;
-    block_self_encryption(buffer, block_size, available_key, key_size);
-    crypt += buffer;
+    if (buffer.size() != 0)
+    {
+        if (buffer.size() < block_size) throw DOG_EXCEPTION(array_to_view(ERROR_ALLOW_SIZE_OR_PADDING));
+        buffer ^= iv_;
+        block_self_encryption(buffer, block_size, available_key, key_size);
+        crypt += buffer;
+    }
     return crypt;
 }
 
@@ -210,10 +214,14 @@ BinaryData NSROOT::CBC::decrypt(
         plain += buffer0;
         iv_ = buffer1;
     }
-    block_self_decryption(buffer0, block_size, key, key_size);
-    buffer0 ^= iv_;
-    unpadding(buffer0, block_size);
-    plain += buffer0;
+    if (buffer0.size() != 0)
+    {
+        if (buffer0.size() < block_size) throw DOG_EXCEPTION(array_to_view(ERROR_CRYPT_ALLOW_SIZE));
+        block_self_decryption(buffer0, block_size, key, key_size);
+        buffer0 ^= iv_;
+        unpadding(buffer0, block_size);
+        plain += buffer0;
+    }
     return plain;
 }
 
@@ -238,9 +246,13 @@ void NSROOT::CBC::encrypt_stream(
         iv_ = buffer;
     }
     padding(buffer, block_size);
-    block_self_encryption(buffer, block_size, key, key_size);
-    buffer ^= iv_;
-    crypt.write(buffer.data_stream(), block_size);
+    if (buffer.size() != 0)
+    {
+        if (buffer.size() < block_size) throw DOG_EXCEPTION(array_to_view(ERROR_ALLOW_SIZE_OR_PADDING));
+        buffer ^= iv_;
+        block_self_encryption(buffer, block_size, available_key, key_size);
+        crypt.write(buffer.data_stream(), block_size);
+    }
     crypt.flush();
 }
 
@@ -264,10 +276,14 @@ void NSROOT::CBC::decrypt_stream(
         plain.write(buffer0.data_stream(), block_size);
         iv_ = buffer1;
     }
-    buffer0 ^= iv_;
-    block_self_decryption(buffer0, block_size, key, key_size);
-    unpadding(buffer0, block_size);
-    plain.write(buffer0.data_stream(), buffer0.size());
+    if (buffer0.size() != 0)
+    {
+        if (buffer0.size() < block_size) throw DOG_EXCEPTION(array_to_view(ERROR_CRYPT_ALLOW_SIZE));
+        block_self_decryption(buffer0, block_size, key, key_size);
+        buffer0 ^= iv_;
+        unpadding(buffer0, block_size);
+        plain.write(buffer0.data_stream(), buffer0.size());
+    }
     plain.flush();
 }
 
@@ -296,9 +312,13 @@ void NSROOT::CBC::encryptp_stream(
         pc.add_progress(block_size * 1.0 / total);
     }
     padding(buffer, block_size);
-    block_self_encryption(buffer, block_size, key, key_size);
-    buffer ^= iv_;
-    crypt.write(buffer.data_stream(), block_size);
+    if (buffer.size() != 0)
+    {
+        if (buffer.size() < block_size) throw DOG_EXCEPTION(array_to_view(ERROR_ALLOW_SIZE_OR_PADDING));
+        buffer ^= iv_;
+        block_self_encryption(buffer, block_size, available_key, key_size);
+        crypt.write(buffer.data_stream(), block_size);
+    }
     crypt.flush();
     pc.set_progress(1.0);
     pc.stop();
@@ -328,10 +348,14 @@ void NSROOT::CBC::decryptp_stream(
         iv_ = buffer1;
         pc.add_progress(block_size * 1.0 / total);
     }
-    block_self_decryption(buffer0, block_size, key, key_size);
-    buffer0 ^= iv_;
-    unpadding(buffer0, block_size);
-    plain.write(buffer0.data_stream(), block_size);
+    if (buffer0.size() != 0)
+    {
+        if (buffer0.size() < block_size) throw DOG_EXCEPTION(array_to_view(ERROR_CRYPT_ALLOW_SIZE));
+        block_self_decryption(buffer0, block_size, key, key_size);
+        buffer0 ^= iv_;
+        unpadding(buffer0, block_size);
+        plain.write(buffer0.data_stream(), buffer0.size());
+    }
     plain.flush();
     pc.set_progress(1.0);
     pc.stop();

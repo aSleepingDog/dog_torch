@@ -461,7 +461,7 @@ BinaryData NSROOT::AES::decoding(const BinaryData& crypt, uint64_t block_size, c
     __m128i* tmp = (__m128i*)(&mid_block[0]);
     __m128i* keyp = (__m128i*)(&key[0]);
 
-    uint32_t nr = (key_size / 4) + 5;
+    uint32_t nr = static_cast<uint32_t>((key_size / 4) + 5);
     uint32_t total_rounds = nr + 1;
 
     *tmp = _mm_xor_si128(*tmp, keyp[total_rounds]);
@@ -478,7 +478,7 @@ void NSROOT::AES::decoding_self(BinaryData& crypt, uint64_t block_size, const Bi
     __m128i* tmp = (__m128i*)(&crypt[0]);
     __m128i* keyp = (__m128i*)(&key[0]);
 
-    uint32_t nr = (key_size / 4) + 5;
+    uint32_t nr = static_cast<uint32_t>((key_size / 4) + 5);
     uint32_t total_rounds = nr + 1;
 
     *tmp = _mm_xor_si128(*tmp, keyp[total_rounds]);

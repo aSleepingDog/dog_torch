@@ -344,7 +344,7 @@ NSROOT::trims_func NSROOT::SHA2::get_trims() const
 	{
 		return [](BinaryData& value) -> void
 			{
-				value.resize(32);
+				value.resize(48);
 			};
 	}
 	default:
@@ -477,7 +477,6 @@ BinaryData NSROOT::SHA2::next_block(std::istream& data, uint64_t& data_pos, uint
 		BinaryData res(64);
 		uint64_t read_size = 0;
 		read_bytes(data, data_total, data_pos, res, 64, read_size);
-		data_pos += read_size;
 		if (res.size() >= 64) return res;
 		else
 		{
@@ -508,7 +507,6 @@ BinaryData NSROOT::SHA2::next_block(std::istream& data, uint64_t& data_pos, uint
 		BinaryData res(128);
 		uint64_t read_size = 0;
 		read_bytes(data, data_total, data_pos, res, 128, read_size);
-		data_pos += read_size;
 		if (res.size() >= 128) return res;
 		else
 		{

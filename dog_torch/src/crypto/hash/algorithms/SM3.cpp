@@ -140,7 +140,6 @@ BinaryData NSROOT::SM3::next_block(std::istream& data, uint64_t& data_pos, uint6
 	BinaryData res(64);
 	uint64_t read_size = 0;
 	read_bytes(data, data_total, data_pos, res, 64, read_size);
-	data_pos += read_size;
 	if (res.size() >= 64) return res;
 	else
 	{

@@ -126,6 +126,7 @@ NSROOT::Value NSROOT::Value::parse(std::vector<uint8_t>::const_iterator& pos, st
 		}
 		return NSROOT::Value(values);
 	}
+	throw DOG_EXCEPTION("asn1: unknown type");
 }
 NSROOT::Value NSROOT::Value::parse(std::istream& input, uint64_t* const len)
 {
@@ -174,6 +175,7 @@ NSROOT::Value NSROOT::Value::parse(std::istream& input, uint64_t* const len)
 		}
 		return NSROOT::Value(values);
 	}
+	throw DOG_EXCEPTION("asn1: unknown type");
 }
 
 std::vector<uint8_t> fmt_len(uint64_t size)
@@ -190,7 +192,7 @@ std::vector<uint8_t> fmt_len(uint64_t size)
 		result.push_back(llen | 0x80);
 		for (uint8_t i = llen - 1; ; i--)
 		{
-			result.push_back(size >> (i * 8));
+			result.push_back(static_cast<uint8_t>(size >> (i * 8)));
 			if (i == 0) break;
 		}
 		return result;

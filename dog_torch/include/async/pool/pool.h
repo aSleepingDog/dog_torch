@@ -27,32 +27,72 @@ namespace dog_torch::async::pool
 	template<typename T>
 	struct SharedResult;
 
+	/**
+	 * @brief Result of a task in the PausedThreadPool.
+	 * @brief 可暂停线程池(PausedThreadPool)的异步任务结果
+	 */
 	template<typename T>
 	struct Result
 	{
 		uint64_t task_id;
 		std::future<T> future;
 
+		/**
+		 * @param tid The task ID. 
+		 * @param tid 任务ID
+		 * 
+		 * @param f The future associated with the task.
+		 * @param f 异步任务的未来体的亡值
+		 */
 		Result(uint64_t tid, std::future<T>&& f) : task_id(tid), future(std::move(f)) {}
+		/**
+		 * @brief Share the result with other tasks.
+		 * @brief 将此类的结果共享
+		 * 
+		 * @warning this future will be invalid after this operation.
+		 * @warning 此操作后此类的future将失效
+		 * 
+		 * @return A shared result object.
+		 * @return 共享结果对象
+		 */
 		SharedResult<T> share()
 		{
 			return { task_id, future.share() };
 		}
 	};
 
+	/**
+	 * @brief Shared result of a task in the PausedThreadPool.
+	 * @brief 可暂停线程池(PausedThreadPool)的共享异步任务结果
+	 */
 	template<typename T>
 	struct SharedResult
 	{
 		uint64_t task_id;
 		std::shared_future<T> future;
 
+		/**
+		 * @param tid The task ID.
+		 * @param tid 任务ID
+		 * 
+		 * @param f The shared future associated with the task.
+		 * @param f 共享的未来体的亡值
+		 */
 		SharedResult(uint64_t tid, std::shared_future<T>&& f) : task_id(tid), future(std::move(f)) {};
 	};
 
 
+	/**
+	 * @brief A thread pool that supports pausing and resuming tasks.
+	 * @brief 可暂停线程池 支持任务的暂停和恢复
+	 */
 	class CPP_API PausedThreadPool
 	{
 	private:
+		/**
+		 * @brief A worker thread in the PausedThreadPool.
+		 * @brief 可暂停线程池中的工作线程
+		 */
 		class Worker
 		{
 		public:
@@ -71,13 +111,26 @@ namespace dog_torch::async::pool
 			~Worker();
 		};
 
+		/**
+		 * @brief A task in the PausedThreadPool.
+		 * @brief 可暂停线程池中的任务
+		 */
 		class Task
 		{
 		public:
+			/**
+			 * @brief The ID of the task.
+			 * @brief 任务ID
+			 */
 			uint64_t id = 0;
+			/**
+			 * @brief The function to be executed by the task.
+			 * @brief 任务执行的函数
+			 */
 			std::function<void(PauseableChannel&)> func;
 			Task() = default;
-			Task(std::function<void(PauseableChannel&)>&& pfunc, uint64_t pid);
+			Task(std::function<void(PauseableChannel&)>&& pfunc, uint64_t pid)
+				: func(std::move(pfunc)), id(pid) {}
 		};
 
 		std::mutex mutex_;

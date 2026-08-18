@@ -20,9 +20,6 @@ NSROOT::PausedThreadPool::Worker::~Worker()
 	pc.stop();
 	if (this->thread.joinable()) this->thread.join();
 }
-NSROOT::PausedThreadPool::Task::Task(std::function<void(PauseableChannel&)>&& pfunc, uint64_t pid)
-	: func(std::move(pfunc)), id(pid) {}
-
 NSROOT::PausedThreadPool::PausedThreadPool(uint64_t count)
 {
 	worker_count_.store(count);

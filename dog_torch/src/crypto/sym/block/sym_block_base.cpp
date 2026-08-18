@@ -155,7 +155,7 @@ uint64_t NSROOT::algorithm::Algorithm::get_block_size() const
 }
 uint64_t NSROOT::algorithm::Algorithm::get_key_size() const
 {
-	return this->block_size_;
+	return this->key_size_;
 }
 
 NSROOT::mode::Config::Config(const std::string& name, const std::map<std::string, ParamInfo> params)

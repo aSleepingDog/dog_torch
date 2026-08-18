@@ -79,15 +79,15 @@ NSROOT::BinaryData::BinaryData(std::vector<uint8_t> && data)
 {
     this->data_ = std::move(data);
 }
-NSROOT::BinaryData::BinaryData(std::string_view str, uint64_t type)
+NSROOT::BinaryData::BinaryData(std::string_view str, Type type)
 {
     uint64_t size = str.size();
-    if (type == 0)//ORI
+    if (type == Type::UTF8)//ORI
     {
         this->data_.resize(size);
         this->data_.assign(str.begin(), str.end());
     }
-    else if (type == 1)//Bin
+    else if (type == Type::Binary)//Bin
     {
         auto trans = [](uint8_t c)
             {
@@ -97,24 +97,29 @@ NSROOT::BinaryData::BinaryData(std::string_view str, uint64_t type)
                 }
                 return c - '0';
             };
-        uint64_t i = size % 8, pos = i > 0 ? 1 : 0;
-        this->data_.resize((size / 8) + pos);
-        for (; i < 8; i++)
+        uint8_t extra = size % 8;
+        uint8_t buf = 0;
+        for (uint8_t i = 0; i < extra; ++i)
         {
-            this->data_[0] <<= 1;
-            this->data_[0] |= trans(str[0]);
+            buf <<= 1;
+            buf |= trans(str[i]);
         }
-        for (i = 8; i < size; i += 8)
+        if (extra) this->data_.push_back(buf);
+        for (uint64_t i = extra; i < size; i += 8)
         {
-            for (uint64_t j = 0; j < 8; j++)
-            {
-                this->data_[pos] <<= 1;
-                this->data_[pos] |= trans(str[i + j]);
-            }
-            ++pos;
+            buf = 0;
+            buf |= trans(str[i + 0]) << 7;
+            buf |= trans(str[i + 1]) << 6;
+            buf |= trans(str[i + 2]) << 5;
+            buf |= trans(str[i + 3]) << 4;
+            buf |= trans(str[i + 4]) << 3;
+            buf |= trans(str[i + 5]) << 2;
+            buf |= trans(str[i + 6]) << 1;
+            buf |= trans(str[i + 7]) << 0;
+            this->data_.push_back(buf);
         }
     }
-    else if (type == 2)//Hex
+    else if (type == Type::Hex)//Hex
     {
         auto trans = [](uint8_t c)->uint8_t
             {
@@ -147,7 +152,7 @@ NSROOT::BinaryData::BinaryData(std::string_view str, uint64_t type)
             this->data_[pos++] = trans(str[i]) << 4 | trans(str[i + 1]);
         }
     }
-    else if (type == 3)//Base64
+    else if (type == Type::Base64)//Base64
     {
         auto trans = [](uint8_t c, bool is_end)->uint8_t
             {
@@ -221,8 +226,8 @@ NSROOT::BinaryData::BinaryData(std::string_view str, uint64_t type)
         throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_FORMAT));
     }
 }
-NSROOT::BinaryData::BinaryData(const std::string& str, uint64_t type) : BinaryData(std::string_view(str), type) {};
-NSROOT::BinaryData::BinaryData(const char* str, uint64_t type) : BinaryData(std::string_view(str), type) {};
+NSROOT::BinaryData::BinaryData(const std::string& str, Type type) : BinaryData(std::string_view(str), type) {};
+NSROOT::BinaryData::BinaryData(const char* str, Type type) : BinaryData(std::string_view(str), type) {};
 NSROOT::BinaryData::BinaryData(const BinaryData & other)
 {
     this->data_ = other.data_;
@@ -453,8 +458,7 @@ std::string NSROOT::BinaryData::to_bin_string() const
     if(this->data_.empty()) return "";
     std::string result;
     result.reserve(this->data_.size() * 8);
-    result += std::format("{:08b}", this->data_[0]);
-    for (auto it = this->data_.begin() + 1; it != this->data_.end(); ++it)
+    for (auto it = this->data_.begin(); it != this->data_.end(); ++it)
     {
         result += std::format("{:08b}", *it);
     }
@@ -907,7 +911,7 @@ std::streamsize NSROOT::BinaryBuffer::xsgetn(char_type* s, std::streamsize count
         count = this->egptr() - this->gptr();
     }
     std::copy(this->gptr(), this->gptr() + count, s);
-    this->gbump(count);
+    this->gbump(static_cast<int32_t>(count));
     return count;
 }
 std::streamsize NSROOT::BinaryBuffer::showmanyc()
@@ -924,7 +928,7 @@ std::streamsize NSROOT::BinaryBuffer::showmanyc()
 
 NSROOT::RandomBuffer::RandomBuffer(uint64_t seed)
 {
-    this->rd = std::mt19937(seed);
+    this->rd = std::mt19937(static_cast<uint32_t>(seed));
     this->peeked = traits_type::eof();
 }
 std::basic_streambuf<char>::int_type NSROOT::RandomBuffer::underflow()
@@ -980,7 +984,7 @@ NAMESPACE(BinaryData)* NAMESPACE(BinaryData_create_from_c_str)(LVALUE(UTILS(CppR
 {
     try
     {
-        return new NAMESPACE(BinaryData)(str, type);
+        return new NAMESPACE(BinaryData)(str, static_cast<NSROOT::BinaryData::Type>(type));
     }
     catch (const std::exception& e)
     {
@@ -993,7 +997,7 @@ NAMESPACE(BinaryData)* NAMESPACE(BinaryData_create_from_string)(LVALUE(UTILS(Cpp
 {
     try
     {
-        return new NAMESPACE(BinaryData)(std::string_view(str->str_ptr, str->size), type);
+        return new NAMESPACE(BinaryData)(std::string_view(str->str_ptr, str->size), static_cast<NSROOT::BinaryData::Type>(type));
     }
     catch (const std::exception& e)
     {

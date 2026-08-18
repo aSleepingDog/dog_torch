@@ -23,7 +23,11 @@ namespace dog_torch::crypto::hash::algorithm
 	public:
 		static const Config& allowed_config();
 
-		BLAKE2(uint64_t effective, uint8_t out_size = 0, const BinaryData& key = { "",0 }, const BinaryData& salt = { "",0 }, const BinaryData& personalization = { "",0 });
+		BLAKE2(uint64_t effective, uint8_t out_size = 0, 
+			const BinaryData& key = { "",BinaryData::Type::Hex }, 
+			const BinaryData& salt = { "",BinaryData::Type::Hex }, 
+			const BinaryData& personalization = { "",BinaryData::Type::Hex }
+		);
 
 		~BLAKE2() override = default;
 

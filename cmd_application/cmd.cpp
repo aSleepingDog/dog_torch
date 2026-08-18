@@ -9,7 +9,6 @@
 
 #include "async/pool/pool.h"
 #include "serialize/serialize.h"
-#include "serialize_extra/BinaryParams.h"
 
 #include "crypto/hash/hash_algorithms.h"
 #include "crypto/sym/block/sym_block_algorithms.h"
@@ -20,6 +19,117 @@ void enableVirtualTerminal();
 void clear_cmd();
 void pause_cmd();
 
+namespace dog_torch::serialize
+{
+	enum class Type : uint64_t
+	{
+		UTF_8 = 0,
+		Binary = 1,
+		Hex = 2,
+		Base64 = 3,
+	};
+
+	std::string type_fmt_string(Type type);
+
+	class BinaryParams
+	{
+		using Param = std::variant<bool, char>;
+	private:
+		Type type_;
+		std::vector<Param> params_;
+	public:
+		BinaryParams() = default;
+
+		static BinaryParams from_utf8();
+		static BinaryParams from_binary();
+		static BinaryParams from_hex(bool is_upper);
+		static BinaryParams from_base64(char a = '+', char b = '/', char c = '=');
+
+		std::string fmt_BinaryData(const BinaryData& data);
+		std::string fmt_string();
+	};
+}
+namespace NSROOT = dog_torch::serialize;
+
+NSROOT::BinaryParams NSROOT::BinaryParams::from_utf8()
+{
+	auto params = BinaryParams();
+	params.type_ = Type::UTF_8;
+	return params;
+}
+NSROOT::BinaryParams NSROOT::BinaryParams::from_binary()
+{
+	auto params = BinaryParams();
+	params.type_ = Type::Binary;
+	return params;
+}
+
+NSROOT::BinaryParams NSROOT::BinaryParams::from_hex(bool is_upper)
+{
+	auto params = BinaryParams();
+	params.type_ = Type::Hex;
+	params.params_.push_back(is_upper);
+	return params;
+}
+NSROOT::BinaryParams NSROOT::BinaryParams::from_base64(char a, char b, char c)
+{
+	auto params = BinaryParams();
+	params.type_ = Type::Hex;
+	params.params_.push_back(a);
+	params.params_.push_back(b);
+	params.params_.push_back(c);
+	return params;
+}
+std::string NSROOT::BinaryParams::fmt_BinaryData(const BinaryData& data)
+{
+	switch (type_)
+	{
+	case Type::Binary:
+		return data.to_bin_string();
+	case Type::Hex:
+		return data.to_hex_string(std::get<bool>(this->params_[0]));
+	case Type::Base64:
+		return data.to_base64_string(
+			std::get<char>(this->params_[0]), 
+			std::get<char>(this->params_[1]), 
+			std::get<char>(this->params_[2])
+		);
+	default:
+		return data.to_string();
+	}
+}
+
+std::string NSROOT::BinaryParams::fmt_string()
+{
+	switch(type_)
+	{
+	case Type::Hex:
+		return std::format("{}:{}", 
+			type_fmt_string(this->type_), 
+			(std::get<bool>(this->params_[0]) ? "upper" : "lower")
+		);
+	case Type::Base64:
+		return std::format("{}:{}{}{}",
+			type_fmt_string(this->type_),
+			std::get<char>(this->params_[0]),
+			std::get<char>(this->params_[1]),
+			std::get<char>(this->params_[2])
+		);
+	default:
+		return type_fmt_string(this->type_);
+	}
+}
+
+std::string NSROOT::type_fmt_string(Type type)
+{
+	switch (type)
+	{
+	case Type::UTF_8: return "UTF-8";
+	case Type::Binary: return "Binary";
+	case Type::Hex: return "Hex";
+	case Type::Base64: return "Base64";
+	}
+}
 
 #ifdef _WIN32
 #include <windows.h>
@@ -365,25 +475,25 @@ std::shared_ptr<Generator> get_hash_generator()
     std::unordered_map<std::string, Param> tar_params;
     for (auto [k, v] : tar_config.params)
     {
-        std::cout << std::format("{}:{},", k, dog_torch::crypto::get_type_name(v));
-        if (v == dog_torch::crypto::ParamType::Bool)
+        std::cout << std::format("{}:{},", k, dog_torch::crypto::get_type_name(v.type));
+        if (v.type == dog_torch::crypto::ParamType::Bool)
         {
             auto arg = input_bool();
             if (!arg.has_value()) return nullptr;
             tar_params[k] = arg.value();
         }
-        else if (v == dog_torch::crypto::ParamType::UInt64)
+        else if (v.type == dog_torch::crypto::ParamType::UInt64)
         {
             auto arg = input_uint64();
             if (!arg.has_value()) return nullptr;
             tar_params[k] = arg.value();
         }
-        else if (v == dog_torch::crypto::ParamType::String)
+        else if (v.type == dog_torch::crypto::ParamType::String)
         {
             auto arg = input_string();
             tar_params[k] = arg;
         }
-        else if (v == dog_torch::crypto::ParamType::Binary)
+        else if (v.type == dog_torch::crypto::ParamType::Binary)
         {
             uint64_t t;
             std::string s;
@@ -790,14 +900,14 @@ std::shared_ptr<block_crypto::BlockCipher> get_block_cipher()
     std::unordered_map<std::string, Param> tar_params;
     for (auto [k, v] : mode_config->get().params)
     {
-        std::cout << std::format("{}:{},", k, dog_torch::crypto::get_type_name(v));
-        if (v == dog_torch::crypto::ParamType::Bool)
+        std::cout << std::format("{}:{},", k, dog_torch::crypto::get_type_name(v.type));
+        if (v.type == dog_torch::crypto::ParamType::Bool)
         {
             auto arg = input_bool();
             if (!arg.has_value()) return nullptr;
             tar_params[k] = arg.value();
         }
-        else if (v == dog_torch::crypto::ParamType::UInt64)
+        else if (v.type == dog_torch::crypto::ParamType::UInt64)
         {
             std::cout << "\n>";
             std::cout.flush();
@@ -805,12 +915,12 @@ std::shared_ptr<block_crypto::BlockCipher> get_block_cipher()
             if (!arg.has_value()) return nullptr;
             tar_params[k] = arg.value();
         }
-        else if (v == dog_torch::crypto::ParamType::String)
+        else if (v.type == dog_torch::crypto::ParamType::String)
         {
             auto arg = input_string();
             tar_params[k] = arg;
         }
-        else if (v == dog_torch::crypto::ParamType::Binary)
+        else if (v.type == dog_torch::crypto::ParamType::Binary)
         {
             auto arg = input_binary(true, k == "iv", alg_ptr->get_block_size());
             if (!arg.has_value()) return nullptr;
