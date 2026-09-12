@@ -3,12 +3,12 @@
 namespace NSROOT = dog_torch::crypto::sym::block::algorithm;
 using dog_torch::serialize::BinaryData;
 
-NSROOT::SM4::SM4() : Algorithm(16,16)
+NSROOT::SM4::SM4() : Algorithm(128,128)
 {}
 
 const NSROOT::Config& NSROOT::SM4::allowed_config()
 {
-    static auto config = Config("SM4", "16", "16");
+    static auto config = Config("SM4", "128", "128");
     return config;
 }
 
@@ -26,7 +26,10 @@ std::string NSROOT::SM4::fmt_string() const
 {
     return "SM4";
 }
-
+uint64_t NSROOT::SM4::get_block_size() const
+{
+	return this->block_size_ / 8;
+}
 NSROOT::extend_key_func NSROOT::SM4::get_extend_key() const
 {
 	return SM4::extend_key;

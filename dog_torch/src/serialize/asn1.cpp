@@ -1,6 +1,12 @@
 #include "serialize/asn1.h"
 
 namespace NSROOT = dog_torch::serialize::asn1;
+using dog_torch::utils::from_c_str;
+
+using dog_torch::utils::array_to_view;
+
+static auto ERROR_ASN1_BOOL_LEN = from_c_str("asn1: bool length error");
+static auto ERROR_ASN1_UNKNOWN_TYPE = from_c_str("asn1: unknown type");
 
 NSROOT::Value::Value(const Value& other)
 {
@@ -93,7 +99,7 @@ NSROOT::Value NSROOT::Value::parse(std::vector<uint8_t>::const_iterator& pos, st
 		uint8_t value = next();
 		if (llen != 1)
 		{
-			throw DOG_EXCEPTION("asn1: bool length error");
+			throw DOG_EXCEPTION(array_to_view(ERROR_ASN1_BOOL_LEN));
 		}
 		return NSROOT::Value(value != 0x00);
 	}
@@ -126,7 +132,7 @@ NSROOT::Value NSROOT::Value::parse(std::vector<uint8_t>::const_iterator& pos, st
 		}
 		return NSROOT::Value(values);
 	}
-	throw DOG_EXCEPTION("asn1: unknown type");
+	throw DOG_EXCEPTION(array_to_view(ERROR_ASN1_UNKNOWN_TYPE));
 }
 NSROOT::Value NSROOT::Value::parse(std::istream& input, uint64_t* const len)
 {
@@ -142,7 +148,7 @@ NSROOT::Value NSROOT::Value::parse(std::istream& input, uint64_t* const len)
 		uint8_t value = next();
 		if (llen != 1)
 		{
-			throw DOG_EXCEPTION("asn1: bool length error");
+			throw DOG_EXCEPTION(array_to_view(ERROR_ASN1_BOOL_LEN));
 		}
 		return NSROOT::Value(value != 0x00);
 	}
@@ -175,7 +181,7 @@ NSROOT::Value NSROOT::Value::parse(std::istream& input, uint64_t* const len)
 		}
 		return NSROOT::Value(values);
 	}
-	throw DOG_EXCEPTION("asn1: unknown type");
+	throw DOG_EXCEPTION(array_to_view(ERROR_ASN1_UNKNOWN_TYPE));
 }
 
 std::vector<uint8_t> fmt_len(uint64_t size)

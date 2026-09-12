@@ -8,7 +8,7 @@ using dog_torch::serialize::from_hex;
 using dog_torch::utils::from_uint64;
 using dog_torch::utils::array_to_view;
 
-constexpr auto ERROR_OUTPUT_SIZE = from_c_str("BsLAKE2: Invalid output size");
+constexpr auto ERROR_OUTPUT_SIZE = from_c_str("BLAKE2: Invalid output size");
 constexpr auto ERROR_KEY_SIZE = from_c_str("BLAKE2: Invalid key size");
 constexpr auto ERROR_EFFECTIVE = from_c_str("BLAKE2: only support 64 for BLAKE2b and 32 for BLAKE2s");
 

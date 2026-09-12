@@ -19,11 +19,11 @@ uint64_t NSROOT::SM3::max()
 
 const NSROOT::Config& NSROOT::SM3::allowed_config()
 {
-	static auto config = Config("SM3", "32", {});
+	static auto config = Config("SM3", "256", {});
 	return config;
 }
 
-NSROOT::SM3::SM3() : Algorithm(32)
+NSROOT::SM3::SM3() : Algorithm(256)
 {
 }
 NSROOT::SM3::SM3(const SM3& other) : Algorithm(other)

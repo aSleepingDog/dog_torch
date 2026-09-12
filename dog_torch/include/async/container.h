@@ -14,7 +14,7 @@
 namespace dog_torch::async::container
 {
 	/**
-	* 可拷贝的线程安全的std::vector封装
+	* @brief 可拷贝的线程安全的std::vector封装
 	*/
 	template <typename T, typename Alloc = std::allocator<T>>
 	class VectorCopy
@@ -22,7 +22,7 @@ namespace dog_torch::async::container
 		using selfVec = std::vector<T, Alloc>;
 		using it = std::vector<T, Alloc>::iterator;
 		using doSingleFunc = std::function<void(it)>;
-		using doContainerFunc = std::function<void(it, it)>;
+		using doContainerFunc = std::function<void(selfVec&)>;
 		using doLoopFunc = std::function<void(selfVec&, it)>;
 	private:
 		mutable std::shared_mutex mutex_;
@@ -54,17 +54,31 @@ namespace dog_torch::async::container
 			return *this;
 		}
 
-
+		/**
+		 * @brief get all elements and return a copy
+		 * @brief 获取所有元素
+		 * @returns std::vector<T> 所有元素的拷贝
+		 */
 		selfVec get_all() const
 		{
 			std::shared_lock lock(mutex_);
 			return vec_;
 		}
+		/**
+		 * @brief set all elements by copy
+		 * @brief 设置所有元素
+		 * @param vec std::vector<T> 要设置的元素的拷贝
+		 */
 		void set_all(const selfVec& vec)
 		{
 			std::unique_lock lock(mutex_);
 			this->vec_ = vec;
 		}
+		/**
+		 * @brief set all elements by move
+		 * @brief 设置所有元素
+		 * @param vec std::vector<T> 要设置的元素的移动
+		 */
 		void set_all(selfVec&& vec)
 		{
 			std::unique_lock lock(mutex_);
@@ -136,16 +150,36 @@ namespace dog_torch::async::container
 			std::unique_lock lock(mutex_);
 			vec_.pop_back();
 		}
+		/**
+		 * @brief do something with selected elements
+		 * @brief 对选定的元素进行操作
+		 * @param pos the position of the selected element
+		 * @param pos 元素的位置
+		 * @param func the function to do
+		 * @param func 要做的函数
+		 */
 		void doing(size_t pos, doSingleFunc func)
 		{
 			std::unique_lock lock(mutex_);
-			func(vec_, this->vec_.begin() + pos);
+			func(this->vec_.begin() + pos);
 		}
+		/**
+		 * @brief do something with all container 
+		 * @brief 对整个容器进行操作
+		 * @param func the function to do
+		 * @param func 要做的函数
+		 */
 		void doing(doContainerFunc func)
 		{
 			std::unique_lock lock(mutex_);
-			func(vec_);
+			func(this->vec_);
 		}
+		/**
+		 * @brief do something with every elements
+		 * @brief 对每个元素进行操作
+		 * @param func the function to do
+		 * @param func 要做的函数
+		 */
 		void doing(doLoopFunc func)
 		{
 			std::unique_lock lock(mutex_);
@@ -158,7 +192,7 @@ namespace dog_torch::async::container
 	};
 
 	/**
-	* 仅可移动的线程安全的std::vector封装
+	* @brief 仅可移动的线程安全的std::vector封装
 	*/
 	template <std::movable T, typename Alloc = std::allocator<T>>
 	class VectorMove
@@ -189,6 +223,11 @@ namespace dog_torch::async::container
 			return *this;
 		}
 
+		/**
+		 * @brief get all elements and return a move
+		 * @brief 获取所有元素的移动
+		 * @returns std::vector<T> 所有元素的移动
+		 */
 		selfVec take_all()
 		{
 			std::unique_lock lock(mutex_);
@@ -196,11 +235,20 @@ namespace dog_torch::async::container
 			vec_.clear();
 			return result;
 		}
+		/**
+		 * @brief set all elements by move
+		 * @brief 设置所有元素
+		 * @param vec std::vector<T> 要设置的元素的移动
+		 */
 		void move_all(selfVec&& vec)
 		{
 			std::unique_lock lock(mutex_);
 			this->vec_ = std::move(vec);
 		}
+		/**
+		 * @brief take one element by move
+		 * @brief 以移动的方式取走某个元素
+		 */
 		T take(size_t index)
 		{
 			std::unique_lock lock(mutex_);
@@ -272,16 +320,36 @@ namespace dog_torch::async::container
 			std::unique_lock lock(mutex_);
 			vec_.pop_back();
 		}
+		/**
+		 * @brief do something with selected elements
+		 * @brief 对选定的元素进行操作
+		 * @param pos the position of the selected element
+		 * @param pos 元素的位置
+		 * @param func the function to do
+		 * @param func 要做的函数
+		 */
 		void doing(size_t pos, doSingleFunc func)
 		{
 			std::unique_lock lock(mutex_);
 			func(this->vec_.begin() + pos);
 		}
+		/**
+		 * @brief do something with all container
+		 * @brief 对整个容器进行操作
+		 * @param func the function to do
+		 * @param func 要做的函数
+		 */
 		void doing(doContainerFunc func)
 		{
 			std::unique_lock lock(mutex_);
 			func(vec_);
 		}
+		/**
+		 * @brief do something with every elements
+		 * @brief 对每个元素进行操作
+		 * @param func the function to do
+		 * @param func 要做的函数
+		 */
 		void doing(doLoopFunc func)
 		{
 			std::unique_lock lock(mutex_);
@@ -293,8 +361,8 @@ namespace dog_torch::async::container
 	};
 
 	/**
-* 可拷贝线程安全的std::deque封装
-*/
+	* @brief 可拷贝线程安全的std::deque封装
+	*/
 	template <typename T, typename Alloc = std::allocator<T>>
 	class DequeCopy
 	{
@@ -442,16 +510,36 @@ namespace dog_torch::async::container
 			std::unique_lock lock(mutex_);
 			deque_.pop_front();
 		}
+		/**
+		 * @brief do something with selected elements
+		 * @brief 对选定的元素进行操作
+		 * @param pos the position of the selected element
+		 * @param pos 选定元素的位置
+		 * @param func the function to do
+		 * @param func 要做的函数
+		 */
 		void doing(size_t pos, doSingleFunc func)
 		{
 			std::unique_lock lock(mutex_);
 			func(deque_.begin() + pos);
 		}
+		/**
+		 * @brief do something with all container
+		 * @brief 对整个容器进行操作
+		 * @param func the function to do
+		 * @param func 要做的函数
+		 */
 		void doing(doContainerFunc func)
 		{
 			std::unique_lock lock(mutex_);
 			func(deque_);
 		}
+		/**
+		 * @brief do something with every elements
+		 * @brief 对每个元素进行操作
+		 * @param func the function to do
+		 * @param func 要做的函数
+		 */
 		void doing(doLoopFunc func)
 		{
 			std::unique_lock lock(mutex_);
@@ -463,7 +551,7 @@ namespace dog_torch::async::container
 	};
 
 	/**
-	* 仅可移动线程安全的std::deque封装
+	* @brief 仅可移动线程安全的std::deque封装
 	*/
 	template <std::movable T, typename Alloc = std::allocator<T>>
 	class DequeMove
@@ -506,6 +594,10 @@ namespace dog_torch::async::container
 			deque_ = std::move(other);
 		}
 
+		/**
+		 * @brief take one element by move
+		 * @brief 以移动的方式取走某个元素
+		 */
 		T take(size_t index)
 		{
 			std::unique_lock lock(mutex_);
@@ -513,6 +605,10 @@ namespace dog_torch::async::container
 			deque_.erase(deque_.begin() + index);
 			return tmp;
 		}
+		/**
+		 * @brief take first element by move
+		 * @brief 以移动的方式取走首元素
+		 */
 		T take_front()
 		{
 			std::unique_lock lock(mutex_);
@@ -520,6 +616,10 @@ namespace dog_torch::async::container
 			deque_.erase(deque_.begin());
 			return tmp;
 		}
+		/**
+		 * @brief take back element by move
+		 * @brief 以移动的方式取走尾元素
+		 */
 		T take_back()
 		{
 			std::unique_lock lock(mutex_);
@@ -598,16 +698,36 @@ namespace dog_torch::async::container
 			std::unique_lock lock(mutex_);
 			deque_.pop_front();
 		}
+		/**
+		 * @brief do something with selected elements
+		 * @brief 对选定的元素进行操作
+		 * @param pos the position of the selected element
+		 * @param pos 元素的位置
+		 * @param func the function to do
+		 * @param func 要做的函数
+		 */
 		void doing(size_t pos, doSingleFunc func)
 		{
 			std::unique_lock lock(mutex_);
 			func(deque_.begin() + pos);
 		}
+		/**
+		 * @brief do something with all container
+		 * @brief 对整个容器进行操作
+		 * @param func the function to do
+		 * @param func 要做的函数
+		 */
 		void doing(doContainerFunc func)
 		{
 			std::unique_lock lock(mutex_);
 			func(deque_);
 		}
+		/**
+		 * @brief do something with every elements
+		 * @brief 对每个元素进行操作
+		 * @param func the function to do
+		 * @param func 要做的函数
+		 */
 		void doing(doLoopFunc func)
 		{
 			std::unique_lock lock(mutex_);

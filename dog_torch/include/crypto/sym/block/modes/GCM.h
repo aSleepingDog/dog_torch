@@ -22,6 +22,7 @@ namespace dog_torch::crypto::sym::block::mode
 		BinaryData aad_;
 		BinaryData iv_;
 	public:
+		using UInt128 = dog_torch::math::number::UnsignedInteger128;
 		GCM(const BinaryData& iv, uint64_t shift, const padding::Padding& padding, const BinaryData& a, uint64_t tag_out);
 
 		~GCM() override = default;
@@ -53,8 +54,12 @@ namespace dog_torch::crypto::sym::block::mode
 		streamp_crypt_func get_streamp_decrypt() const override;
 
 		static void incr(BinaryData& conter, uint64_t s_bit);
-		//static BinaryData mult(const BinaryData& x, const BinaryData& y);
-		//static BinaryData GHASH(const BinaryData& h, const BinaryData& x);
+		static UInt128 mult(const UInt128& x, const UInt128& y);
+		static UInt128 mult(const UInt128& b, const std::vector<std::array<UInt128, 16>>& table);
+		static std::vector<std::array<UInt128, 16>> mult_table(const UInt128& a);
+		static UInt128 tran_u128(std::vector<uint8_t>::const_iterator start, std::vector<uint8_t>::const_iterator end);
+		static BinaryData tran_bin(const UInt128& n);
+		static BinaryData GHASH(const std::vector<std::array<UInt128, 16>>& t, const BinaryData& x);
 		static uint64_t fill_size(uint64_t l);
 
 		static BinaryData encrypt(

@@ -20,6 +20,8 @@ namespace dog_torch::crypto::sym::block::algorithm
 		std::unique_ptr<Algorithm> clone() const override;
 		std::string fmt_string() const override;
 
+		uint64_t get_block_size() const override;
+
 		extend_key_func get_extend_key() const override;
 		block_cryption_func get_encrypt() const override;
 		block_cryption_func get_decrypt() const override;

@@ -7,11 +7,11 @@ using dog_torch::utils::from_c_str;
 using dog_torch::utils::from_uint64;
 using dog_torch::utils::array_to_view;
 
-constexpr auto ERROR_UNSUPPORTED_KEY_SIZE = from_c_str("Twofish: key size must be 16, 24 or 32");
+constexpr auto ERROR_UNSUPPORTED_KEY_SIZE = from_c_str("Twofish: key size must be 128, 192 or 256");
 
-NSROOT::Twofish::Twofish(uint64_t key_size) : Algorithm(16, key_size)
+NSROOT::Twofish::Twofish(uint64_t key_size) : Algorithm(128, key_size)
 {
-    if (key_size != 16 && key_size != 32 && key_size != 24)
+    if (key_size != 128 && key_size != 256 && key_size != 192)
     {
 		throw DOG_EXCEPTION(array_to_view(ERROR_UNSUPPORTED_KEY_SIZE));
     }
@@ -19,7 +19,7 @@ NSROOT::Twofish::Twofish(uint64_t key_size) : Algorithm(16, key_size)
 
 const NSROOT::Config& NSROOT::Twofish::allowed_config()
 {
-    static auto config = Config("Twofish", "16", "[16,32|8]");
+    static auto config = Config("Twofish", "128", "[128,256|64]");
     return config;
 }
 
@@ -35,9 +35,12 @@ std::unique_ptr<NSROOT::Algorithm> NSROOT::Twofish::clone() const
 
 std::string NSROOT::Twofish::fmt_string() const
 {
-	return std::format("Twofish({})", this->key_size_ * 8);
+	return std::format("Twofish({})", this->key_size_);
 }
-
+uint64_t NSROOT::Twofish::get_block_size() const
+{
+	return this->block_size_ / 8;
+}
 NSROOT::extend_key_func NSROOT::Twofish::get_extend_key() const
 {
     return Twofish::extend_key;
@@ -257,23 +260,23 @@ BinaryData NSROOT::Twofish::extend_key(const BinaryData& key, uint64_t block_siz
 	using dog_torch::math::integer::uirotl;
 	uint64_t max_length = 0;
 	uint64_t k = 0;
-	if (key_size <= 16)
+	if (key_size <= 126)
 	{
 		max_length = 16;
 		k = 2;
 	}
-	else if (key_size <= 24)
+	else if (key_size <= 192)
 	{
 		max_length = 24;
 		k = 3;
 	}
-	else if (key_size <= 32)
+	else if (key_size <= 256)
 	{
 		max_length = 32;
 		k = 4;
 	}
 	BinaryData key_ = key;
-	for (uint64_t i = key_size; i < max_length; i++)
+	for (uint64_t i = key_size / 8; i < max_length; i++)
 	{
 		key_.push_back(0x00);
 	}
@@ -345,6 +348,7 @@ BinaryData NSROOT::Twofish::extend_key(const BinaryData& key, uint64_t block_siz
 
 BinaryData NSROOT::Twofish::encoding(const BinaryData& plain, uint64_t block_size, const BinaryData& key, uint64_t key_size)
 {
+	key_size /= 8;
 	std::vector<uint32_t> S(2);
 	S[0] = (uint32_t)key[0] << 0 | (uint32_t)key[0 + 1] << 8 | (uint32_t)key[0 + 2] << 16 | (uint32_t)key[0 + 3] << 24;
 	S[1] = (uint32_t)key[0 + 4] << 0 | (uint32_t)key[0 + 5] << 8 | (uint32_t)key[0 + 6] << 16 | (uint32_t)key[0 + 7] << 24;
@@ -422,6 +426,7 @@ BinaryData NSROOT::Twofish::encoding(const BinaryData& plain, uint64_t block_siz
 }
 BinaryData NSROOT::Twofish::decoding(const BinaryData& crypt, uint64_t block_size, const BinaryData& key, uint64_t key_size)
 {
+	key_size /= 8;
 	std::vector<uint32_t> S(2);
 	S[0] = (uint32_t)key[0] << 0 | (uint32_t)key[0 + 1] << 8 | (uint32_t)key[0 + 2] << 16 | (uint32_t)key[0 + 3] << 24;
 	S[1] = (uint32_t)key[0 + 4] << 0 | (uint32_t)key[0 + 5] << 8 | (uint32_t)key[0 + 6] << 16 | (uint32_t)key[0 + 7] << 24;
@@ -500,6 +505,7 @@ BinaryData NSROOT::Twofish::decoding(const BinaryData& crypt, uint64_t block_siz
 
 void NSROOT::Twofish::encoding_self(BinaryData& plain, uint64_t block_size, const BinaryData& key, uint64_t key_size)
 {
+	key_size /= 8;
 	std::vector<uint32_t> S(2);
 	S[0] = (uint32_t)key[0] << 0 | (uint32_t)key[0 + 1] << 8 | (uint32_t)key[0 + 2] << 16 | (uint32_t)key[0 + 3] << 24;
 	S[1] = (uint32_t)key[0 + 4] << 0 | (uint32_t)key[0 + 5] << 8 | (uint32_t)key[0 + 6] << 16 | (uint32_t)key[0 + 7] << 24;
@@ -576,6 +582,7 @@ void NSROOT::Twofish::encoding_self(BinaryData& plain, uint64_t block_size, cons
 }
 void NSROOT::Twofish::decoding_self(BinaryData& crypt, uint64_t block_size, const BinaryData& key, uint64_t key_size)
 {
+	key_size /= 8;
 	std::vector<uint32_t> S(2);
 	S[0] = (uint32_t)key[0] << 0 | (uint32_t)key[0 + 1] << 8 | (uint32_t)key[0 + 2] << 16 | (uint32_t)key[0 + 3] << 24;
 	S[1] = (uint32_t)key[0 + 4] << 0 | (uint32_t)key[0 + 5] << 8 | (uint32_t)key[0 + 6] << 16 | (uint32_t)key[0 + 7] << 24;

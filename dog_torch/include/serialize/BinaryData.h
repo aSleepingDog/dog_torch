@@ -122,27 +122,164 @@ namespace dog_torch::serialize
         bool operator==(const BinaryData& other) const;
         bool operator!=(const BinaryData& other) const;
 
+        /**
+         * @brief construct string from binary data
+         * @brief 按原始字节序构造字符串
+         * @example {0x41, 0x42, 0x43} -> "ABC"
+         */
         std::string to_string() const;
+        /**
+         * @brief construct string with 0 and 1
+         * @brief 按位构造字符串
+         * @example {0x01, 0x42, 0x43} -> 000000010100001001000011
+         */
         std::string to_bin_string() const;
+        /**
+         * @brief construct string by hexadecimal
+         * @brief 按十六进制构造字符串
+         * @example {0x01, 0x42, 0x43} -> 014243
+         * @param is_upper is letter upper case? true upper|false lower
+         * @param is_upper 遇到字母是否大写? true 大写|false 小写
+         */
         std::string to_hex_string(bool is_upper) const;
+        /**
+         * @brief construct string by base64
+         * @brief 按base64构造字符串
+         * @param emplace_add replace '+' with char
+         * @param emplace_add 替换 '+' 字符
+         * @param emplace_handle replace '/' with char
+         * @param emplace_add 替换 '/' 字符
+         * @param emplace_equal replace '=' with char
+         * @param emplace_add 替换 '=' 字符
+         */
         std::string to_base64_string(char emplace_add = '+', char emplace_handle = '/', char emplace_equal = '=') const;
 
         //[start,end)
+        /**
+         * @brief cut by byte offset
+         * @brief 按字节偏移量截取
+         * @param start start byte offset
+         * @param start 开始的字节偏移量
+         * @param end end byte offset
+         * @param end 结束的字节偏移量
+         * @note stop at end if over length
+         * @note 如果超过长度 则截取到末尾
+        */
         BinaryData sub_bytes_pos(uint64_t start, uint64_t end) const;
+        /**
+         * @brief cut by byte const iterator
+         * @brief 按字节常量迭代器截取
+         * @param start start byte const iterator
+         * @param start 开始的字节常量迭代器
+         * @param end end byte const iterator
+         * @param end 结束的字节常量迭代器
+         */
         BinaryData sub_bytes_pos(cit start, cit end) const;
+        /**
+         * @brief cut by byte offset and length
+         * @brief 按字节偏移量和长度截取
+         * @param start start byte offset
+         * @param start 开始的字节偏移量
+         * @param length length
+         * @param length 长度
+         * @note stop at end if over length
+         * @note 如果超过长度 则截取到末尾
+         */
         BinaryData sub_bytes_len(uint64_t start, uint64_t length) const;
+        /**
+         * @brief cut by byte byte const iterator and length
+         * @brief 按字节常量迭代器和长度截取
+         * @param start start byte byte const iterator
+         * @param start 开始的字节常量迭代器
+         * @param length length
+         * @param length 长度
+         * @note stop at end if over length
+         * @note 如果超过长度 则截取到末尾
+         */
         BinaryData sub_bytes_len(cit start, uint64_t length) const;
 
+        /**
+         * @brief move bit
+         * @brief 移位
+         * @param is_right is right? true right|false left
+         * @param is_right 是否右移? true 右移|false 左移
+         * @param allow_resize allow resize? true resize|false not resize
+         * @param allow_resize 是否允许调整大小? true 调整大小|false 不调整大小
+         * @param shift shift count
+         * @param shift 移位数量
+         */
         BinaryData bit_move(bool is_right, bool allow_resize, uint64_t shift) const;
+        /**
+         * @brief move bit self
+         * @brief 移位自身
+         * @param is_right is right? true right|false left
+         * @param is_right 是否右移? true 右移|false 左移
+         * @param allow_resize allow resize? true resize|false not resize
+         * @param allow_resize 是否允许调整大小? true 调整大小|false 不调整大小
+         * @param shift shift count
+         * @param shift 移位数量
+         */
         void bit_move_self(bool is_right, bool allow_resize, uint64_t shift);
         BinaryData operator<<(uint64_t shift) const;
         void operator<<=(uint64_t shift);
         BinaryData operator>>(uint64_t shift) const;
         void operator>>=(uint64_t shift);
 
+        /**
+         * @brief cut by bit offset
+         * @brief 按位偏移量截取
+         * @param byte_start start byte offset
+         * @param byte_start 开始的字节偏移量
+         * @param bit_start start bit offset in start byte
+         * @param bit_start 开始的字节中的位偏移量
+         * @param byte_end end byte offset
+         * @param byte_end 结束的字节偏移量
+         * @param bit_end end bit offset in end byte
+         * @param bit_end 结束的字节中的位偏移量
+         * @note stop at end if over length
+         * @note 如果超过长度 则截取到末尾
+         */
         BinaryData sub_bits_pos(uint64_t byte_start, uint8_t bit_start, uint64_t byte_end, uint8_t bit_end) const;
+        /**
+         * @brief cut by bit offset
+         * @brief 按位偏移量截取
+         * @param byte_start start byte offset
+         * @param byte_start 开始的字节偏移量
+         * @param bit_start start bit offset in start byte
+         * @param bit_start 开始的字节中的位偏移量
+         * @param byte_end end byte offset
+         * @param byte_end 结束的字节偏移量
+         * @param bit_end end bit offset in end byte
+         * @param bit_end 结束的字节中的位偏移量
+         * @note stop at end if over length
+         * @note 如果超过长度 则截取到末尾
+         */
         BinaryData sub_bits_pos(cit byte_start, uint8_t bit_start, cit byte_end, uint8_t bit_end) const;
+        /**
+         * @brief cut by bit offset
+         * @brief 按位偏移量截取
+         * @param byte_start start byte offset
+         * @param byte_start 开始的字节偏移量
+         * @param bit_start start bit offset in start byte
+         * @param bit_start 开始的字节中的位偏移量
+         * @param length bit length
+         * @param length 截取位长度
+         * @note stop at end if over length
+         * @note 如果超过长度 则截取到末尾
+         */
         BinaryData sub_bits_len(uint64_t byte_start, uint8_t bit_start, uint64_t length) const;
+        /**
+         * @brief cut by bit offset
+         * @brief 按位偏移量截取
+         * @param byte_start start byte offset
+         * @param byte_start 开始的字节偏移量
+         * @param bit_start start bit offset in start byte
+         * @param bit_start 开始的字节中的位偏移量
+         * @param length bit length
+         * @param length 截取位长度
+         * @note stop at end if over length
+         * @note 如果超过长度 则截取到末尾
+         */
         BinaryData sub_bits_len(cit byte_start, uint8_t bit_start, uint64_t length) const;
 
         BinaryData bd_and(const BinaryData& other) const;
@@ -183,6 +320,10 @@ namespace dog_torch::serialize
         std::streamsize showmanyc() override;
     };
 
+    /**
+     * @brief random read buffer
+     * @brief 随机读缓冲区
+     */
     class RandomBuffer : public std::basic_streambuf<char>
     {
     private:
@@ -200,6 +341,10 @@ namespace dog_torch::serialize
         std::streamsize showmanyc() override;
     };
 
+    /**
+     * @brief empty write buffer
+     * @brief 空写缓冲区
+     */
     class EmptyBuffer : public std::basic_streambuf<char>
     {
     public:

@@ -181,9 +181,13 @@ BinaryData NSROOT::PCBC::encrypt(
 		iv_ = buffer1 ^ buffer0;
 	}
 	padding(buffer0, block_size);
-	buffer0 ^= iv_;
-	block_self_encryption(buffer0, block_size, key, key_size);
-	crypt += buffer0;
+    if (buffer0.size() != 0)
+    {
+        if (buffer0.size() < block_size) throw DOG_EXCEPTION(array_to_view(ERROR_ALLOW_SIZE_OR_PADDING));
+		buffer0 ^= iv_;
+		block_self_encryption(buffer0, block_size, key, key_size);
+		crypt += buffer0;
+	}
 	return crypt;
 
 }
@@ -195,7 +199,7 @@ BinaryData NSROOT::PCBC::decrypt(
 {
 	PCBC_DE_INIT;
 
-	if (crypt.size() % block_size == 0) 
+	if (crypt.size() % block_size != 0) 
 		throw DOG_EXCEPTION(array_to_view(ERROR_CRYPT_ALLOW_SIZE));
 	BinaryData plain;
 	plain.reserve(crypt.size());
@@ -211,8 +215,12 @@ BinaryData NSROOT::PCBC::decrypt(
 		plain += buffer0;
 		iv_ = buffer1 ^ buffer0;
 	}
-	block_self_decryption(buffer0, block_size, key, key_size);
-	buffer0 ^= iv_;
+    if (buffer0.size() != 0)
+    {
+        if (buffer0.size() < block_size) throw DOG_EXCEPTION(array_to_view(ERROR_CRYPT_ALLOW_SIZE));
+		block_self_decryption(buffer0, block_size, key, key_size);
+		buffer0 ^= iv_;
+	}
 	unpadding(buffer0, block_size);
 	plain += buffer0;
 	return plain;
@@ -240,9 +248,13 @@ void NSROOT::PCBC::encrypt_stream(
 		iv_ = buffer1 ^ buffer0;
 	}
 	padding(buffer0, block_size);
-	buffer0 ^= iv_;
-	block_self_encryption(buffer0, block_size, key, key_size);
-	crypt.write(buffer0.data_stream(), buffer0.size());
+	if (buffer0.size() != 0)
+    {
+        if (buffer0.size() < block_size) throw DOG_EXCEPTION(array_to_view(ERROR_ALLOW_SIZE_OR_PADDING));
+		buffer0 ^= iv_;
+		block_self_encryption(buffer0, block_size, key, key_size);
+		crypt.write(buffer0.data_stream(), buffer0.size());
+	}
 	crypt.flush();
 }
 
@@ -252,7 +264,7 @@ void NSROOT::PCBC::decrypt_stream(
 	const algorithm::Algorithm& algorithm, padding::padding_func unpadding, const BinaryData& iv)
 {
 	PCBC_DE_INIT;
-	if (total % block_size == 0) 
+	if (total % block_size != 0) 
 		throw DOG_EXCEPTION(array_to_view(ERROR_CRYPT_ALLOW_SIZE));
 	BinaryData buffer0, buffer1;
 	uint64_t now = 0;
@@ -265,8 +277,12 @@ void NSROOT::PCBC::decrypt_stream(
 		plain.write(buffer0.data_stream(), buffer0.size());
 		iv_ = buffer1 ^ buffer0;
 	}
-	block_self_decryption(buffer0, block_size, key, key_size);
-	buffer0 ^= iv_;
+    if (buffer0.size() != 0)
+    {
+        if (buffer0.size() < block_size) throw DOG_EXCEPTION(array_to_view(ERROR_CRYPT_ALLOW_SIZE));
+		block_self_decryption(buffer0, block_size, key, key_size);
+		buffer0 ^= iv_;
+	}
 	unpadding(buffer0, block_size);
 	plain.write(buffer0.data_stream(), buffer0.size());
 	plain.flush();
@@ -298,9 +314,13 @@ void NSROOT::PCBC::encryptp_stream(
 		pc.add_progress(block_size * 1.0 / total);
 	}
 	padding(buffer0, block_size);
-	buffer0 ^= iv_;
-	block_self_encryption(buffer0, block_size, key, key_size);
-	crypt.write(buffer0.data_stream(), buffer0.size());
+	if (buffer0.size() != 0)
+    {
+        if (buffer0.size() < block_size) throw DOG_EXCEPTION(array_to_view(ERROR_ALLOW_SIZE_OR_PADDING));
+		buffer0 ^= iv_;
+		block_self_encryption(buffer0, block_size, key, key_size);
+		crypt.write(buffer0.data_stream(), buffer0.size());
+	}
 	crypt.flush();
 	pc.set_progress(1.0);
 	pc.stop();
@@ -313,7 +333,7 @@ void NSROOT::PCBC::decryptp_stream(
 	const algorithm::Algorithm& algorithm, padding::padding_func unpadding, const BinaryData& iv)
 {
 	PCBC_DE_INIT;
-	if (total % block_size == 0) 
+	if (total % block_size != 0) 
 		throw DOG_EXCEPTION(array_to_view(ERROR_CRYPT_ALLOW_SIZE));
 	pc.start();
 	BinaryData buffer0, buffer1;
@@ -329,8 +349,12 @@ void NSROOT::PCBC::decryptp_stream(
 		iv_ = buffer1 ^ buffer0;
 		pc.add_progress(block_size * 1.0 / total);
 	}
-	block_self_decryption(buffer0, block_size, key, key_size);
-	buffer0 ^= iv_;
+    if (buffer0.size() != 0)
+    {
+        if (buffer0.size() < block_size) throw DOG_EXCEPTION(array_to_view(ERROR_CRYPT_ALLOW_SIZE));
+		block_self_decryption(buffer0, block_size, key, key_size);
+		buffer0 ^= iv_;
+	}
 	unpadding(buffer0, block_size);
 	plain.write(buffer0.data_stream(), buffer0.size());
 	plain.flush();
