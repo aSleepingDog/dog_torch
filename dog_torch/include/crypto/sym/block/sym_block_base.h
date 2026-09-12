@@ -170,6 +170,9 @@ namespace dog_torch::crypto::sym::block
 		std::unique_ptr<Cipher> clone() const override;
 		~BlockCipher();
 
+		BlockCipher(const BlockCipher& other) = delete;
+		BlockCipher(BlockCipher&& other) = default;
+
 		void init() override;
 		bool effective() const override;
 		std::string fmt_string() const override;
@@ -191,13 +194,13 @@ namespace dog_torch::crypto::sym::block
 
 }
 
-#define NS_ROOT(name) dog_torch__crypto__sym__block__##name
-#define NS_ALG(name) dog_torch__crypto__sym__block__algorithm__##name
-#define NS_MODE(name) dog_torch__crypto__sym__block__mode__##name
-#define NS_PADDING(name) dog_torch__crypto__sym__block__padding__##name
+#define NS_ROOT(name)     dog_torch__crypto__sym__block__##name
+#define NS_ALG(name)      dog_torch__crypto__sym__block__algorithm__##name
+#define NS_MODE(name)     dog_torch__crypto__sym__block__mode__##name
+#define NS_PADDING(name)  dog_torch__crypto__sym__block__padding__##name
 #define CRYPTO_BASE(name) dog_torch__crypto__##name
-#define SERIALIZE(name) dog_torch__serialize__##name
-#define UTILS(name)     dog_torch__utils__##name
+#define SERIALIZE(name)   dog_torch__serialize__##name
+#define UTILS(name)       dog_torch__utils__##name
 
 extern "C"
 {

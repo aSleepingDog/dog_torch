@@ -8,7 +8,8 @@ using dog_torch::utils::from_c_str;
 using dog_torch::utils::from_uint64;
 using dog_torch::utils::array_to_view;
 
-constexpr auto ERROR_SHIFT_TOO_LARGE = from_c_str("shift is too large than algorithm updata size");
+constexpr auto ERROR_SHIFT_TOO_LARGE = from_c_str("StreamCipher: shift is too large than algorithm updata size");
+constexpr auto ERROR_CIPHER = from_c_str("StreamCipher: cipher is not initialized, call init() first");
 
 NSROOT::algorithm::Config::Config(const std::string& name, const std::string& effective_region, const std::string& key_size_region)
 	: name(name), effective_region(effective_region), key_size_region(key_size_region) {}
@@ -87,6 +88,7 @@ void NSROOT::StreamCipher::init()
         throw DOG_EXCEPTION(array_to_view(ERROR_SHIFT_TOO_LARGE));
     }
     this->alg_->init();
+    this->is_effective_ = true;
 }
 bool NSROOT::StreamCipher::effective() const
 {
@@ -107,15 +109,21 @@ std::string NSROOT::StreamCipher::fmt_string() const
 Value NSROOT::StreamCipher::serialize() const
 {
     using dog_torch::serialize::tlv::MIBString;
+    using dog_torch::serialize::tlv::Integer64;
     Value tag_t = std::unordered_map<MIBString, Value>{};
     Value total = std::vector<Value>{};
     total.to_array().push_back(this->alg_->serialize());
+        Value slice = std::vector<Value>{};
+        slice.to_array().push_back(bool(this->is_bit_));
+        slice.to_array().push_back(Integer64{this->shift_});
+    total.to_array().push_back(std::move(slice));
     tag_t.to_object().insert({ MIBString{ "Stream" } ,total });
     return tag_t;
 }
 
 BinaryData NSROOT::StreamCipher::encrypt(const BinaryData& plain)
 {
+	if(!this->is_effective_) throw DOG_EXCEPTION(array_to_view(ERROR_CIPHER));
     using dog_torch::serialize::stream::read_bytes;
     using dog_torch::serialize::stream::read_bits;
     using dog_torch::serialize::stream::write_bits;
@@ -167,6 +175,7 @@ BinaryData NSROOT::StreamCipher::decrypt(const BinaryData& crypt)
 
 void NSROOT::StreamCipher::encrypt_stream(std::istream& plain, uint64_t total, std::ostream& crypt)
 {
+	if(!this->is_effective_) throw DOG_EXCEPTION(array_to_view(ERROR_CIPHER));
     using dog_torch::serialize::stream::read_bytes;
     using dog_torch::serialize::stream::read_bits;
     using dog_torch::serialize::stream::write_bits;
@@ -215,6 +224,7 @@ void NSROOT::StreamCipher::decrypt_stream(std::istream& crypt, uint64_t total, s
 
 void NSROOT::StreamCipher::encryptp_stream(PauseableChannel& pc, std::istream& plain, uint64_t total, std::ostream& crypt)
 {
+	if(!this->is_effective_) throw DOG_EXCEPTION(array_to_view(ERROR_CIPHER));
     using dog_torch::serialize::stream::read_bytes;
     using dog_torch::serialize::stream::read_bits;
     using dog_torch::serialize::stream::write_bits;

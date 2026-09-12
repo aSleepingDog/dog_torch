@@ -241,13 +241,13 @@ uint64_t NSROOT::SHA2::max()
 
 const NSROOT::Config& NSROOT::SHA2::allowed_config()
 {
-	static auto config = Config("SHA2", "28,32|48,64", {});
+	static auto config = Config("SHA2", "224,256|384,512", {});
 	return config;
 }
 
 NSROOT::SHA2::SHA2(uint64_t effective) : Algorithm(effective)
 {
-	if (effective != 28 && effective != 32 && effective != 48 && effective != 64)
+	if (effective != 224 && effective != 256 && effective != 384 && effective != 512)
 	{
 		throw DOG_EXCEPTION(array_to_view(ERROR_INVALID_SIZE));
 	}
@@ -286,7 +286,7 @@ NSROOT::Config NSROOT::SHA2::config() const
 }
 std::string NSROOT::SHA2::fmt_string() const
 {
-	return std::format("{}({})", this->config().name, this->effective * 8);
+	return std::format("{}({})", this->config().name, this->effective);
 }
 void NSROOT::SHA2::init()
 {
@@ -297,13 +297,13 @@ BinaryData NSROOT::SHA2::init_data() const
 {
 	switch (this->effective)
 	{
-	case 28:
+	case 224:
 		return IV_224;
-	case 32:
+	case 256:
 		return IV_256;
-	case 48:
+	case 384:
 		return IV_384;
-	case 64:
+	case 512:
 		return IV_512;
 	default:
 		throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_EFFECTIVE));
@@ -314,11 +314,11 @@ NSROOT::update_func NSROOT::SHA2::get_update() const
 {
 	switch (this->effective)
 	{
-	case 28:
-	case 32:
+	case 224:
+	case 256:
 		return single_256_update;
-	case 48:
-	case 64:
+	case 384:
+	case 512:
 		return single_512_update;
 	default:
 		throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_EFFECTIVE));
@@ -328,19 +328,19 @@ NSROOT::trims_func NSROOT::SHA2::get_trims() const
 {
 	switch (this->effective)
 	{
-	case 32:
-	case 64:
+	case 256:
+	case 512:
 	{
 		return [](BinaryData& value) -> void {};
 	}
-	case 28:
+	case 224:
 	{
 		return [](BinaryData& value) -> void
 			{
 				value.resize(28);
 			};
 	}
-	case 48:
+	case 384:
 	{
 		return [](BinaryData& value) -> void
 			{
@@ -355,11 +355,11 @@ uint64_t NSROOT::SHA2::get_block_size() const
 {
 	switch (this->effective)
 	{
-	case 28:
-	case 32:
+	case 224:
+	case 256:
 		return 64;
-	case 48:
-	case 64:
+	case 384:
+	case 512:
 		return 128;
 	default:
 		throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_EFFECTIVE));
@@ -368,7 +368,7 @@ uint64_t NSROOT::SHA2::get_block_size() const
 
 uint64_t NSROOT::SHA2::get_out_size() const
 {
-	return this->effective;
+	return this->effective/8;
 }
 std::unique_ptr<NSROOT::Algorithm> NSROOT::SHA2::clone() const
 {
@@ -382,11 +382,11 @@ bool NSROOT::SHA2::have_next_block(uint64_t data_pos, uint64_t data_total)
 		throw DOG_EXCEPTION(array_to_view(ERROR_LARGE_DATA_SIZE));
 	}
 	uint64_t dur = (data_total - data_pos);
-	if (this->effective == 32 || this->effective == 28)
+	if (this->effective == 256 || this->effective == 224)
 	{
 		return dur >= 64 ? true : !this->is_padding_num_;
 	}
-	else if (this->effective == 64 || this->effective == 48)
+	else if (this->effective == 512 || this->effective == 384)
 	{
 		return dur >= 128 ? true : !this->is_padding_num_;
 	}
@@ -401,7 +401,7 @@ BinaryData NSROOT::SHA2::next_block(const BinaryData& data, uint64_t start, uint
 	{
 		throw DOG_EXCEPTION(array_to_view(ERROR_LARGE_DATA_SIZE));
 	}
-	if (this->effective == 32 || this->effective == 28)
+	if (this->effective == 256 || this->effective == 224)
 	{
 		auto res = data.sub_bytes_len(start, 64);
 		data_pos += res.size();
@@ -430,7 +430,7 @@ BinaryData NSROOT::SHA2::next_block(const BinaryData& data, uint64_t start, uint
 			}
 		}
 	}
-	else if (this->effective == 64 || this->effective == 48)
+	else if (this->effective == 512 || this->effective == 384)
 	{
 		auto res = data.sub_bytes_len(start, 128);
 		data_pos += res.size();
@@ -472,7 +472,7 @@ BinaryData NSROOT::SHA2::next_block(std::istream& data, uint64_t& data_pos, uint
 	{
 		throw DOG_EXCEPTION(array_to_view(ERROR_LARGE_DATA_SIZE));
 	}
-	if (this->effective == 32 || this->effective == 28)
+	if (this->effective == 256 || this->effective == 224)
 	{
 		BinaryData res(64);
 		uint64_t read_size = 0;
@@ -502,7 +502,7 @@ BinaryData NSROOT::SHA2::next_block(std::istream& data, uint64_t& data_pos, uint
 			}
 		}
 	}
-	else if (this->effective == 64 || this->effective == 48)
+	else if (this->effective == 512 || this->effective == 384)
 	{
 		BinaryData res(128);
 		uint64_t read_size = 0;

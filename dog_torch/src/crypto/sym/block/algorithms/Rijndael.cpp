@@ -7,10 +7,10 @@ using dog_torch::utils::from_c_str;
 using dog_torch::utils::from_uint64;
 using dog_torch::utils::array_to_view;
 
-constexpr auto ERROR_AES_UNSUPPORTED_KEY_SIZE = from_c_str("AES: key size must be 16, 24 or 32");
-constexpr auto ERROR_AES_NOT_EXTEND_KEY_16 = (from_c_str("AES: key size must be bigger than ") + from_uint64<16>());
-constexpr auto ERROR_AES_NOT_EXTEND_KEY_24 = (from_c_str("AES: key size must be bigger than ") + from_uint64<24>());
-constexpr auto ERROR_AES_NOT_EXTEND_KEY_32 = (from_c_str("AES: key size must be bigger than ") + from_uint64<32>());
+constexpr auto ERROR_AES_UNSUPPORTED_KEY_SIZE = from_c_str("AES: key size must be 128, 192 or 256");
+constexpr auto ERROR_AES_NOT_EXTEND_KEY_16 = (from_c_str("AES: key size must be bigger than ") + from_uint64<16>() + from_c_str("B"));
+constexpr auto ERROR_AES_NOT_EXTEND_KEY_24 = (from_c_str("AES: key size must be bigger than ") + from_uint64<24>() + from_c_str("B"));
+constexpr auto ERROR_AES_NOT_EXTEND_KEY_32 = (from_c_str("AES: key size must be bigger than ") + from_uint64<32>() + from_c_str("B"));
 
 const uint8_t NSROOT::Rijndael::SBox[16][16] = {
 	//0     1     2     3     4     5     6     7     8     9     A     B     C     D     E     F
@@ -68,9 +68,9 @@ uint8_t NSROOT::Rijndael::xtimes(uint32_t a, uint32_t b)
     return n;
 }
 
-NSROOT::AES::AES(uint64_t key_size) : Algorithm(16, key_size) 
+NSROOT::AES::AES(uint64_t key_size) : Algorithm(128, key_size) 
 {
-    if (this->key_size_ != 16 && this->key_size_ != 24 && this->key_size_ != 32)
+    if (this->key_size_ != 128 && this->key_size_ != 192 && this->key_size_ != 256)
     {
         throw DOG_EXCEPTION(array_to_view(ERROR_AES_UNSUPPORTED_KEY_SIZE));
     }
@@ -78,7 +78,7 @@ NSROOT::AES::AES(uint64_t key_size) : Algorithm(16, key_size)
 
 const NSROOT::Config& NSROOT::AES::allowed_config()
 {
-    static Config config = Config("AES","16","[16,32|8]");
+    static Config config = Config("AES","128","[128,256|64]");
     return config;
 }
 NSROOT::Config NSROOT::AES::config() const
@@ -91,9 +91,12 @@ std::unique_ptr<NSROOT::Algorithm> NSROOT::AES::clone() const
 }
 std::string NSROOT::AES::fmt_string() const
 {
-    return std::format("AES({})", this->key_size_ * 8);
+    return std::format("AES({})", this->key_size_);
 }
-
+uint64_t NSROOT::AES::get_block_size() const
+{
+    return this->block_size_ / 8;
+}
 NSROOT::extend_key_func NSROOT::AES::get_extend_key() const
 {
     return AES::extend_key;
@@ -244,11 +247,11 @@ void NSROOT::AES::de_middle0(std::array<uint8_t, 16>& datablock)
 }
 BinaryData NSROOT::AES::extend_key(const BinaryData& key, uint64_t block_size, uint64_t key_size)
 {
-    if (key_size != 16 && key_size != 24 && key_size != 32)
+    if (key_size != 128 && key_size != 192 && key_size != 256)
     {
         throw DOG_EXCEPTION(array_to_view(ERROR_AES_UNSUPPORTED_KEY_SIZE));
     }
-    else if (key_size == 16)
+    else if (key_size == 128)
     {
         BinaryData res;
         res.reserve(176);
@@ -301,7 +304,7 @@ BinaryData NSROOT::AES::extend_key(const BinaryData& key, uint64_t block_size, u
         }
         return res;
     }
-    else if (key_size == 24)
+    else if (key_size == 192)
     {
         BinaryData res;
         res.reserve(208);
@@ -354,7 +357,7 @@ BinaryData NSROOT::AES::extend_key(const BinaryData& key, uint64_t block_size, u
         }
         return res;
     }
-    else if (key_size == 32)
+    else if (key_size == 256)
     {
         BinaryData res;
         res.reserve(240);
@@ -435,7 +438,7 @@ BinaryData NSROOT::AES::encoding(const BinaryData& plain, uint64_t block_size, c
 	__m128i* keyp = (__m128i*) (&key[0]);
 	*tmp = _mm_xor_si128(*tmp, keyp[0]);
 	uint32_t i = 0;
-	for (; i < ((key_size / 4) + 5); i++)
+	for (; i < ((key_size / 32) + 5); i++)
 	{
 		*tmp = _mm_aesenc_si128(*tmp, keyp[i + 1]);
 	}
@@ -448,7 +451,7 @@ void NSROOT::AES::encoding_self(BinaryData& plain, uint64_t block_size, const Bi
     __m128i* keyp = (__m128i*) (&key[0]);
     *tmp = _mm_xor_si128(*tmp, keyp[0]);
     uint32_t i = 0;
-    for (; i < ((key_size / 4) + 5); i++)
+    for (; i < ((key_size / 32) + 5); i++)
     {
         *tmp = _mm_aesenc_si128(*tmp, keyp[i + 1]);
     }
@@ -461,7 +464,7 @@ BinaryData NSROOT::AES::decoding(const BinaryData& crypt, uint64_t block_size, c
     __m128i* tmp = (__m128i*)(&mid_block[0]);
     __m128i* keyp = (__m128i*)(&key[0]);
 
-    uint32_t nr = static_cast<uint32_t>((key_size / 4) + 5);
+    uint32_t nr = static_cast<uint32_t>((key_size / 32) + 5);
     uint32_t total_rounds = nr + 1;
 
     *tmp = _mm_xor_si128(*tmp, keyp[total_rounds]);
@@ -478,7 +481,7 @@ void NSROOT::AES::decoding_self(BinaryData& crypt, uint64_t block_size, const Bi
     __m128i* tmp = (__m128i*)(&crypt[0]);
     __m128i* keyp = (__m128i*)(&key[0]);
 
-    uint32_t nr = static_cast<uint32_t>((key_size / 4) + 5);
+    uint32_t nr = static_cast<uint32_t>((key_size / 32) + 5);
     uint32_t total_rounds = nr + 1;
 
     *tmp = _mm_xor_si128(*tmp, keyp[total_rounds]);
@@ -500,7 +503,7 @@ BinaryData NSROOT::AES::encoding(const BinaryData& plain, uint64_t block_size, c
     std::copy(plain.cbegin(), plain.cend(), mid_block.begin());
     bxor(mid_block, key.cbegin(), key.cbegin() + 16);
     uint32_t i = 0;
-    for (; i < ((key_size / 4) + 5); i++)
+    for (; i < ((key_size / 32) + 5); i++)
     {
         NSROOT::AES::en_middle0(mid_block);
         NSROOT::AES::en_middle1(mid_block);
@@ -520,7 +523,7 @@ void NSROOT::AES::encoding_self(BinaryData& plain, uint64_t block_size, const Bi
     std::copy(plain.cbegin(), plain.cend(), mid_block.begin());
     bxor(mid_block, key.cbegin(), key.cbegin() + 16);
     uint32_t i = 0;
-    for (; i < ((key_size / 4) + 5); i++)
+    for (; i < ((key_size / 32) + 5); i++)
     {
         NSROOT::AES::en_middle0(mid_block);
         NSROOT::AES::en_middle1(mid_block);
@@ -538,14 +541,14 @@ BinaryData NSROOT::AES::decoding(const BinaryData& crypt, uint64_t block_size, c
         };
     std::array<uint8_t, 16> mid_block{ 0 };
     std::copy(crypt.cbegin(), crypt.cend(), mid_block.begin());
-    bxor(mid_block, key.cbegin() + (key_size * 4) + 96, key.cbegin() + (key_size * 4) + 112);
+    bxor(mid_block, key.cbegin() + (key_size / 2) + 96, key.cbegin() + (key_size / 2) + 112);
     NSROOT::AES::de_middle0(mid_block);
-    bxor(mid_block, key.cbegin() + 16 * ((key_size / 4) + 5), key.cbegin() + 16 * ((key_size / 4) + 6));
-    for (uint32_t i = 1; i < ((key_size / 4) + 6); i++)
+    bxor(mid_block, key.cbegin() + 16 * ((key_size / 32) + 5), key.cbegin() + 16 * ((key_size / 32) + 6));
+    for (uint32_t i = 1; i < ((key_size / 32) + 6); i++)
     {
         NSROOT::AES::de_middle1(mid_block);
         NSROOT::AES::de_middle0(mid_block);
-        bxor(mid_block, key.cbegin() + 16 * ((key_size / 4) + 5 - i), key.cbegin() + 16 * ((key_size / 4) + 6 - i));
+        bxor(mid_block, key.cbegin() + 16 * ((key_size / 32) + 5 - i), key.cbegin() + 16 * ((key_size / 32) + 6 - i));
     }
     return mid_block;
 }
@@ -557,14 +560,14 @@ void NSROOT::AES::decoding_self(BinaryData& crypt, uint64_t block_size, const Bi
         };
     std::array<uint8_t, 16> mid_block{ 0 };
     std::copy(crypt.cbegin(), crypt.cend(), mid_block.begin());
-    bxor(mid_block, key.cbegin() + (key_size * 4) + 96, key.cbegin() + (key_size * 4) + 112);
+    bxor(mid_block, key.cbegin() + (key_size / 2) + 96, key.cbegin() + (key_size / 2) + 112);
     NSROOT::AES::de_middle0(mid_block);
-    bxor(mid_block, key.cbegin() + 16 * ((key_size / 4) + 5), key.cbegin() + 16 * ((key_size / 4) + 6));
-    for (uint32_t i = 1; i < ((key_size / 4) + 6); i++)
+    bxor(mid_block, key.cbegin() + 16 * ((key_size / 32) + 5), key.cbegin() + 16 * ((key_size / 32) + 6));
+    for (uint32_t i = 1; i < ((key_size / 32) + 6); i++)
     {
         NSROOT::AES::de_middle1(mid_block);
         NSROOT::AES::de_middle0(mid_block);
-        bxor(mid_block, key.cbegin() + 16 * ((key_size / 4) + 5 - i), key.cbegin() + 16 * ((key_size / 4) + 6 - i));
+        bxor(mid_block, key.cbegin() + 16 * ((key_size / 32) + 5 - i), key.cbegin() + 16 * ((key_size / 32) + 6 - i));
     }
     std::copy(mid_block.begin(), mid_block.end(), crypt.begin());
 

@@ -7,14 +7,14 @@ using dog_torch::utils::operator+;
 using dog_torch::utils::from_uint64;
 using dog_torch::utils::array_to_view;
 
-constexpr auto ERROR_UNSUPPORTED_KEY_SIZE = from_c_str("Camellis: key size must be 16, 24 or 32");
-constexpr auto ERROR_NOT_EXTEND_KEY_16 = (from_c_str("Camellis: key size must be bigger than ") + from_uint64<16>());
-constexpr auto ERROR_NOT_EXTEND_KEY_24 = (from_c_str("Camellis: key size must be bigger than ") + from_uint64<24>());
-constexpr auto ERROR_NOT_EXTEND_KEY_32 = (from_c_str("Camellis: key size must be bigger than ") + from_uint64<34>());
+constexpr auto ERROR_UNSUPPORTED_KEY_SIZE = from_c_str("Camellia: key size must be 128, 192 or 256");
+constexpr auto ERROR_NOT_EXTEND_KEY_16 = (from_c_str("Camellia: key size must be bigger than ") + from_uint64<16>() + from_c_str("B"));
+constexpr auto ERROR_NOT_EXTEND_KEY_24 = (from_c_str("Camellia: key size must be bigger than ") + from_uint64<24>() + from_c_str("B"));
+constexpr auto ERROR_NOT_EXTEND_KEY_32 = (from_c_str("Camellia: key size must be bigger than ") + from_uint64<32>() + from_c_str("B"));
 
-NSROOT::Camellia::Camellia(uint64_t key_size) : Algorithm(16, key_size)
+NSROOT::Camellia::Camellia(uint64_t key_size) : Algorithm(128, key_size)
 {
-	if (key_size != 16 && key_size != 32 && key_size != 24)
+	if (key_size != 128 && key_size != 192 && key_size != 256)
 	{
 		throw DOG_EXCEPTION(array_to_view(ERROR_UNSUPPORTED_KEY_SIZE));
 	}
@@ -22,7 +22,7 @@ NSROOT::Camellia::Camellia(uint64_t key_size) : Algorithm(16, key_size)
 
 const NSROOT::Config& NSROOT::Camellia::allowed_config()
 {
-	static auto config = Config("Camellia", "16", "[16,32|8]");
+	static auto config = Config("Camellia", "128", "[128,256|64]");
 	return config;
 }
 
@@ -38,7 +38,12 @@ std::unique_ptr<NSROOT::Algorithm> NSROOT::Camellia::clone() const
 
 std::string NSROOT::Camellia::fmt_string() const
 {
-	return std::format("Camellia({})", this->key_size_ * 8);
+	return std::format("Camellia({})", this->key_size_);
+}
+
+uint64_t NSROOT::Camellia::get_block_size() const
+{
+	return this->block_size_ / 8;
 }
 
 NSROOT::extend_key_func NSROOT::Camellia::get_extend_key() const
@@ -246,7 +251,7 @@ BinaryData NSROOT::Camellia::extend_key(const BinaryData& key, uint64_t block_si
 		klr |= ((uint64_t)key[i + 8]) << (56 - i * 8);
 	}
 	uint64_t kal = kll, kar = klr;
-	if (key_size == 24)
+	if (key_size == 192)
 	{
 		if (key.size() < 24)
 		{
@@ -258,7 +263,7 @@ BinaryData NSROOT::Camellia::extend_key(const BinaryData& key, uint64_t block_si
 			krr |= ((uint64_t)(0xFF) << (56 - i * 8)) & (uint64_t)(~key[i + 16]) << (56 - i * 8);
 		}
 	}
-	else if (key_size == 32)
+	else if (key_size == 256)
 	{
 		if (key.size() < 32)
 		{
@@ -270,7 +275,7 @@ BinaryData NSROOT::Camellia::extend_key(const BinaryData& key, uint64_t block_si
 			krr |= ((uint64_t)key[i + 24]) << (56 - i * 8);
 		}
 	}
-	else if (key_size != 16)
+	else if (key_size != 128)
 	{
 		throw DOG_EXCEPTION(array_to_view(ERROR_NOT_EXTEND_KEY_16));
 	}
@@ -295,7 +300,7 @@ BinaryData NSROOT::Camellia::extend_key(const BinaryData& key, uint64_t block_si
 	std::swap(kal, kar);
 
 	uint64_t shift[8] = { 0,15,30,45,60,77,94,111 };
-	if (key_size == 16)
+	if (key_size == 128)
 	{
 		res.reserve(208);
 		for (uint64_t i = 0; i < 8; i++)
@@ -366,7 +371,7 @@ BinaryData NSROOT::Camellia::extend_key(const BinaryData& key, uint64_t block_si
 		}
 		return res;
 	}
-	else if (key_size != 16)
+	else if (key_size != 128)
 	{
 
 		uint64_t kbl = kal, kbr = kar;
@@ -492,7 +497,7 @@ BinaryData NSROOT::Camellia::encoding(const BinaryData& plain, uint64_t block_si
 		pos += 16;
 		pl = FL(pl, kl_1); pr = FL_inv(pr, kl_2);
 	}
-	if (key_size != 16)
+	if (key_size != 128)
 	{
 		round();
 		uint64_t kl_1 = take_uint64(key, pos), kl_2 = take_uint64(key, pos + 8);
@@ -525,7 +530,7 @@ BinaryData NSROOT::Camellia::decoding(const BinaryData& crypt, uint64_t block_si
 			return res;
 		};
 	uint64_t cr = take_uint64(crypt, 0), cl = take_uint64(crypt, 8);
-	uint64_t pos = key_size == 16 ? 200 : 264;
+	uint64_t pos = key_size == 128 ? 200 : 264;
 	uint64_t kw4 = take_uint64(key, pos), kw3 = take_uint64(key, pos - 8);
 	pos -= 16;
 	cl ^= kw4, cr ^= kw3;
@@ -546,7 +551,7 @@ BinaryData NSROOT::Camellia::decoding(const BinaryData& crypt, uint64_t block_si
 		pos -= 16;
 		cr = FL(cr, kl_1); cl = FL_inv(cl, kl_2);
 	}
-	if (key_size != 16)
+	if (key_size != 128)
 	{
 		round();
 		uint64_t kl_1 = take_uint64(key, pos), kl_2 = take_uint64(key, pos - 8);
@@ -602,7 +607,7 @@ void NSROOT::Camellia::encoding_self(BinaryData& plain, uint64_t block_size, con
 		pos += 16;
 		pl = FL(pl, kl_1); pr = FL_inv(pr, kl_2);
 	}
-	if (key_size != 16)
+	if (key_size != 128)
 	{
 		round();
 		uint64_t kl_1 = take_uint64(key, pos), kl_2 = take_uint64(key, pos + 8);
@@ -632,7 +637,7 @@ void NSROOT::Camellia::decoding_self(BinaryData & crypt, uint64_t block_size, co
 			return res;
 		};
 	uint64_t cr = take_uint64(crypt, 0), cl = take_uint64(crypt, 8);
-	uint64_t pos = key_size == 16 ? 200 : 264;
+	uint64_t pos = key_size == 128 ? 200 : 264;
 	uint64_t kw4 = take_uint64(key, pos), kw3 = take_uint64(key, pos - 8);
 	pos -= 16;
 	cl ^= kw4, cr ^= kw3;
@@ -653,7 +658,7 @@ void NSROOT::Camellia::decoding_self(BinaryData & crypt, uint64_t block_size, co
 		pos -= 16;
 		cr = FL(cr, kl_1); cl = FL_inv(cl, kl_2);
 	}
-	if (key_size != 16)
+	if (key_size != 128)
 	{
 		round();
 		uint64_t kl_1 = take_uint64(key, pos), kl_2 = take_uint64(key, pos - 8);
@@ -671,6 +676,3 @@ void NSROOT::Camellia::decoding_self(BinaryData & crypt, uint64_t block_size, co
 		crypt[i + 8] = cl >> (56 - 8 * i) & 0xff;
 	}
 }
-
-
-#undef NSROOT

@@ -36,14 +36,18 @@ void NSROOT::PausedThreadPool::work(PausedThreadPool& self, Worker& self_worker)
 		Task task;
 		{
 			std::unique_lock<std::mutex> lock(self.mutex_);
-			self.condition_variable_->wait(lock, [&self, &self_worker]()->bool
-				{
-					return self.status_ == Status::Stopped || self.status_ == Status::Blocked || !self.tasks_.empty();
-				});
-			if (self.status_ == Status::Stopped) return;
+			if(self.tasks_.size() == 0)
+			{
+				self.condition_variable_->wait(lock, [&self, &self_worker]()->bool
+					{
+						return self.status_ == Status::Stopped || self.status_ == Status::Blocked || !self.tasks_.empty();
+					});
+				if (self.status_ == Status::Stopped) return;
+			}
 			task = self.tasks_.take_front();
 		}
 		self_worker.task_id = task.id;
+		self_worker.pc.params() = std::move(task.params);
 		try
 		{
 			task.func(self_worker.pc);
@@ -52,6 +56,11 @@ void NSROOT::PausedThreadPool::work(PausedThreadPool& self, Worker& self_worker)
 		{
 			std::cout << e.what() << std::endl;
 		}
+    	self_worker.pc.set_progress(1.0);
+    	self_worker.pc.stop();
+		auto detail = self_worker.pc.to_detail();
+		detail.task_id = self_worker.task_id;	
+		self.finished_tasks_.push_back(std::move(detail));
 		self_worker.pc.stop();
 		self_worker.pc.reset();
 		self_worker.task_id = 0;
@@ -99,7 +108,7 @@ void NSROOT::PausedThreadPool::wait_stop()
 				{
 					for (auto& worker : workers)
 					{
-						if (worker.pc.status() != Status::Stopped)
+						if (worker.pc.status() != Status::Stopped && worker.pc.status() != Status::Ready)
 						{
 							is_all_stop = false;
 						}
@@ -124,6 +133,7 @@ void NSROOT::PausedThreadPool::pause_all()
 void NSROOT::PausedThreadPool::stop_all()
 {
 	status_.store(Status::Stopped);
+	this->tasks_.clear();
 	this->condition_variable_->notify_all();
 	auto waiting = [](std::vector<Worker>& workers)-> void
 		{
@@ -156,6 +166,24 @@ std::vector<PauseableDetail> NSROOT::PausedThreadPool::get_tasks_detail()
 			}
 		};
 	workers_.doing(get_detail);
+	auto get_detail0 = [&details](std::deque<Task>& tasks)-> void
+		{
+			for (auto& task : tasks)
+			{
+				PauseableDetail item;
+				item.task_id = task.id;
+				item.status = Status::Created;
+				item.progress = 0.0;
+				item.time = 0;
+				item.params = task.params;
+				details.push_back(item);
+			}
+		};
+	this->tasks_.doing(get_detail0);
+	while (!this->finished_tasks_.empty())
+	{
+		details.push_back(this->finished_tasks_.take_front());
+	}
 	return details;
 }
 
@@ -198,7 +226,22 @@ bool NSROOT::PausedThreadPool::resume(uint64_t task_id)
 bool NSROOT::PausedThreadPool::cancel(uint64_t task_id)
 {
 	bool result = false;
-	workers_.doing([&result, &task_id](std::vector<Worker>& workers)->void
+	this->tasks_.doing([&result,&task_id](std::deque<Task>& tasks)->void
+		{
+			for(auto it = tasks.begin();it != tasks.end();it++)
+			{
+				if(it->id == task_id)
+				{
+					tasks.erase(it);
+					result = true;
+					break;
+				}
+			}
+		}
+	);
+	if(!result)
+	{
+		workers_.doing([&result, &task_id](std::vector<Worker>& workers)->void
 		{
 			for (auto& worker : workers)
 			{
@@ -211,6 +254,7 @@ bool NSROOT::PausedThreadPool::cancel(uint64_t task_id)
 				}
 			}
 		});
+	}
 	return result;
 }
 bool NSROOT::PausedThreadPool::stop(uint64_t task_id)

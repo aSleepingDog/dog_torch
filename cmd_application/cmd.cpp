@@ -306,7 +306,7 @@ std::optional<BinaryData> input_binary(bool allow_empty, bool empty_random, uint
     {
         if(ori_str) *ori_str = str;
         if (type) *type = op.value();
-        return BinaryData{ str, op.value() };
+        return BinaryData{ str, static_cast<BinaryData::Type>(op.value()) };
     }
     else
     {
@@ -340,7 +340,7 @@ std::optional<std::variant<BinaryData, fs::path>> input_data(bool allow_file, bo
     else if (op < 4)
     {
         type = op.value();
-        return BinaryData{ str, op.value()};
+        return BinaryData{ str, static_cast<BinaryData::Type>(op.value()) };
     }
     else if (op == 4)
     {
@@ -973,26 +973,29 @@ std::shared_ptr<block_crypto::BlockCipher> parse_block_cipher(Value value)
         std::cout << "padding not support" << std::endl;
         return nullptr;
     }
-    const auto& mode_args = mode_configs.at(2).to_object();
     std::unordered_map<std::string, Param> tar_params;
-    for (const auto& [key, value] : mode_args)
+    if (mode_configs.size() > 3)
     {
-        std::string key_name = key.string;
-        if (value.type() == tlv::Type::Bool)
+        const auto& mode_args = mode_configs.at(2).to_object();
+        for (const auto& [key, value] : mode_args)
         {
-            tar_params[key_name] = value.to_bool();
-        }
-        else if (value.type() == tlv::Type::Integer)
-        {
-            tar_params[key_name] = value.to_integer().number;
-        }
-        else if (value.type() == tlv::Type::String)
-        {
-            tar_params[key_name] = value.to_string().string;
-        }
-        else if (value.type() == tlv::Type::Binary)
-        {
-            tar_params[key_name] = value.to_binary();
+            std::string key_name = key.string;
+            if (value.type() == tlv::Type::Bool)
+            {
+                tar_params[key_name] = value.to_bool();
+            }
+            else if (value.type() == tlv::Type::Integer)
+            {
+                tar_params[key_name] = value.to_integer().number;
+            }
+            else if (value.type() == tlv::Type::String)
+            {
+                tar_params[key_name] = value.to_string().string;
+            }
+            else if (value.type() == tlv::Type::Binary)
+            {
+                tar_params[key_name] = value.to_binary();
+            }
         }
     }
     auto mode = block_crypto::mode::create(mode_name, *padding, tar_params);

@@ -13,6 +13,11 @@ constexpr auto ERROR_UNSUPPORT_FLOAT = from_c_str("Invalid float tag ");
 NSROOT::MIBString::MIBString(const std::string& str, uint64_t mid) : string(str), mib(mid) {}
 NSROOT::MIBString::MIBString(std::string&& str, uint64_t mid) : string(std::move(str)), mib(mid) {}
 
+NSROOT::MIBString::MIBString(const std::u8string& str) : mib(106)
+{
+	this->string = std::string(str.cbegin(), str.cend());
+}
+
 bool NSROOT::MIBString::operator==(const MIBString& other) const
 {
 	return this->mib == other.mib && this->string == other.string;
@@ -705,6 +710,160 @@ NSROOT::Value NSROOT::Value::parse(std::istream& input)
 	}
 }
 
+std::string NSROOT::Value::fmt_string(uint64_t depth, uint64_t count, char fill) const
+{
+	if (this->value_.index() == 0)
+	{
+		return "nullptr= null";
+	}
+	else if (this->value_.index() == 1)
+	{
+		return std::format("bool= {}", this->to_bool() ? "true" : "false");
+	}
+	else if (this->value_.index() == 2)
+	{
+		return std::format("int= {}{}", this->to_integer().sign == -1 ? "-" : "", this->to_integer().number);
+	}
+	else if (this->value_.index() == 3)
+	{
+		return std::format("float= {}", this->to_float());
+	}
+	else if (this->value_.index() == 4)
+	{
+		return std::format("binary= {}", BinaryData{ this->to_binary() }.to_hex_string(true));
+	}
+	else if (this->value_.index() == 5)
+	{
+		return std::format("string<{}>= {}", 
+			this->to_string().mib, 
+			this->to_string().string);
+	}
+	std::string result = "";
+	std::string indent((depth + 1) * count, fill);
+	if (this->value_.index() == 6)
+	{
+		result = "array= [\n";
+		for (auto& value : this->to_array())
+		{
+			result += indent;
+			result += value.fmt_string(depth + 1, count, fill);
+			result += ",\n";
+		}
+		if (result.size() > 2)
+		{
+			result.pop_back();
+			result.pop_back();
+			for (uint64_t i = 0; i < count; ++i) indent.pop_back();
+			result += '\n';
+			result += indent;
+		}
+		else
+		{
+			result.back() = ' ';
+		}
+		result += ']';
+	}
+	else if (this->value_.index() == 7)
+	{
+		result = "set= [\n";
+		for (auto& value : this->to_array())
+		{
+			result += indent;
+			result += value.fmt_string(depth + 1, count, fill);
+			result += ",\n";
+		}
+		if (result.size() > 2)
+		{
+			result.pop_back();
+			result.pop_back();
+			for (uint64_t i = 0; i < count; ++i) indent.pop_back();
+			result += '\n';
+			result += indent;
+		}
+		else
+		{
+			result.back() = ' ';
+		}
+		result += ']';
+	}
+	else if (this->value_.index() == 8)
+	{
+		result = "enum= {\n";
+		for (auto& [key, value] : this->to_enum())
+		{
+			result += indent;
+			result += std::format("int: {}{}", key.sign == -1 ? "-" : "", key.number);
+			result += ": ";
+			result += value.fmt_string(depth + 1, count, fill);
+			result += ",\n";
+		}
+		if (result.size() > 2)
+		{
+			result.pop_back();
+			result.pop_back();
+			for (uint64_t i = 0; i < count; ++i) indent.pop_back();
+			result += '\n';
+			result += indent;
+		}
+		else
+		{
+			result.back() = ' ';
+		}
+		result += '}';
+	}
+	else if (this->value_.index() == 9)
+	{
+		result = "map= {\n";
+		for (auto& [key, value] : this->to_map())
+		{
+			result += indent;
+			result += key.fmt_string(depth + 1, count, fill);
+			result += ": ";
+			result += value.fmt_string(depth + 1, count, fill);
+			result += ",\n";
+		}
+		if (result.size() > 2)
+		{
+			result.pop_back();
+			result.pop_back();
+			for (uint64_t i = 0; i < count; ++i) indent.pop_back();
+			result += '\n';
+			result += indent;
+		}
+		else
+		{
+			result.back() = ' ';
+		}
+		result += '}';
+	}
+	else if (this->value_.index() == 10)
+	{
+		result = "object= {\n";
+		for (auto& [key, value] : this->to_object())
+		{
+			result += indent;
+			result += std::format("string<{}>: {}", key.mib, key.string);
+			result += ": ";
+			result += value.fmt_string(depth + 1, count, fill);
+			result += ",\n";
+		}
+		if (result.size() > 2)
+		{
+			result.pop_back();
+			result.pop_back();
+			for (uint64_t i = 0; i < count; ++i) indent.pop_back();
+			result += '\n';
+			result += indent;
+		}
+		else
+		{
+			result.back() = ' ';
+		}
+		result += '}';
+	}
+	return result;
+}
+
 std::vector<uint8_t> NSROOT::Value::serialize() const
 {
 	using namespace dog_torch::math::integer;
@@ -718,6 +877,7 @@ std::vector<uint8_t> NSROOT::Value::serialize() const
 	{
 		tag = 0b00110000;
 		tag |= this->to_bool() ? 0b1111 : 0b0000;
+		result.push_back(tag);
 	}
 	else if (this->value_.index() == 2)
 	{

@@ -161,14 +161,14 @@ NSROOT::Value NSROOT::Value::parse(std::string_view::const_iterator& pos, const 
 		{
 			++pos;
 		}
-		if (pos == end || *pos != 'e' || *pos != 'E')
+		if (pos == end || (*pos != 'e' && *pos != 'E'))
 		{
 			std::string str(s, pos);
 			return Value(std::atof(str.c_str()));
 		}
 		++pos;
 
-		if (pos == end || *pos != '+' || *pos != '-')
+		if (pos == end || (*pos != '+' && *pos != '-'))
 		{
 			throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_FORMAT));
 		}
@@ -352,7 +352,17 @@ std::string NSROOT::Value::to_json_string(uint64_t depth, uint64_t count, char f
 	}
 	else if (this->get_type() == Type::String)
 	{
-		return "\"" + this->to_string() + "\"";
+		std::string result = "\"";
+		for (char c : this->to_string())
+		{
+			if (c == '"' || c == '\\' || c == '/' || c == '\b' || c == '\f' || c == '\n' || c == '\r' || c == '\t')
+			{
+				result += '\\';
+			}
+			result += c;
+		}
+		result += "\"";
+		return result;
 	}
 	else if (this->get_type() == Type::Array)
 	{

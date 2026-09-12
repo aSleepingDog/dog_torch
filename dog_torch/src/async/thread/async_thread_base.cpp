@@ -110,6 +110,14 @@ void NSROOT::PauseableChannel::add_progress(double progress)
 {
     this->progress_.fetch_add(progress);
 }
+std::unordered_map<std::string, std::any>& NSROOT::PauseableChannel::params()
+{
+    return this->params_;
+}
+const std::unordered_map<std::string, std::any>& NSROOT::PauseableChannel::params() const
+{
+    return this->params_;
+}
 std::any& NSROOT::PauseableChannel::param(const std::string& key)
 {
     return this->params_[key];

@@ -5,11 +5,70 @@
 
 namespace dog_torch::utils
 {
+	template<uint64_t I>
+	struct TpUnsignedInteger
+	{
+		static inline constexpr uint64_t value = I;
+	};
+
 	template<size_t N>
 	using tp_string = std::array<char, N>;
 
 	template<size_t N>
+	struct TpString
+	{
+		tp_string<N> data;
+		constexpr TpString(const char(&s)[N])
+		{
+			std::copy(s, s + N, data.begin());
+		}
+		constexpr size_t size() const
+		{
+			return N - 1;
+		}
+	};
+
+	template<size_t N>
+	struct TpU8String
+	{
+		tp_string<N> data;
+		constexpr TpU8String(const char8_t(&s)[N])
+		{
+			std::copy(s, s + N, data.begin());
+		}
+		constexpr size_t size() const
+		{
+			return N - 1;
+		}
+	};
+
+	template<auto Callable>
+	struct TpFuncation
+	{
+		TpFuncation() = delete;
+		template<typename... Args>
+		static auto call(Args&&... args) -> decltype(std::invoke(Callable, std::forward<Args>(args)...))
+		{
+			return std::invoke(Callable, std::forward<Args>(args)...);
+		}
+	};
+
+	template<size_t N>
 	using tp_binary = std::array<uint8_t, N>;
+
+	template<size_t N>
+	struct TpBinary
+	{
+		tp_binary<N> data;
+		constexpr TpBinary(const uint8_t(&s)[N])
+		{
+			std::copy_n(s, N, data.begin());
+		}
+		constexpr size_t size() const
+		{
+			return N;
+		}
+	};
 
 	template<size_t N>
 	consteval tp_string<N> from_c_str(const char(&s)[N])

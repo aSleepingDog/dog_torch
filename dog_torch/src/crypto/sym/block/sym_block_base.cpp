@@ -9,9 +9,10 @@ using dog_torch::utils::from_c_str;
 using dog_torch::utils::from_uint64;
 using dog_torch::utils::array_to_view;
 
-constexpr auto ERROR_SETTING_PADDING = from_c_str("padding must be set");
-constexpr auto ERROR_SETTING_ALGORITHM_MODE = from_c_str("algorithm or mode must be set");
-constexpr auto ERROR_NOT_COMPATIBLE = from_c_str("algorithm and mode are not compatible");
+constexpr auto ERROR_SETTING_PADDING = from_c_str("Mode: padding must be set");
+constexpr auto ERROR_SETTING_ALGORITHM_MODE = from_c_str("BlockCipher: algorithm or mode must be set");
+constexpr auto ERROR_NOT_COMPATIBLE = from_c_str("BlockCipher: algorithm and mode are not compatible");
+constexpr auto ERROR_CIPHER = from_c_str("BlockCipher: cipher is not initialized, call init() first");
 
 NSROOT::algorithm::Config::Config(const std::string& name, const std::string& block_size_region, const std::string& key_size_region)
 	: name(name), block_size_region(block_size_region), key_size_region(key_size_region)
@@ -379,28 +380,34 @@ const NSROOT::mode::Mode& NSROOT::BlockCipher::const_mode() const
 
 BinaryData NSROOT::BlockCipher::encrypt(const BinaryData& plain)
 {
+	if(!this->is_effective_) throw DOG_EXCEPTION(array_to_view(ERROR_CIPHER));
 	return this->mode_->get_mult_encrypt()(plain, this->available_key_, *this->algorithm_);
 }
 BinaryData NSROOT::BlockCipher::decrypt(const BinaryData& crypt)
 {
+	if(!this->is_effective_) throw DOG_EXCEPTION(array_to_view(ERROR_CIPHER));
 	return this->mode_->get_mult_decrypt()(crypt, this->available_key_, *this->algorithm_);
 }
 
 void NSROOT::BlockCipher::encrypt_stream(std::istream& plain, uint64_t total, std::ostream& crypt)
 {
+	if(!this->is_effective_) throw DOG_EXCEPTION(array_to_view(ERROR_CIPHER));
 	this->mode_->get_stream_encrypt()(plain, total, crypt, this->available_key_, *this->algorithm_);
 }
 void NSROOT::BlockCipher::decrypt_stream(std::istream& crypt, uint64_t total, std::ostream& plain)
 {
+	if(!this->is_effective_) throw DOG_EXCEPTION(array_to_view(ERROR_CIPHER));
 	this->mode_->get_stream_decrypt()(crypt, total, plain, this->available_key_, *this->algorithm_);
 }
 
 void NSROOT::BlockCipher::encryptp_stream(PauseableChannel& pc, std::istream& plain, uint64_t total, std::ostream& crypt)
 {
+	if(!this->is_effective_) throw DOG_EXCEPTION(array_to_view(ERROR_CIPHER));
 	this->mode_->get_streamp_encrypt()(pc, plain, total, crypt, this->available_key_, *this->algorithm_);
 }
 void NSROOT::BlockCipher::decryptp_stream(PauseableChannel& pc, std::istream& crypt, uint64_t total, std::ostream& plain)
 {
+	if(!this->is_effective_) throw DOG_EXCEPTION(array_to_view(ERROR_CIPHER));
 	this->mode_->get_streamp_decrypt()(pc, crypt, total, plain, this->available_key_, *this->algorithm_);
 }
 

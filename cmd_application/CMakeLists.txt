@@ -22,13 +22,3 @@ target_link_libraries(cmd PRIVATE static_dog_torch)
 #        cmd.cpp
 #)
 #target_link_libraries(cmd PRIVATE shared_dog_torch)
-
-function(add_dog_torch PROJECT TYPE)
-    include_directories("${CMAKE_SOURCE_DIR}/dog_torch/include")
-    if(${TYPE} STREQUAL "STATIC")
-        target_link_libraries(${PROJECT} PRIVATE static_dog_torch)
-    elseif(${TYPE} STREQUAL "SHARED")
-        target_compile_definitions(${PROJECT} PRIVATE SHARED)
-        target_link_libraries(${PROJECT} PRIVATE shared_dog_torch)
-    endif()
-endfunction(add_dog_torch PROJECT TYPE)

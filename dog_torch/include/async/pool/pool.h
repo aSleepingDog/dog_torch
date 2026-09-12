@@ -74,7 +74,6 @@ namespace dog_torch::async::pool
 		/**
 		 * @param tid The task ID.
 		 * @param tid 任务ID
-		 * 
 		 * @param f The shared future associated with the task.
 		 * @param f 共享的未来体的亡值
 		 */
@@ -128,9 +127,18 @@ namespace dog_torch::async::pool
 			 * @brief 任务执行的函数
 			 */
 			std::function<void(PauseableChannel&)> func;
+			std::unordered_map<std::string, std::any> params;
 			Task() = default;
-			Task(std::function<void(PauseableChannel&)>&& pfunc, uint64_t pid)
-				: func(std::move(pfunc)), id(pid) {}
+			/**
+			 * @brief Construct a new Task object.
+			 * @brief 构造一个新任务对象
+			 * @param pfunc The function to be executed by the task.
+			 * @param pfunc 任务执行的函数
+			 * @param pid The ID of the task.
+			 * @param pid 任务ID
+			 */
+			Task(std::function<void(PauseableChannel&)>&& pfunc,const std::unordered_map<std::string, std::any>& pparams, uint64_t pid)
+				: func(std::move(pfunc)),params(pparams), id(pid) {}
 		};
 
 		std::mutex mutex_;
@@ -140,26 +148,105 @@ namespace dog_torch::async::pool
 		std::atomic<uint64_t> worker_count_ = 0;
 		VectorMove<Worker> workers_;
 		DequeMove<Task> tasks_;
+		DequeMove<PauseableDetail> finished_tasks_;
 	public:
+		/**
+		 * @brief Construct a new PausedThreadPool object.
+		 * @brief 构造一个新可暂停线程池对象
+		 * @param count The number of worker threads in the pool.
+		 * @param count 线程池中的工作线程数量
+		 */
 		PausedThreadPool(uint64_t count);
 		~PausedThreadPool();
-
+		
 		static void work(PausedThreadPool& self, Worker& worker);
 
+		/**
+		 * @brief Start the thread pool.
+		 * @brief 启动线程池
+		 */
 		void start();
 
+		/**
+		 * @brief Resize the thread pool.
+		 * @brief 调整线程池大小
+		 */
 		void resize(uint64_t count);
 
+		/**
+		 * @brief Stop the thread pool.
+		 * @brief 停止线程池
+		 */
 		void wait_stop();
+		/**
+		 * @brief Pause all tasks in the thread pool.
+		 * @brief 暂停线程池中的所有任务
+		 */
 		void pause_all();
+		/**
+		 * @brief Resume all tasks in the thread pool.
+		 * @brief 恢复线程池中的所有任务
+		 */
 		void stop_all();
+		/**
+		 * @brief Get the status of the thread pool.
+		 * @brief 获取线程池的状态
+		 * @return Status The details of the thread pool.
+		 * @return Status 线程池的详细信息
+		 */
 		std::vector<PauseableDetail> get_tasks_detail();
 
+		/**
+		 * @brief Pause a task in the thread pool.
+		 * @brief 暂停线程池中的任务
+		 * @param task_id The ID of the task to be paused.
+		 * @param task_id 要暂停的任务ID
+		 * @return bool True if the task is paused successfully, false otherwise.
+		 * @return bool 如果成功暂停任务则返回true 否则返回false
+		 */
 		bool pause(uint64_t task_id);
+		/**
+		 * @brief Resume a task in the thread pool.
+		 * @brief 恢复线程池中的任务
+		 * @param task_id The ID of the task to be resumed.
+		 * @param task_id 要恢复的任务ID
+		 * @return bool True if the task is resumed successfully, false otherwise.
+		 * @return bool 如果成功恢复任务则返回true 否则返回false
+		 */
 		bool resume(uint64_t task_id);
+		/**
+		 * @brief Cancel a task in the thread pool.
+		 * @brief 取消线程池中的任务
+		 * @param task_id The ID of the task to be canceled.
+		 * @param task_id 要取消的任务ID
+		 * @return bool True if the task is canceled successfully, false otherwise.
+		 * @return bool 如果成功取消任务则返回true 否则返回false
+		 */
 		bool cancel(uint64_t task_id);
+		/**
+		 * @brief Stop a task in the thread pool.
+		 * @brief 停止线程池中的任务
+		 * @param task_id The ID of the task to be stopped.
+		 * @param task_id 要停止的任务ID
+		 * @return bool True if the task is stopped successfully, false otherwise.
+		 * @return bool 如果成功停止任务则返回true 否则返回false
+		 */
 		bool stop(uint64_t task_id);
 
+		/**
+		 * @brief Add a task to the thread pool.
+		 * @brief 向线程池中添加任务
+		 * @tparam Func The type of the function to be executed by the task.
+		 * @tparam Func 任务执行的函数类型
+		 * @tparam Args The types of the arguments to be passed to the function.
+		 * @tparam Args 传递给函数的参数类型
+		 * @param func The function to be executed by the task.
+		 * @param func 任务执行的函数
+		 * @param args The arguments to be passed to the function.
+		 * @param args 传递给函数的参数
+		 * @return Result<decltype(func(std::declval<PauseableChannel&>(), std::forward<Args>(args)...))> The shared result of the task.
+		 * @return Result<decltype(func(std::declval<PauseableChannel&>(), std::forward<Args>(args)...))> 任务的结果
+		 */
 		template<typename Func, typename... Args>
 			requires PauseFunc<Func, Args...>
 		auto add_task(Func&& func, Args&&... args) -> Result<decltype(func(std::declval<PauseableChannel&>(), std::forward<Args>(args)...))>
@@ -170,6 +257,7 @@ namespace dog_torch::async::pool
 			std::shared_ptr<promRes> prom = std::make_shared<promRes>();
 			auto func_bind = std::bind(func, std::placeholders::_1, std::forward<Args>(args)...);
 			std::function<void(PauseableChannel&)> task;
+			auto future = prom->get_future();
 			if constexpr (std::is_void_v<ResType>)
 			{
 				auto doing = [func_bind, prom](PauseableChannel& pc)->void
@@ -203,11 +291,90 @@ namespace dog_torch::async::pool
 			}
 			std::unique_lock lock(this->mutex_);
 			uint64_t task_id = this->task_next_id_++;
-			this->tasks_.emplace_back({ std::move(task),  task_id });
+			this->tasks_.emplace_back({ std::move(task),{},task_id });
 			condition_variable_->notify_one();
-			return Result{ task_id, std::move(prom->get_future()) };
+			return Result{ task_id, std::move(future) };
 		}
 
+		/**
+		 * @brief Add a task to the thread pool.
+		 * @brief 向线程池中添加任务
+		 * @tparam Func The type of the function to be executed by the task.
+		 * @tparam Func 任务执行的函数类型
+		 * @tparam Args The types of the arguments to be passed to the function.
+		 * @tparam Args 传递给函数的参数类型
+		 * @param params extra info with task
+		 * @param params 任务额外信息
+		 * @param func The function to be executed by the task.
+		 * @param func 任务执行的函数
+		 * @param args The arguments to be passed to the function.
+		 * @param args 传递给函数的参数
+		 * @return Result<decltype(func(std::declval<PauseableChannel&>(), std::forward<Args>(args)...))> The shared result of the task.
+		 * @return Result<decltype(func(std::declval<PauseableChannel&>(), std::forward<Args>(args)...))> 任务的结果
+		 */
+		template<typename Func, typename... Args>
+			requires PauseFunc<Func, Args...>
+		auto add_task(const std::unordered_map<std::string,std::any>& params, Func&& func, Args&&... args) -> Result<decltype(func(std::declval<PauseableChannel&>(), std::forward<Args>(args)...))>
+		{
+			using ResType = decltype(func(std::declval<PauseableChannel&>(), std::forward<Args>(args)...));
+			using promRes = std::promise<ResType>;
+
+			std::shared_ptr<promRes> prom = std::make_shared<promRes>();
+			auto func_bind = std::bind(func, std::placeholders::_1, std::forward<Args>(args)...);
+			std::function<void(PauseableChannel&)> task;
+			auto future = prom->get_future();
+			if constexpr (std::is_void_v<ResType>)
+			{
+				auto doing = [func_bind, prom](PauseableChannel& pc)->void
+					{
+						try
+						{
+							func_bind(pc);
+							prom->set_value();
+						}
+						catch (std::exception& e)
+						{
+							prom->set_exception(std::make_exception_ptr(e));
+						}
+					};
+				task = std::move(doing);
+			}
+			else
+			{
+				auto doing = [func_bind, prom](PauseableChannel& pc)->void
+					{
+						try
+						{
+							prom->set_value(func_bind(pc));
+						}
+						catch (std::exception& e)
+						{
+							prom->set_exception(std::make_exception_ptr(e));
+						}
+					};
+				task = std::move(doing);
+			}
+			std::unique_lock lock(this->mutex_);
+			uint64_t task_id = this->task_next_id_++;
+			this->tasks_.emplace_back({ std::move(task),params,task_id });
+			condition_variable_->notify_one();
+			return Result{ task_id, std::move(future) };
+		}
+
+		/**
+		 * @brief Add a task to the thread pool.
+		 * @brief 向线程池中添加任务
+		 * @tparam Func The type of the function to be executed by the task.
+		 * @tparam Func 任务执行的函数类型
+		 * @tparam Args The types of the arguments to be passed to the function.
+		 * @tparam Args 传递给函数的参数类型
+		 * @param func The function to be executed by the task.
+		 * @param func 任务执行的函数
+		 * @param args The arguments to be passed to the function.
+		 * @param args 传递给函数的参数
+		 * @return uint64_t The ID of the task.
+		 * @return uint64_t 任务ID
+		 */
 		template<typename Func, typename... Args>
 			requires PauseFunc<Func, Args...>
 		auto add_task_pass(Func&& func, Args&&... args) -> uint64_t

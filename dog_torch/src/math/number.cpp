@@ -337,10 +337,11 @@ NSROOT::UnsignedInteger128 NSROOT::UnsignedInteger128::operator<<(uint64_t shift
     {
         return UnsignedInteger128(low() << (shift - 64), 0);
     }
-    else
+    else if (shift > 0)
     {
         return UnsignedInteger128((high() << shift) | (low() >> (64 - shift)), low() << shift);
     }
+    return *this;
 }
 void NSROOT::UnsignedInteger128::operator<<=(uint64_t shift) noexcept
 {
@@ -354,7 +355,7 @@ void NSROOT::UnsignedInteger128::operator<<=(uint64_t shift) noexcept
         high() = low() << (shift - 64);
         low() = 0;
     }
-    else
+    else if (shift > 0)
     {
         high() = (high() << shift) | (low() >> (64 - shift));
         low() <<= shift;
@@ -370,10 +371,11 @@ NSROOT::UnsignedInteger128 NSROOT::UnsignedInteger128::operator>>(uint64_t shift
     {
         return UnsignedInteger128(0, high() >> (shift - 64));
     }
-    else
+    else if (shift > 0)
     {
         return UnsignedInteger128(high() >> shift, (low() >> shift) | (high() << (64 - shift)));
     }
+    return *this;
 }
 void NSROOT::UnsignedInteger128::operator>>=(uint64_t shift) noexcept
 {
@@ -387,7 +389,7 @@ void NSROOT::UnsignedInteger128::operator>>=(uint64_t shift) noexcept
         high() = 0;
         low() = high() >> (shift - 64);
     }
-    else
+    else if (shift > 0)
     {
         low() = (low() >> shift) | (high() << (64 - shift));
         high() >>= shift;

@@ -5,6 +5,7 @@ packing("include" "dog_torch")
 
 file(GLOB_RECURSE resource_code_file RELATIVE 
   "${CMAKE_SOURCE_DIR}/../dog_torch/src" *.cpp
+  "${CMAKE_SOURCE_DIR}/../dog_torch/src" *.h
 )
 
 #EN_AES_IN

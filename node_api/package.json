@@ -1,0 +1,23 @@
+{
+  "name": "dog_torch_napi",
+  "version": "1.0.0",
+  "main": "test.js",
+  "scripts": {
+    "build": "cmake-js build --verbose",
+    "rebuild": "cmake-js compile --verbose",
+    "test": "node test.js"
+  },
+  "keywords": [],
+  "author": "aSleepingDog",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "node-addon-api": "^8.9.2"
+  },
+  "devDependencies": {
+    "cmake-js": "^8.0.0"
+  },
+  "cmake-js": {
+    "shell": "powershell.exe"
+  }
+}

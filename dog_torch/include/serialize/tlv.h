@@ -22,11 +22,13 @@ namespace dog_torch::serialize::tlv
 {
 	struct CPP_API MIBString
 	{
+		//define in https://www.iana.org/assignments/character-sets
 		uint64_t mib;//utf-8 = 106
 		std::string string;
 
 		MIBString(const std::string& str, uint64_t mid = 106);
 		MIBString(std::string&& str, uint64_t mid = 106);
+		MIBString(const std::u8string& str);
 		bool operator==(const MIBString& other) const;
 	};
 
@@ -51,18 +53,18 @@ namespace std
 * TLV value
 * other0  0000 XXXX                                                     -- 0X
 * other1  0001 XXXX                                                     -- 1X
-* null    0010 0000                                                     -- 2X
-* bool    0011 0000/false 1111/true                                     -- 3X
-* u/int   010 0 0+/1- LLL                                               -- 4X
-* float   011 000 00-16 01-32 10-64 11-128                              -- 6X
-* binary  100 0 0 LLL                                                   -- 8X
-* string  101 00-utf8/01-2BMiB/10-4BMIB/11-8BMIB LLL (2-4) uint         -- AX
+* null    0010 0000                                                     -- 2X     0
+* bool    0011 0000/false 1111/true                                     -- 3X     1
+* u/int   010 0 0+/1- LLL                                               -- 4X     2
+* float   011 000 00-16 01-32 10-64 11-128                              -- 6X     3
+* binary  100 0 0 LLL                                                   -- 8X     4
+* string  101 00-utf8/01-2BMiB/10-4BMIB/11-8BMIB LLL (2-4) uint         -- AX     5
 * container   11 XXX LLL
-* 000 - array  - TL V|TL V                                              -- C >8
-* 001 - set    - TL V|TL V                                              -- C <8
-* 101 - enum   - u/int,TL V|u/int,TL V                                  -- E >8
-* 010 - map    - TL V,TL V|TL V,TL V                                    -- D <8
-* 011 - object - string,TL V|string,TL V                                -- D >8
+* 000 - array  - TL V|TL V                                              -- C >=8  6
+* 001 - set    - TL V|TL V                                              -- C < 8  7
+* 101 - enum   - u/int,TL V|u/int,TL V                                  -- E >=8  8
+* 010 - map    - TL V,TL V|TL V,TL V                                    -- D < 8  9
+* 011 - object - string,TL V|string,TL V                                -- D >=8  10
 */
 namespace dog_torch::serialize::tlv
 {
@@ -182,6 +184,7 @@ namespace dog_torch::serialize::tlv
 		static Value parse(std::istream& input);
 
 		std::vector<uint8_t> serialize() const;
+		std::string fmt_string(uint64_t depth = 0, uint64_t count = 4, char fill = ' ') const;
 	};
 }
 
