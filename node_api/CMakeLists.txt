@@ -11,6 +11,7 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     add_compile_options(-std=c++23)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     add_compile_options(-std=c++23)
+    add_compile_options(-maes -msse4.2)
 else()
 
 endif()
