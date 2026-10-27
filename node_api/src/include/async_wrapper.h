@@ -1,6 +1,6 @@
 #pragma once
 #include "napi_wrapper_utils.h"
-#include "async\pool\pool.h"
+#include "async/pool/pool.h"
 
 using ResultString = dog_torch::async::pool::Result<std::string>;
 
