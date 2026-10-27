@@ -59,7 +59,7 @@ void u64add(uint64_t carry_in, uint64_t a, uint64_t b, uint64_t* carry, uint64_t
     uint64_t low = (a & 0xFFFFFFFF) + (b & 0xFFFFFFFF) + carry_in;
     uint64_t high = (a >> 32) + (b >> 32) + (low >> 32);
     *carry = high >> 32;
-    *result = high << 32 | low;
+    *result = high << 32 | (low & 0xFFFFFFFF);
 }
 void u64sub(uint64_t borrow_in, uint64_t a, uint64_t b, uint64_t* borrow, uint64_t* result)
 {
