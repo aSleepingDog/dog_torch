@@ -67,7 +67,6 @@ namespace dog_torch::napi
     };
 
     template<typename T>
-    requires std::is_enum_v<T>
     struct ArgValue
     {
         Napi::Value value;
