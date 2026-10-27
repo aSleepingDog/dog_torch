@@ -6,7 +6,7 @@
 #include "sym_block_base.h"
 #include "./algorithms/Rijndael.h"
 #include "./algorithms/SM4.h"
-#include "./algorithms/camellia.h"
+#include "./algorithms/Camellia.h"
 #include "./algorithms/Twofish.h"
 
 namespace dog_torch::crypto::sym::block::algorithm
