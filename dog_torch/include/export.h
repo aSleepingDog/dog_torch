@@ -16,4 +16,8 @@
     #define CPP_API
 #endif//
 
-#define C_API(type) CPP_API type __cdecl
+#ifdef _WIN32
+    #define C_API(type) CPP_API type __cdecl
+#else
+    #define C_API(type) CPP_API type
+#endif

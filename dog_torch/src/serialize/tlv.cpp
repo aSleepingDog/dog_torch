@@ -380,6 +380,7 @@ const std::unordered_map<NSROOT::MIBString, NSROOT::Value> NSROOT::Value::to_obj
 
 NSROOT::Value NSROOT::Value::parse(std::vector<uint8_t>::const_iterator& pos, std::vector<uint8_t>::const_iterator end)
 {
+	if (pos == end) throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_TAG));
 	uint8_t tag = *pos++;
 	if ((tag >> 4) == 0b0010)
 	{

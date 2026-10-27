@@ -12,6 +12,10 @@ file(GLOB_RECURSE resource_code_file RELATIVE
 #enable AES IN on supported CPU
 #在支持AES的CPU上启用AES IN
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    add_compile_options(-maes -msse4.2)
+endif()
+
 include_directories("${CMAKE_SOURCE_DIR}/dog_torch/include")
 add_library(static_dog_torch STATIC)
 target_compile_definitions(static_dog_torch PRIVATE EN_AES_IN)
@@ -21,7 +25,7 @@ PRIVATE
 )
 
 add_library(shared_dog_torch SHARED)
-if(MSVC)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     #ignore warning 4251 4275
     #忽略警告4251 4275
     target_compile_options(shared_dog_torch PRIVATE /wd4251 /wd4275)

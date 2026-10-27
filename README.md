@@ -221,5 +221,3 @@ int main()
     BinaryData plaio = cipher0.decrypt(crypt);//decrypt 解密
 }
 ```
-
-其他使用方法等我更新吧……

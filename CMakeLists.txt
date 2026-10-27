@@ -10,7 +10,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 else()
-
 endif()
 
 project("dog_torch" VERSION 2.0 DESCRIPTION "A simple C++ library for crypto and other utils written by dog")

@@ -10,6 +10,7 @@ NSROOT::PausedThreadPool::Worker::Worker(Worker&& other) noexcept
 };
 NSROOT::PausedThreadPool::Worker& NSROOT::PausedThreadPool::Worker::operator=(Worker&& other) noexcept
 {
+	if (this == &other) return *this;
 	this->pc = std::move(other.pc);
 	this->thread = std::move(other.thread);
 	this->task_id = other.task_id;
