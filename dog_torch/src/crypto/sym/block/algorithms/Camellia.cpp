@@ -1,4 +1,4 @@
-#include "crypto/sym/block/algorithms/camellia.h"
+#include "crypto/sym/block/algorithms/Camellia.h"
 
 namespace NSROOT = dog_torch::crypto::sym::block::algorithm;
 using dog_torch::serialize::BinaryData;
