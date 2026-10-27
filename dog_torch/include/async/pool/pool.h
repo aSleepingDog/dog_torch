@@ -291,7 +291,7 @@ namespace dog_torch::async::pool
 			}
 			std::unique_lock lock(this->mutex_);
 			uint64_t task_id = this->task_next_id_++;
-			this->tasks_.emplace_back({ std::move(task),{},task_id });
+			this->tasks_.emplace_back(Task{ std::move(task),{},task_id });
 			condition_variable_->notify_one();
 			return Result{ task_id, std::move(future) };
 		}
@@ -356,7 +356,7 @@ namespace dog_torch::async::pool
 			}
 			std::unique_lock lock(this->mutex_);
 			uint64_t task_id = this->task_next_id_++;
-			this->tasks_.emplace_back({ std::move(task),params,task_id });
+			this->tasks_.emplace_back(Task{ std::move(task),params,task_id });
 			condition_variable_->notify_one();
 			return Result{ task_id, std::move(future) };
 		}
@@ -389,7 +389,7 @@ namespace dog_torch::async::pool
 			task = std::move(doing);
 			std::unique_lock lock(this->mutex_);
 			uint64_t task_id = this->task_next_id_++;
-			this->tasks_.emplace_back({ std::move(task),  task_id });
+			this->tasks_.emplace_back(Task{ std::move(task),  task_id });
 			condition_variable_->notify_one();
 			return task_id;
 		}
