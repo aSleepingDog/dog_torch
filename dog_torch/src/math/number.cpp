@@ -48,11 +48,11 @@ constexpr auto ERROR_UNSIGNED_SUBTRACT_LESS = "a<b when unsigned numbers subtrac
         #else
             void u64add(uint64_t carry_in, uint64_t a, uint64_t b, uint64_t* carry, uint64_t* result)
             {
-                *carry = _addcarry_u64(static_cast<unsigned char>(carry_in), a, b, reinterpret_cast<unsigned long*>(result));
+                *carry = _addcarry_u64(static_cast<unsigned char>(carry_in), a, b, reinterpret_cast<unsigned long long*>(result));
             }
             void u64sub(uint64_t borrow_in, uint64_t a, uint64_t b, uint64_t* borrow, uint64_t* result)
             {
-                *borrow = _subborrow_u64(static_cast<unsigned char>(borrow_in), a, b, reinterpret_cast<unsigned long*>(result));
+                *borrow = _subborrow_u64(static_cast<unsigned char>(borrow_in), a, b, reinterpret_cast<unsigned long long*>(result));
             }
         #endif
         void u64mul(uint64_t a, uint64_t b, uint64_t* result_high, uint64_t* result_low)
