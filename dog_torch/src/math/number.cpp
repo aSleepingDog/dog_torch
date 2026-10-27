@@ -17,40 +17,59 @@ constexpr auto ERROR_RADIX_UNEXPECT_CHAR_16 = (from_c_str("unexcept char when ")
 constexpr auto ERROR_UNSIGNED_SUBTRACT_LESS = "a<b when unsigned numbers subtract";
 
 #if defined(__x86_64__) || defined(_M_X64)
-#include <immintrin.h>
-void u64add(uint64_t carry_in, uint64_t a, uint64_t b, uint64_t* carry, uint64_t* result)
-{
-    *carry = _addcarry_u64(static_cast<unsigned char>(carry_in), a, b, result);
-}
-void u64sub(uint64_t borrow_in, uint64_t a, uint64_t b, uint64_t* borrow, uint64_t* result)
-{
-    *borrow = _subborrow_u64(static_cast<unsigned char>(borrow_in), a, b, result);
-}
-#if defined(_MSC_VER)
-void u64mul(uint64_t a, uint64_t b, uint64_t* result_high, uint64_t* result_low)
-{
-    *result_low = _umul128(a, b, result_high);
-}
-void u128div(uint64_t a_h, uint64_t a_l, uint64_t b, uint64_t* q, uint64_t* r)
-{
-    *q = _udiv128(a_h, a_l, b, r);
-}
-#elif defined(__GNUC__)
-void u64mul(uint64_t a, uint64_t b, uint64_t* result_high, uint64_t* result_low)
-{
-    unsigned __int128 c = (unsigned __int128)a * (unsigned __int128)b;
-    *result_high = (uint64_t)(c >> 64);
-    *result_low = (uint64_t)c;
-}
-void u128div(uint64_t a_h, uint64_t a_l, uint64_t b, uint64_t* q, uint64_t* r)
-{
-    unsigned __int128 dividend = ((unsigned __int128)a_h << 64) | (unsigned __int128)a_l;
-    unsigned __int128 quotient = dividend / (unsigned __int128)b;
-    unsigned __int128 remainder = dividend % (unsigned __int128)b;
-    *q = (uint64_t)quotient;
-    *r = (uint64_t)remainder;
-}
-#endif
+    #include <immintrin.h>
+    #if defined(_MSC_VER)
+        void u64add(uint64_t carry_in, uint64_t a, uint64_t b, uint64_t* carry, uint64_t* result)
+        {
+            *carry = _addcarry_u64(static_cast<unsigned char>(carry_in), a, b, result);
+        }
+        void u64sub(uint64_t borrow_in, uint64_t a, uint64_t b, uint64_t* borrow, uint64_t* result)
+        {
+            *borrow = _subborrow_u64(static_cast<unsigned char>(borrow_in), a, b, result);
+        }
+        void u64mul(uint64_t a, uint64_t b, uint64_t* result_high, uint64_t* result_low)
+        {
+            *result_low = _umul128(a, b, result_high);
+        }
+        void u128div(uint64_t a_h, uint64_t a_l, uint64_t b, uint64_t* q, uint64_t* r)
+        {
+            *q = _udiv128(a_h, a_l, b, r);
+        }
+    #elif defined(__GNUC__)
+        #if _WIN32
+            void u64add(uint64_t carry_in, uint64_t a, uint64_t b, uint64_t* carry, uint64_t* result)
+            {
+                *carry = _addcarry_u64(static_cast<unsigned char>(carry_in), a, b, result);
+            }
+            void u64sub(uint64_t borrow_in, uint64_t a, uint64_t b, uint64_t* borrow, uint64_t* result)
+            {
+                *borrow = _subborrow_u64(static_cast<unsigned char>(borrow_in), a, b, result);
+            }
+        #else
+            void u64add(uint64_t carry_in, uint64_t a, uint64_t b, uint64_t* carry, uint64_t* result)
+            {
+                *carry = _addcarry_u64(static_cast<unsigned char>(carry_in), a, b, reinterpret_cast<unsigned long*>(result));
+            }
+            void u64sub(uint64_t borrow_in, uint64_t a, uint64_t b, uint64_t* borrow, uint64_t* result)
+            {
+                *borrow = _subborrow_u64(static_cast<unsigned char>(borrow_in), a, b, reinterpret_cast<unsigned long*>(result));
+            }
+        #endif
+        void u64mul(uint64_t a, uint64_t b, uint64_t* result_high, uint64_t* result_low)
+        {
+            unsigned __int128 c = (unsigned __int128)a * (unsigned __int128)b;
+            *result_high = (uint64_t)(c >> 64);
+            *result_low = (uint64_t)c;
+        }
+        void u128div(uint64_t a_h, uint64_t a_l, uint64_t b, uint64_t* q, uint64_t* r)
+        {
+            unsigned __int128 dividend = ((unsigned __int128)a_h << 64) | (unsigned __int128)a_l;
+            unsigned __int128 quotient = dividend / (unsigned __int128)b;
+            unsigned __int128 remainder = dividend % (unsigned __int128)b;
+            *q = (uint64_t)quotient;
+            *r = (uint64_t)remainder;
+        }
+    #endif
 // #elif defined(__aarch64__) || defined(_M_ARM64)
 #else
 //纯软件模拟
