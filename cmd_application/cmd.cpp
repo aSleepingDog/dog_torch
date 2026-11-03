@@ -462,7 +462,7 @@ std::shared_ptr<Generator> get_hash_generator()
         return nullptr;
     }
     NumberIterator nit{ tar_config.region };
-    while (nit.have_next())
+    while (nit.has_next())
     {
         std::cout << nit.next() << ',';
     }
@@ -837,7 +837,7 @@ std::shared_ptr<block_crypto::BlockCipher> get_block_cipher()
     using dog_torch::math::region::NumberIterator;
     NumberIterator bnit{ (*alg_config).get().block_size_region };
     std::cout << "choose block size" << "\n";
-    while (bnit.have_next())
+    while (bnit.has_next())
     {
         std::cout << bnit.next() << ",";
     }
@@ -851,7 +851,7 @@ std::shared_ptr<block_crypto::BlockCipher> get_block_cipher()
 
     NumberIterator knit{ (*alg_config).get().key_size_region };
     std::cout << "choose key size" << "\n";
-    while (knit.have_next())
+    while (knit.has_next())
     {
         std::cout << knit.next() << ",";
     }

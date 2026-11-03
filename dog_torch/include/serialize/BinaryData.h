@@ -350,7 +350,7 @@ namespace dog_torch::serialize
     public:
         EmptyBuffer();
 
-        int_type overflow(int_type ch = traits_type::eof());
+        int_type overflow(int_type ch = traits_type::eof()) override;
         std::streamsize xsputn(const char_type* s, std::streamsize count) override;
     };
 
