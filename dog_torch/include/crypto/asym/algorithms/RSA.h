@@ -22,7 +22,7 @@ namespace dog_torch::crypto::asym::algorithm
 		static BinaryData encrypt(const BinaryData& plain, const BinaryData& key, uint64_t size, std::function<void(BinaryData&)> padding);
 		static BinaryData decrypt(const BinaryData& crypt, const BinaryData& key, uint64_t size, std::function<void(BinaryData&)> unpadding);
 
-		virtual std::unique_ptr<Algorithm> clone() const;
+		virtual std::unique_ptr<Algorithm> clone() const override;
 
 		const Config& get_allow_config() const;
 		Config get_config() const override;
