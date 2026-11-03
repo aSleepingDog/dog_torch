@@ -103,7 +103,7 @@ BinaryData NSROOT::SM3::next_block(const BinaryData& data, uint64_t start, uint6
 	{
 		throw DOG_EXCEPTION(array_to_view(ERROR_LARGE_DATA_SIZE));
 	}
-	auto res = data.sub_bytes_len(start, 64);
+	auto res = data.sub_bytes_len(data_pos - start, 64);
 	data_pos += res.size();
 	if (res.size() >= 64) return res;
 	else

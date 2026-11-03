@@ -19,10 +19,10 @@ NumberIteratorWrapper::NumberIteratorWrapper::NumberIteratorWrapper(const Napi::
     }
 }
 
-Napi::Value NumberIteratorWrapper::haveNext(const Napi::CallbackInfo& info)
+Napi::Value NumberIteratorWrapper::hasNext(const Napi::CallbackInfo& info)
 {
     NOT_EMPTY(self_);
-    return Napi::Boolean::New(info.Env(), this->self_->have_next());
+    return Napi::Boolean::New(info.Env(), this->self_->has_next());
 }
 
 Napi::Value NumberIteratorWrapper::next(const Napi::CallbackInfo& info)
@@ -43,7 +43,7 @@ Napi::Object NumberIteratorWrapper::registerClass(Napi::Env env, Napi::Object ex
 {
     Napi::HandleScope scope(env);
     Napi::Function func = DefineClass(env, "NumberIterator", {
-        InstanceMethod("haveNext", &NumberIteratorWrapper::haveNext),
+        InstanceMethod("hasNext", &NumberIteratorWrapper::hasNext),
         InstanceMethod("next", &NumberIteratorWrapper::next),
         });
 

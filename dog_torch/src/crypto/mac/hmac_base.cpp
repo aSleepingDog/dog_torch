@@ -16,7 +16,7 @@ NSROOT::BinaryData NSROOT::HMacGenerator::generate(const BinaryData& data)
     uint64_t block_size = this->hash_algorithm_->get_block_size();
     HashGenerator hasher(this->hash_algorithm_);
     if (key_.size() > block_size) effective_key = hasher.calculate(key_);
-    while (effective_key.size() < block_size) effective_key.push_back(0x00);
+    effective_key.resize(block_size, 0x00);
     BinaryData ipad; ipad.reserve(block_size);
     BinaryData opad; opad.reserve(block_size);
     for (uint64_t i = 0; i < block_size; i++)
@@ -32,7 +32,7 @@ NSROOT::BinaryData NSROOT::HMacGenerator::generate(const BinaryData& data)
     uint64_t pos = block_size;
     do
     {
-        BinaryData block = this->hash_algorithm_->next_block(data, pos - block_size, pos, data.size() + block_size);
+        BinaryData block = this->hash_algorithm_->next_block(data, block_size, pos, data.size() + block_size);
         update_func(block, value);
     } while (this->hash_algorithm_->have_next_block(pos, data.size() + block_size));
     trims_func(value);
@@ -50,7 +50,7 @@ NSROOT::BinaryData NSROOT::HMacGenerator::generate(std::istream& input, uint64_t
     uint64_t block_size = this->hash_algorithm_->get_block_size();
     HashGenerator hasher(this->hash_algorithm_);
     if (key_.size() > block_size) effective_key = hasher.calculate(key_);
-    while (effective_key.size() < block_size) effective_key.push_back(0x00);
+    effective_key.resize(block_size, 0x00);
     BinaryData ipad; ipad.reserve(block_size);
     BinaryData opad; opad.reserve(block_size);
     for (uint64_t i = 0; i < block_size; i++)

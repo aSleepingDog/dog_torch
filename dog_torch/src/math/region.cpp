@@ -339,7 +339,7 @@ NSROOT::NumberIterator& NSROOT::NumberIterator::operator=(NumberIterator && othe
     return *this;
 }
 
-bool NSROOT::NumberIterator::have_next() const
+bool NSROOT::NumberIterator::has_next() const
 {
     if (this->is_list_)
     {
@@ -386,7 +386,7 @@ NAMESPACE(NumberIterator)* NAMESPACE(NumberIterator_create)(LVALUE(UTILS(CppResu
 UTILS(CppUint64Array)* NAMESPACE(NumberIterator_all_numbers)(LVALUE(NAMESPACE(NumberIterator))self)
 {
     std::vector<uint64_t> r;
-    while (self->have_next())
+    while (self->has_next())
     {
         r.push_back(self->next());
     }
@@ -398,10 +398,10 @@ void NAMESPACE(NumberIterator_delete)(NAMESPACE(NumberIterator)** self)
     DEFAULT_DESTOTY(self);
 }
 
-uint8_t NAMESPACE(NumberIterator_have_next)(const LVALUE(NAMESPACE(NumberIterator))self)
+uint8_t NAMESPACE(NumberIterator_has_next)(const LVALUE(NAMESPACE(NumberIterator))self)
 {
     if (self == nullptr) return 0;
-    return self->have_next() ? 1 : 0;
+    return self->has_next() ? 1 : 0;
 }
 
 uint64_t NAMESPACE(NumberIterator_next)(LVALUE(NAMESPACE(NumberIterator))self)

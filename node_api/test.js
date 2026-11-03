@@ -42,12 +42,12 @@ catch(e){
 }
 
 region = new dog_torch.NumberIterator("28,32|48,64");
-while(region.haveNext()){
+while(region.hasNext()){
     console.log(region.next())
 }
 
 try{
-    region.haveNext();
+    region.hasNext();
 }catch(e){
     console.log(e)
 }

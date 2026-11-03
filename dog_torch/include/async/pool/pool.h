@@ -389,7 +389,7 @@ namespace dog_torch::async::pool
 			task = std::move(doing);
 			std::unique_lock lock(this->mutex_);
 			uint64_t task_id = this->task_next_id_++;
-			this->tasks_.emplace_back(Task{ std::move(task),  task_id });
+			this->tasks_.emplace_back(Task{ std::move(task),{}, task_id });
 			condition_variable_->notify_one();
 			return task_id;
 		}

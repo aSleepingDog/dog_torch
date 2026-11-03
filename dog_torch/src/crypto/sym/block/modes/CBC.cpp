@@ -305,8 +305,8 @@ void NSROOT::CBC::encryptp_stream(
     while (read_bytes(plain, total, now, buffer, block_size, buffer_size) == block_size)
     {
         if (pc.check_status()) break;
-        block_self_encryption(buffer, block_size, key, key_size);
         buffer ^= iv_;
+        block_self_encryption(buffer, block_size, key, key_size);
         crypt.write(buffer.data_stream(), block_size);
         iv_ = buffer;
         pc.add_progress(block_size * 1.0 / total);

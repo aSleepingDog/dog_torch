@@ -29,7 +29,7 @@ namespace dog_torch::math::region
 		NumberIterator(NumberIterator&& other) noexcept;
 		NumberIterator& operator=(NumberIterator&& other) noexcept;
 
-		bool have_next() const;
+		bool has_next() const;
 		uint64_t next();
 	};
 
@@ -43,7 +43,7 @@ extern "C"
 	using NAMESPACE(NumberIterator) = dog_torch::math::region::NumberIterator;
 	C_API(NAMESPACE(NumberIterator)*) NAMESPACE(NumberIterator_create)      (LVALUE(UTILS(CppResultSet)) result_set, LVALUE(UTILS(CppString)) string);
 	C_API(void)                       NAMESPACE(NumberIterator_delete)      (NAMESPACE(NumberIterator)** self);
-	C_API(uint8_t)                    NAMESPACE(NumberIterator_have_next)   (const LVALUE(NAMESPACE(NumberIterator)) self);
+	C_API(uint8_t)                    NAMESPACE(NumberIterator_has_next)   (const LVALUE(NAMESPACE(NumberIterator)) self);
 	C_API(uint64_t)                   NAMESPACE(NumberIterator_next)        (LVALUE(NAMESPACE(NumberIterator)) self);
 	C_API(UTILS(CppUint64Array)*)     NAMESPACE(NumberIterator_all_numbers) (LVALUE(NAMESPACE(NumberIterator)) self);
 }

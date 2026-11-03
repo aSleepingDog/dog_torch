@@ -403,7 +403,7 @@ BinaryData NSROOT::SHA2::next_block(const BinaryData& data, uint64_t start, uint
 	}
 	if (this->effective == 256 || this->effective == 224)
 	{
-		auto res = data.sub_bytes_len(start, 64);
+		auto res = data.sub_bytes_len(data_pos - start, 64);
 		data_pos += res.size();
 		if (res.size() >= 64) return res;
 		else
@@ -432,7 +432,7 @@ BinaryData NSROOT::SHA2::next_block(const BinaryData& data, uint64_t start, uint
 	}
 	else if (this->effective == 512 || this->effective == 384)
 	{
-		auto res = data.sub_bytes_len(start, 128);
+		auto res = data.sub_bytes_len(data_pos - start, 128);
 		data_pos += res.size();
 		if (res.size() >= 128) return res;
 		else

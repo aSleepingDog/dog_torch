@@ -183,7 +183,6 @@ CFB_INIT \
 algorithm::block_cryption_func block_encryption = algorithm.get_encrypt();\
 algorithm::block_self_cryption_func block_self_encryption = algorithm.get_encrypt_self();
 
-
 BinaryData NSROOT::CFB::encrypt(
     const BinaryData& plain, 
     const BinaryData& available_key, 
@@ -194,22 +193,24 @@ BinaryData NSROOT::CFB::encrypt(
     BinaryData crypt;
     crypt.reserve(plain.size());
 
-    BinaryData buffer;
+    BinaryData buffer, buffer0;
     uint64_t now = 0, num = 0;
     while (read_bytes(plain, plain.size(), now, buffer, shift, num) == shift)
     {
+        buffer0 = iv_;
         block_self_encryption(iv_, block_size, key, key_size);
         buffer ^= iv_.sub_bytes_len(0, shift);
         crypt += buffer;
-        std::move(iv_.begin() + shift, iv_.end(), iv_.begin());
-        std::copy(buffer.begin(), buffer.end(), iv_.end() - shift);
+        std::move(buffer0.begin() + shift, buffer0.end(), buffer0.begin());
+        std::copy(buffer.begin(), buffer.end(), buffer0.end() - shift);
+        iv_ = buffer0;
     }
+    buffer0 = iv_;
     block_self_encryption(iv_, block_size, key, key_size);
     padding(buffer, shift);
     buffer ^= iv_.sub_bytes_len(0, buffer.size());
     crypt += buffer;
     return crypt;
-
 }
 BinaryData NSROOT::CFB::decrypt(
     const BinaryData& crypt, 
@@ -221,16 +222,18 @@ BinaryData NSROOT::CFB::decrypt(
     BinaryData plain;
     plain.reserve(crypt.size());
 
-    BinaryData buffer0,buffer1;
+    BinaryData buffer0,buffer1,buffer2;
     uint64_t now = 0, num = 0;
-    while (read_bytes(crypt, crypt.size(), now, buffer0, shift, num) == shift&& now < crypt.size())
+    while (read_bytes(crypt, crypt.size(), now, buffer0, shift, num) == shift && now < crypt.size())
     {
         buffer1 = buffer0;
+        buffer2 = iv_;
         block_self_encryption(iv_, block_size, key, key_size);
         buffer0 ^= iv_.sub_bytes_len(0, shift);
         plain += buffer0;
-        std::move(iv_.begin() + shift, iv_.end(), iv_.begin());
-        std::copy(buffer1.begin(), buffer1.end(), iv_.end() - shift);
+        std::move(buffer2.begin() + shift, buffer2.end(), buffer2.begin());
+        std::copy(buffer1.begin(), buffer1.end(), buffer2.end() - shift);
+        iv_ = buffer2;
     }
     block_self_encryption(iv_, block_size, key, key_size);
     buffer0 ^= iv_.sub_bytes_len(0, shift);
@@ -246,16 +249,19 @@ void NSROOT::CFB::encrypt_stream(
 {
     CFB_EN_INIT;
 
-    BinaryData buffer;
+    BinaryData buffer, buffer0;
     uint64_t now = 0, num = 0;
     while (read_bytes(plain, total, now, buffer, shift, num) == shift)
     {
+        buffer0 = iv_;
         block_self_encryption(iv_, block_size, key, key_size);
         buffer ^= iv_.sub_bytes_len(0, shift);
         crypt.write(buffer.data_stream(), shift);
-        std::move(iv_.begin() + shift, iv_.end(), iv_.begin());
-        std::copy(buffer.begin(), buffer.end(), iv_.end() - shift);
+        std::move(buffer0.begin() + shift, buffer0.end(), buffer0.begin());
+        std::copy(buffer.begin(), buffer.end(), buffer0.end() - shift);
+        iv_ = buffer0;
     }
+    buffer0 = iv_;
     block_self_encryption(iv_, block_size, key, key_size);
     padding(buffer, shift);
     buffer ^= iv_.sub_bytes_len(0, buffer.size());
@@ -269,16 +275,18 @@ void NSROOT::CFB::decrypt_stream(
 {
     CFB_EN_INIT;
 
-    BinaryData buffer0, buffer1;
+    BinaryData buffer0, buffer1, buffer2;
     uint64_t now = 0, num = 0;
     while (read_bytes(crypt, total, now, buffer0, shift, num) == shift&& now < total)
     {
         buffer1 = buffer0;
+        buffer2 = iv_;
         block_self_encryption(iv_, block_size, key, key_size);
         buffer0 ^= iv_.sub_bytes_len(0, shift);
         plain.write(buffer0.data_stream(), shift);
-        std::move(iv_.begin() + shift, iv_.end(), iv_.begin());
-        std::copy(buffer1.begin(), buffer1.end(), iv_.end() - shift);
+        std::move(buffer2.begin() + shift, buffer2.end(), buffer2.begin());
+        std::copy(buffer1.begin(), buffer1.end(), buffer2.end() - shift);
+        iv_ = buffer2;
     }
     block_self_encryption(iv_, block_size, key, key_size);
     buffer0 ^= iv_.sub_bytes_len(0, num);
@@ -295,18 +303,21 @@ void NSROOT::CFB::encryptp_stream(
 {
     CFB_EN_INIT;
     pc.start();
-    BinaryData buffer;
+    BinaryData buffer, buffer0;
     uint64_t now = 0, num = 0;
     while (read_bytes(plain, total, now, buffer, shift, num) == shift)
     {
-        if (pc.check_status()) break; 
+        if (pc.check_status()) break;
+        buffer0 = iv_;
         block_self_encryption(iv_, block_size, key, key_size);
         buffer ^= iv_.sub_bytes_len(0, shift);
         crypt.write(buffer.data_stream(), shift);
-        std::move(iv_.begin() + shift, iv_.end(), iv_.begin());
-        std::copy(buffer.begin(), buffer.end(), iv_.end() - shift);
+        std::move(buffer0.begin() + shift, buffer0.end(), buffer0.begin());
+        std::copy(buffer.begin(), buffer.end(), buffer0.end() - shift);
+        iv_ = buffer0;
         pc.add_progress(shift * 1.0 / total);
     }
+    buffer0 = iv_;
     block_self_encryption(iv_, block_size, key, key_size);
     padding(buffer, shift);
     buffer ^= iv_.sub_bytes_len(0, buffer.size());
@@ -323,17 +334,19 @@ void NSROOT::CFB::decryptp_stream(
 {
     CFB_EN_INIT;
     pc.start();
-    BinaryData buffer0, buffer1;
+    BinaryData buffer0, buffer1, buffer2;
     uint64_t now = 0, num = 0;
     while (read_bytes(crypt, total, now, buffer0, shift, num) == shift&& now < total)
     {
         if (pc.check_status()) break;
         buffer1 = buffer0;
+        buffer2 = iv_;
         block_self_encryption(iv_, block_size, key, key_size);
         buffer0 ^= iv_.sub_bytes_len(0, shift);
         plain.write(buffer0.data_stream(), shift);
-        std::move(iv_.begin() + shift, iv_.end(), iv_.begin());
-        std::copy(buffer1.begin(), buffer1.end(), iv_.end() - shift);
+        std::move(buffer2.begin() + shift, buffer2.end(), buffer2.begin());
+        std::copy(buffer1.begin(), buffer1.end(), buffer2.end() - shift);
+        iv_ = buffer2;
         pc.add_progress(shift * 1.0 / total);
     }
     block_self_encryption(iv_, block_size, key, key_size);
@@ -557,19 +570,22 @@ BinaryData NSROOT::CFBb::encrypt(
     BinaryData crypt;
     crypt.reserve(plain.size());
 
-    BinaryData buffer;
+    BinaryData buffer, buffer0;
     uint64_t now = 0, num = 0;
     uint8_t read_now_bit = 0, output_byte_buffer = 0, write_next_bit = 0;
     while (read_bits(plain, plain.size(), now, read_now_bit, buffer, shift, num) == shift)
     {
+        buffer0 = iv_;
         block_self_encryption(iv_, block_size, key, key_size);
         buffer ^= iv_;
         write_bits(crypt, output_byte_buffer, write_next_bit, shift, buffer, num);
-        iv_.bit_move_self(false, false, shift);
-        iv_.resize(block_size);
+        buffer0.bit_move_self(false, false, shift);
+        buffer0.resize(block_size);
         buffer.bit_move_self(true, false, (block_size * 8 - shift));
-        iv_ ^= buffer;
+        buffer0 ^= buffer;
+        iv_ = buffer0;
     }
+    buffer0 = iv_;
     block_self_encryption(iv_, block_size, key, key_size);
     buffer ^= iv_;
     write_bits(crypt, output_byte_buffer, write_next_bit, shift, buffer, num);
@@ -584,19 +600,21 @@ BinaryData NSROOT::CFBb::decrypt(
     BinaryData plain;
     plain.reserve(crypt.size());
 
-    BinaryData buffer0, buffer1;
+    BinaryData buffer0, buffer1, buffer2;
     uint64_t now = 0, num = 0;
     uint8_t read_now_bit = 0, output_byte_buffer = 0, write_next_bit = 0;
     while (read_bits(crypt, crypt.size(), now, read_now_bit, buffer0, shift, num) == shift)
     {
+        buffer2 = iv_;
         buffer1 = buffer0;
         block_self_encryption(iv_, block_size, key, key_size);
         buffer0 ^= iv_;
         write_bits(plain, output_byte_buffer, write_next_bit, shift, buffer0, num);
-        iv_.bit_move_self(false, false, shift);
-        iv_.resize(block_size);
+        buffer2.bit_move_self(false, false, shift);
+        buffer2.resize(block_size);
         buffer1 >>= (block_size * 8 - shift);
-        iv_ ^= buffer1;
+        buffer2 ^= buffer1;
+        iv_ = buffer2;
     }
     block_self_encryption(iv_, block_size, key, key_size);
     buffer0 ^= iv_;
@@ -610,18 +628,20 @@ void NSROOT::CFBb::encrypt_stream(
     const algorithm::Algorithm& algorithm, const BinaryData& iv, uint64_t shift)
 {
     CFB_EN_INIT;
-    BinaryData buffer;
+    BinaryData buffer, buffer0;
     uint64_t now = 0, num = 0;
     uint8_t read_now_bit = 0, output_byte_buffer = 0, write_next_bit = 0;
     while (read_bits(plain, total, now, read_now_bit, buffer, shift, num) == shift)
     {
+        buffer0 = iv_;
         block_self_encryption(iv_, block_size, key, key_size);
         buffer ^= iv_;
         write_bits(crypt, output_byte_buffer, write_next_bit, shift, buffer, num);
-        iv_.bit_move_self(false, false, shift);
-        iv_.resize(block_size);
+        buffer0.bit_move_self(false, false, shift);
+        buffer0.resize(block_size);
         buffer.bit_move_self(true, false, (block_size * 8 - shift));
-        iv_ ^= buffer;
+        buffer0 ^= buffer;
+        iv_ = buffer0;
     }
     block_self_encryption(iv_, block_size, key, key_size);
     buffer ^= iv_;
@@ -634,19 +654,21 @@ void NSROOT::CFBb::decrypt_stream(
     const algorithm::Algorithm& algorithm, const BinaryData& iv, uint64_t shift)
 {
     CFB_EN_INIT;
-    BinaryData buffer0, buffer1;
+    BinaryData buffer0, buffer1, buffer2;
     uint64_t now = 0, num = 0;
     uint8_t read_now_bit = 0, output_byte_buffer = 0, write_next_bit = 0;
     while (read_bits(crypt, total, now, read_now_bit, buffer0, shift, num) == shift)
     {
+        buffer2 = iv_;
         buffer1 = buffer0;
         block_self_encryption(iv_, block_size, key, key_size);
         buffer0 ^= iv_;
         write_bits(plain, output_byte_buffer, write_next_bit, shift, buffer0, num);
-        iv_.bit_move_self(false, false, shift);
-        iv_.resize(block_size);
+        buffer2.bit_move_self(false, false, shift);
+        buffer2.resize(block_size);
         buffer1 >>= (block_size * 8 - shift);
-        iv_ ^= buffer1;
+        buffer2 ^= buffer1;
+        iv_ = buffer2;
     }
     block_self_encryption(iv_, block_size, key, key_size);
     buffer0 ^= iv_;
@@ -662,19 +684,21 @@ void NSROOT::CFBb::encryptp_stream(
 {
     CFB_EN_INIT;
     pc.start();
-    BinaryData buffer;
+    BinaryData buffer, buffer0;
     uint64_t now = 0, num = 0;
     uint8_t read_now_bit = 0, output_byte_buffer = 0, write_next_bit = 0;
     while (read_bits(plain, total, now, read_now_bit, buffer, shift, num) == shift)
     {
         if (pc.check_status()) break;
+        buffer0 = iv_;
         block_self_encryption(iv_, block_size, key, key_size);
         buffer ^= iv_;
         write_bits(crypt, output_byte_buffer, write_next_bit, shift, buffer, num);
-        iv_.bit_move_self(false, false, shift);
-        iv_.resize(block_size);
+        buffer0.bit_move_self(false, false, shift);
+        buffer0.resize(block_size);
         buffer.bit_move_self(true, false, (block_size * 8 - shift));
-        iv_ ^= buffer;
+        buffer0 ^= buffer;
+        iv_ = buffer0;
         pc.add_progress(num * 1.0 / (total * 8));
     }
     block_self_encryption(iv_, block_size, key, key_size);
@@ -692,20 +716,22 @@ void NSROOT::CFBb::decryptp_stream(
 {
     CFB_EN_INIT;
     pc.start();
-    BinaryData buffer0, buffer1;
+    BinaryData buffer0, buffer1, buffer2;
     uint64_t now = 0, num = 0;
     uint8_t read_now_bit = 0, output_byte_buffer = 0, write_next_bit = 0;
     while (read_bits(crypt, total, now, read_now_bit, buffer0, shift, num) == shift)
     {
         if (pc.check_status()) break;
+        buffer2 = iv_;
         buffer1 = buffer0;
         block_self_encryption(iv_, block_size, key, key_size);
         buffer0 ^= iv_;
         write_bits(plain, output_byte_buffer, write_next_bit, shift, buffer0, num);
-        iv_.bit_move_self(false, false, shift);
-        iv_.resize(block_size);
+        buffer2.bit_move_self(false, false, shift);
+        buffer2.resize(block_size);
         buffer1 >>= (block_size * 8 - shift);
-        iv_ ^= buffer1;
+        buffer2 ^= buffer1;
+        iv_ = buffer2;
         pc.add_progress(num * 1.0 / (total * 8));
     }
     block_self_encryption(iv_, block_size, key, key_size);

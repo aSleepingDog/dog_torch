@@ -12,7 +12,7 @@ public:
 
     NumberIteratorWrapper(const Napi::CallbackInfo& info);
 
-    Napi::Value haveNext(const Napi::CallbackInfo& info);
+    Napi::Value hasNext(const Napi::CallbackInfo& info);
 
     Napi::Value next(const Napi::CallbackInfo& info);
 

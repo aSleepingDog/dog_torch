@@ -192,6 +192,94 @@ void NSROOT::GCM::incr(BinaryData& conter, uint64_t s_bit)
 	memcpy(conter.data_ptr() + (conter.size() - byte_size), ((uint8_t*)&n) + (8 - byte_size), byte_size);
 }
 using UInt128 = dog_torch::math::number::UnsignedInteger128;
+
+UInt128 NSROOT::GCM::tran_u128(std::vector<uint8_t>::const_iterator start, std::vector<uint8_t>::const_iterator end)
+{
+	if (end - start > 16)
+	{
+		end = start + 16;
+	}
+	UInt128 n_;
+	uint8_t i = 0;
+	auto it = start;
+	for (; it != end && i < 8; ++it, ++i)
+	{
+		n_.high() <<= 8;
+		n_.high() |= *it;
+	}
+	for (; it != end && i < 16; ++it, ++i)
+	{
+		n_.low() <<= 8;
+		n_.low() |= *it;
+	}
+	return n_;
+}
+BinaryData NSROOT::GCM::tran_bin(const UInt128& n)
+{
+	BinaryData n_{ 16 };
+	memcpy(n_.data_ptr(), &n.high(), 8);
+	memcpy(n_.data_ptr() + 8, &n.low(), 8);
+	if constexpr (std::endian::native == std::endian::little)
+	{
+		std::reverse(n_.begin(), n_.begin() + 8);
+		std::reverse(n_.begin() + 8, n_.end());
+	}
+	return n_;
+}
+
+#if defined(__x86_64__) || defined(_M_X64) && defined(EN_GCM_IN)
+UInt128 NSROOT::GCM::mult(const UInt128& x, const UInt128& y)
+{
+	__m128i a, b, t2, t3, t4, t5, t6, t7, t8, t9;
+	a = _mm_set_epi64x(x.high(), x.low());
+	b = _mm_set_epi64x(y.high(), y.low());
+
+	t3 = _mm_clmulepi64_si128(a, b, 0x00);
+	t4 = _mm_clmulepi64_si128(a, b, 0x10);
+	t5 = _mm_clmulepi64_si128(a, b, 0x01);
+	t6 = _mm_clmulepi64_si128(a, b, 0x11);
+
+	t4 = _mm_xor_si128(t4, t5);
+	t5 = _mm_slli_si128(t4, 8);
+	t4 = _mm_srli_si128(t4, 8);
+	t3 = _mm_xor_si128(t3, t5);
+	t6 = _mm_xor_si128(t6, t4);
+
+	t7 = _mm_srli_epi32(t3, 31);
+	t8 = _mm_srli_epi32(t6, 31);
+	t3 = _mm_slli_epi32(t3, 1);
+	t6 = _mm_slli_epi32(t6, 1);
+
+	t9 = _mm_srli_si128(t7, 12);
+	t8 = _mm_slli_si128(t8, 4);
+	t7 = _mm_slli_si128(t7, 4);
+	t3 = _mm_or_si128(t3, t7);
+	t6 = _mm_or_si128(t6, t8);
+	t6 = _mm_or_si128(t6, t9);
+
+	t7 = _mm_slli_epi32(t3, 31);
+	t8 = _mm_slli_epi32(t3, 30);
+	t9 = _mm_slli_epi32(t3, 25);
+
+	t7 = _mm_xor_si128(t7, t8);
+	t7 = _mm_xor_si128(t7, t9);
+	t8 = _mm_srli_si128(t7, 4);
+	t7 = _mm_slli_si128(t7, 12);
+	t3 = _mm_xor_si128(t3, t7);
+
+	t2 = _mm_srli_epi32(t3, 1);
+	t4 = _mm_srli_epi32(t3, 2);
+	t5 = _mm_srli_epi32(t3, 7);
+	t2 = _mm_xor_si128(t2, t4);
+	t2 = _mm_xor_si128(t2, t5);
+	t2 = _mm_xor_si128(t2, t8);
+	t3 = _mm_xor_si128(t3, t2);
+	t6 = _mm_xor_si128(t6, t3);
+
+	return { (uint64_t)_mm_extract_epi64(t6, 1), (uint64_t)_mm_extract_epi64(t6, 0) };
+}
+#define GCM_VALUE_H tran_u128(h_.cbegin(),h_.cend());
+#else
 UInt128 NSROOT::GCM::mult(const UInt128& x, const UInt128& y)
 {
 	UInt128 z = 0, v = y;
@@ -231,6 +319,20 @@ UInt128 NSROOT::GCM::mult(const UInt128& x, const UInt128& y)
 	}
 	return z;
 }
+#define GCM_VALUE_H mult_table(tran_u128(h_.cbegin(),h_.cend()));
+#endif
+BinaryData NSROOT::GCM::GHASH(const UInt128& h, const BinaryData& x)
+{
+	UInt128 y = 0;
+	for (uint64_t i = 0; i < x.size(); i += 16)
+	{
+		UInt128 x_ = GCM::tran_u128(x.cbegin() + i, x.cbegin() + i + 16);
+		y ^= x_;
+		y = mult(y, h);
+	}
+	return GCM::tran_bin(y);
+}
+
 UInt128 NSROOT::GCM::mult(const UInt128& b, const std::vector<std::array<UInt128, 16>>& table)
 {
 	UInt128 result = 0;
@@ -260,39 +362,7 @@ std::vector<std::array<UInt128, 16>> NSROOT::GCM::mult_table(const UInt128& a)
 	}
 	return result;
 }
-UInt128 NSROOT::GCM::tran_u128(std::vector<uint8_t>::const_iterator start, std::vector<uint8_t>::const_iterator end)
-{
-	if (end - start > 16)
-	{
-		end = start + 16;
-	}
-	UInt128 n_;
-	uint8_t i = 0;
-	auto it = start;
-	for (; it != end && i < 8; ++it, ++i)
-	{
-		n_.high() <<= 8;
-		n_.high() |= *it;
-	}
-	for (; it != end && i < 16; ++it, ++i)
-	{
-		n_.low() <<= 8;
-		n_.low() |= *it;
-	}
-	return n_;
-}
-BinaryData NSROOT::GCM::tran_bin(const UInt128& n)
-{
-	BinaryData n_{ 16 };
-	memcpy(n_.data_ptr(), &n.high(), 8);
-	memcpy(n_.data_ptr() + 8, &n.low(), 8);
-	if constexpr (std::endian::native == std::endian::little)
-	{
-		std::reverse(n_.begin(), n_.begin() + 8);
-		std::reverse(n_.begin() + 8, n_.end());
-	}
-	return n_;
-}
+
 BinaryData NSROOT::GCM::GHASH(const std::vector<std::array<UInt128, 16>>& t, const BinaryData& x)
 {
 	UInt128 y = 0;
@@ -304,6 +374,7 @@ BinaryData NSROOT::GCM::GHASH(const std::vector<std::array<UInt128, 16>>& t, con
 	}
 	return GCM::tran_bin(y);
 }
+
 uint64_t NSROOT::GCM::fill_size(uint64_t l)
 {
 	return 16 * (l % 16 ? l / 16 + 1 : l / 16);
@@ -332,7 +403,7 @@ BinaryData NSROOT::GCM::encrypt(
 	GCM_ININ;
 
 	BinaryData h_ = block_encryption(BinaryData{ block_size }, block_size, available_key, key_size);
-	auto h = mult_table(tran_u128(h_.cbegin(), h_.cend()));
+	auto h = GCM_VALUE_H;
 	if (iv_.size() == 12)
 	{
 		iv_.resize(iv_.size() + 4);
@@ -401,7 +472,7 @@ BinaryData NSROOT::GCM::decrypt(
 	GCM_ININ;
 
 	BinaryData h_ = block_encryption(BinaryData{ block_size }, block_size, available_key, key_size);
-	auto h = mult_table(tran_u128(h_.cbegin(), h_.cend()));
+	auto h = GCM_VALUE_H;
 	if (iv_.size() == 12)
 	{
 		iv_.resize(iv_.size() + 4);
@@ -429,7 +500,7 @@ BinaryData NSROOT::GCM::decrypt(
 
 	BinaryData buffer0{ 16 }, buffer1;
 	uint64_t now = 0, num = 0;
-	while (read_bytes(crypt, total, now, buffer0, shift, num) == shift&& now < total)
+	while (read_bytes(crypt, total, now, buffer0, shift, num) == shift && now < total)
 	{
 		buffer0.resize(num);
 		buffer0.resize(16);
@@ -460,7 +531,8 @@ BinaryData NSROOT::GCM::decrypt(
 		len[i + 8] = static_cast<uint8_t>((total * 8) >> (56 - i * 8));
 	}
 	s = GHASH(h, s ^ len);
-	BinaryData now_tag = j0_crypto ^ s;
+	BinaryData now_tag = (j0_crypto ^ s);
+	now_tag.resize(tag_out);
 	BinaryData ori_tag = crypt.sub_bytes_len(now, tag_out);
 	//std::cout << now_tag.to_hex_string(true) << std::endl;
 	//std::cout << ori_tag.to_hex_string(true) << std::endl;
@@ -482,7 +554,7 @@ void NSROOT::GCM::encrypt_stream(
 	GCM_ININ;
 
 	BinaryData h_ = block_encryption(BinaryData{ block_size }, block_size, available_key, key_size);
-	auto h = mult_table(tran_u128(h_.cbegin(), h_.cend()));
+	auto h = GCM_VALUE_H;
 	if (iv_.size() == 12)
 	{
 		iv_.resize(iv_.size() + 4);
@@ -550,7 +622,7 @@ void NSROOT::GCM::decrypt_stream(
 	GCM_ININ;
 
 	BinaryData h_ = block_encryption(BinaryData{ block_size }, block_size, available_key, key_size);
-	auto h = mult_table(tran_u128(h_.cbegin(), h_.cend()));
+	auto h = GCM_VALUE_H;
 	if (iv_.size() == 12)
 	{
 		iv_.resize(iv_.size() + 4);
@@ -607,6 +679,7 @@ void NSROOT::GCM::decrypt_stream(
 	}
 	s = GHASH(h, s ^ len);
 	BinaryData now_tag = j0_crypto ^ s;
+	now_tag.resize(tag_out);
 	BinaryData ori_tag{ tag_out };
 	read_bytes(crypt, total + tag_out, now, ori_tag, shift, num);
 	//std::cout << now_tag.to_hex_string(true) << std::endl;
@@ -629,7 +702,7 @@ void NSROOT::GCM::encryptp_stream(
 	GCM_ININ;
 	pc.start();
 	BinaryData h_ = block_encryption(BinaryData{ block_size }, block_size, available_key, key_size);
-	auto h = mult_table(tran_u128(h_.cbegin(), h_.cend()));
+	auto h = GCM_VALUE_H;
 	if (iv_.size() == 12)
 	{
 		iv_.resize(iv_.size() + 4);
@@ -702,7 +775,7 @@ void NSROOT::GCM::decryptp_stream(
 	GCM_ININ;
 	pc.start();
 	BinaryData h_ = block_encryption(BinaryData{ block_size }, block_size, available_key, key_size);
-	auto h = mult_table(tran_u128(h_.cbegin(), h_.cend()));
+	auto h = GCM_VALUE_H;
 	if (iv_.size() == 12)
 	{
 		iv_.resize(iv_.size() + 4);
@@ -761,6 +834,7 @@ void NSROOT::GCM::decryptp_stream(
 	}
 	s = GHASH(h, s ^ len);
 	BinaryData now_tag = j0_crypto ^ s;
+	now_tag.resize(tag_out);
 	BinaryData ori_tag{ tag_out };
 	read_bytes(crypt, total + tag_out, now, ori_tag, shift, num);
 	//std::cout << now_tag.to_hex_string(true) << std::endl;

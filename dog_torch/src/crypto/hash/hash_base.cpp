@@ -162,7 +162,7 @@ NSROOT::BinaryData NSROOT::Generator::calculate(const BinaryData& source)
 	uint64_t total = source.size();
 	do
 	{
-		BinaryData block = this->algorithm_->next_block(source, pos, pos, total);
+		BinaryData block = this->algorithm_->next_block(source, 0, pos, total);
 		update_func(block, this->hash_value_);
 	} while (this->algorithm_->have_next_block(pos, total));
 	trims_func(this->hash_value_);
