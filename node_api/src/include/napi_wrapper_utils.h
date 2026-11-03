@@ -149,7 +149,7 @@ namespace dog_torch::napi
                 value.As<Napi::BigInt>().ToWords(
                     &sign,&len,vec.data()
                 );
-                std::get<I0>(result).value = BigInteger{sign,std::move(vec)};
+                std::get<I0>(result).value = BigInteger{static_cast<char>(sign),std::move(vec)};
             }
         }
         else
@@ -197,7 +197,7 @@ namespace dog_torch::napi
                 value.As<Napi::BigInt>().ToWords(
                     &sign,&len,vec.data()
                 );
-                std::get<I0>(result).value = BigInteger{sign,std::move(vec)};
+                std::get<I0>(result).value = BigInteger{static_cast<char>(sign),std::move(vec)};
             }
         }
         else
