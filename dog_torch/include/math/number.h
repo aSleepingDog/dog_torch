@@ -1,6 +1,7 @@
 #pragma once
 #include "export.h"
 
+#include <bit>
 #include <vector>
 #include <cstdint>
 #include <string>
