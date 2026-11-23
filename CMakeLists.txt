@@ -37,6 +37,7 @@ function(packing PATH ROOT)
 endfunction(packing PATH ROOT)
 
 add_subdirectory(dog_torch)
-add_subdirectory(cmd_application)
+# add_subdirectory(cmd_application)
 # 测试集过于庞大，之后以release发布.zip包的方式发布
 # add_subdirectory(test)
+# add_subdirectory(autoHandle)

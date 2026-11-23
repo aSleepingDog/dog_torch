@@ -11,12 +11,14 @@ Napi::Object registerThreadStatusEnum(Napi::Env env)
     threadStatus["Ready"] = Napi::Number::New(env, static_cast<int>(dog_torch::async::Status::Ready));
     threadStatus["Running"] = Napi::Number::New(env, static_cast<int>(dog_torch::async::Status::Running));
     threadStatus["Blocked"] = Napi::Number::New(env, static_cast<int>(dog_torch::async::Status::Blocked));
+    threadStatus["Canceled"] = Napi::Number::New(env, static_cast<int>(dog_torch::async::Status::Canceled));
     threadStatus["Stopped"] = Napi::Number::New(env, static_cast<int>(dog_torch::async::Status::Stopped));
 
     threadStatus[static_cast<int>(dog_torch::async::Status::Created)] = Napi::String::New(env, "Created");
     threadStatus[static_cast<int>(dog_torch::async::Status::Ready)] = Napi::String::New(env, "Ready");
     threadStatus[static_cast<int>(dog_torch::async::Status::Running)] = Napi::String::New(env, "Running");
     threadStatus[static_cast<int>(dog_torch::async::Status::Blocked)] = Napi::String::New(env, "Blocked");
+    threadStatus[static_cast<int>(dog_torch::async::Status::Canceled)] = Napi::String::New(env, "Canceled");
     threadStatus[static_cast<int>(dog_torch::async::Status::Stopped)] = Napi::String::New(env, "Stopped");
 
     threadStatus.Freeze();
