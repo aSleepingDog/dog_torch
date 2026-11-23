@@ -19,6 +19,7 @@ namespace dog_torch::crypto::kdf
 		HMacGenerator hmac;
 	public:
 		HKDF(const hash_algorithm& alg, const BinaryData salt, bool do_extract = true, BinaryData ikm = { "",BinaryData::Type::Hex });
+		HKDF(std::unique_ptr<hash_algorithm>&& alg, const BinaryData salt, bool do_extract = true, BinaryData ikm = { "",BinaryData::Type::Hex });
 		BinaryData derive(const BinaryData& info, uint64_t out_size);
 	};
 }

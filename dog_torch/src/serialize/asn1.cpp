@@ -1,12 +1,7 @@
 #include "serialize/asn1.h"
+#include "error_msg.h"
 
 namespace NSROOT = dog_torch::serialize::asn1;
-using dog_torch::utils::from_c_str;
-
-using dog_torch::utils::array_to_view;
-
-static auto ERROR_ASN1_BOOL_LEN = from_c_str("asn1: bool length error");
-static auto ERROR_ASN1_UNKNOWN_TYPE = from_c_str("asn1: unknown type");
 
 NSROOT::Value::Value(const Value& other)
 {

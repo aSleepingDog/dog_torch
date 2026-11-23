@@ -6,7 +6,6 @@
 
 #include "utils/compile.h"
 #include "math/math.h"
-#include "serialize/serialize.h"
 #include "../hash_base.h"
 
 namespace dog_torch::crypto::hash::algorithm
@@ -61,7 +60,7 @@ namespace dog_torch::crypto::hash::algorithm
 		static void update_32(const BinaryData& block, BinaryData& value, uint32_t t_low, uint32_t f0);
 	};
 }
-
+#if defined(EN_C_API)
 #define NS_BLAKE2(name) dog_torch__crypto__hash__BLAKE2_##name
 #define SERIALIZE(name) dog_torch__serialize__##name
 #define UTILS(name)     dog_torch__utils__##name
@@ -78,3 +77,4 @@ extern "C"
 #undef NAMESPACE
 #undef SERIALIZE
 #undef UTILS
+#endif

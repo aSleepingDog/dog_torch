@@ -1,9 +1,6 @@
 #pragma once
-#ifdef SHARED
 #include "export.h"
-#else
-#define CPP_API
-#endif
+
 #include <exception>
 #include <thread>
 #include <array>

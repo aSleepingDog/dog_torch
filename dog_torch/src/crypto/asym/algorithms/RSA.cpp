@@ -1,17 +1,9 @@
 #include "crypto/asym/algorithms/RSA.h"
+#include "error_msg.h"
 
 namespace NSROOT = dog_torch::crypto::asym::algorithm;
 using dog_torch::serialize::BinaryData;
 using KeyPair = dog_torch::crypto::asym::KeyPair;
-using dog_torch::utils::tp_string;
-using dog_torch::utils::from_c_str;
-using dog_torch::utils::from_uint64;
-using dog_torch::utils::operator+;
-using dog_torch::utils::array_to_view;
-
-constexpr auto ERROR_INVALID_KEY = from_c_str("RSA:invalid key");
-constexpr auto ERROR_TO_LARGE = from_c_str("RSA: input is bigger than key");
-constexpr auto ERROR_OAEP_INVALID = from_c_str("RSA OAEP:invalid OAEP padding");
 
 NSROOT::RSA::RSA(uint64_t key_size, uint32_t public_key) : Algorithm(key_size), public_key_(public_key) {}
 
@@ -24,7 +16,7 @@ KeyPair NSROOT::RSA::create_key_pair(uint64_t key_size, uint64_t public_key)
     * 384  =  3072   r-15s 21s
     * 512  =  4096   r-40s
     */
-    key_size /= 2;
+    key_size /= 16;
     using BigUInt = dog_torch::math::number::BigUnsignedInteger;
     using BigInt = dog_torch::math::number::BigInteger;
     using dog_torch::serialize::asn1::Value;
@@ -81,93 +73,20 @@ KeyPair NSROOT::RSA::create_key_pair(uint64_t key_size, uint64_t public_key)
     pri_collect.to_sequence().emplace_back(Value{ d % (q - 1) });
     pri_collect.to_sequence().emplace_back(Value{ b });
     pri_collect.to_sequence().emplace_back(Value{ std::vector<Value>{} });
+    /*
+-----BEGIN RSA PRIVATE KEY-----
+-----END RSA PRIVATE KEY-----
+-----BEGIN RSA PUBLIC KEY-----
+-----END RSA PUBLIC KEY-----
+    */
     return { pub_collect.serialize(), pri_collect.serialize() };
 }
-static BinaryData MGF1(const BinaryData& data, uint64_t output, const dog_torch::crypto::hash::algorithm::Algorithm& alg)
-{
-    //alg.get_out_size()
-    BinaryData T;
-    dog_torch::crypto::hash::Generator gen(alg);
-    gen.init();
-    for (uint32_t i = 0; i * alg.get_out_size() < output; i++)
-    {
-        BinaryData num(4);
-        num[0] = i >> 24;
-        num[1] = i >> 16;
-        num[2] = i >> 8;
-        num[3] = i;
-        T += gen.calculate(data + num);
-    }
-    return T.sub_bytes_len(0, output);
-}
-void NSROOT::RSA::OAEP_padding(BinaryData& plain, uint64_t key_size, const BinaryData& label, const dog_torch::crypto::hash::algorithm::Algorithm& alg)
-{
-    uint64_t hlen = alg.get_out_size();
-    uint64_t mlen = plain.size();
-    if (mlen > key_size - 2 * hlen - 2)
-    {
-        throw DOG_EXCEPTION(array_to_view(ERROR_TO_LARGE));
-    }
-    BinaryData ps;
-    ps.resize(key_size - mlen - 2 * hlen - 2);
-    dog_torch::crypto::hash::Generator gen(alg);
-    gen.init();
-    BinaryData DB = label;
-    DB = gen.calculate(DB) + ps;
-    DB.push_back(0x01);
-    DB += plain;
-    //std::cout << "DB:" << DB.to_hex_string(true) << std::endl;
-    BinaryData seed;
-    std::random_device rd;
-    while (seed.size() < hlen)
-    {
-        seed.push_back(rd());
-    }
-    //std::cout << "seed:" << seed.to_hex_string(true) << std::endl;
-    BinaryData maskedDB = MGF1(seed, key_size - hlen - 1, alg) ^ DB;
-    //std::cout << "maskedDB:" << maskedDB.to_hex_string(true) << std::endl;
-    BinaryData maskedSeed = MGF1(maskedDB, hlen, alg) ^ seed;
-    //std::cout << "maskedSeed:" << maskedSeed.to_hex_string(true) << std::endl;
-    plain.clear();
-    plain.push_back(0x00);
-    plain += maskedSeed;
-    plain += maskedDB;
-}
-void NSROOT::RSA::OAEP_unpadding(BinaryData & crypt, uint64_t key_size, const BinaryData& label, const dog_torch::crypto::hash::algorithm::Algorithm& alg)
-{
-    constexpr uint64_t START = 0;
-    uint64_t hlen = alg.get_out_size();
-    BinaryData maskedSeed = crypt.sub_bytes_len(START, hlen);
-    //std::cout << "maskedSeed:" << maskedSeed.to_hex_string(true) << std::endl;
-    BinaryData maskedDB = crypt.sub_bytes_len(START + hlen, key_size - hlen);
-    //std::cout << "maskedDB:" << maskedDB.to_hex_string(true) << std::endl;
-    BinaryData seed = MGF1(maskedDB, hlen, alg) ^ maskedSeed;
-    seed = seed.sub_bytes_len(0, hlen);
-    //std::cout << "seed:" << seed.to_hex_string(true) << std::endl;
-    BinaryData DB = MGF1(seed, key_size - hlen - 1, alg) ^ maskedDB;
-    auto start = std::find(DB.cbegin() + hlen, DB.cend(), 0x01);
-    if (start == DB.cend())
-    {
-        //wrong in format
-        throw DOG_EXCEPTION(array_to_view(ERROR_OAEP_INVALID));
-    }
-    //std::cout << "DB:" << DB.to_hex_string(true) << std::endl;
-    dog_torch::crypto::hash::Generator gen(alg);
-    gen.init();
-    BinaryData LHash = gen.calculate(label);
-    if (DB.sub_bytes_pos(0, hlen) != LHash)
-    {
-        //wrong in label
-        throw DOG_EXCEPTION(array_to_view(ERROR_OAEP_INVALID));
-    }
-    crypt = DB.sub_bytes_pos(start + 1, DB.cend());
-}
 
-BinaryData NSROOT::RSA::encrypt(const BinaryData& plain, const BinaryData& key, uint64_t size, std::function<void(BinaryData&)> padding)
+BinaryData NSROOT::RSA::encrypt(const BinaryData& plain, const BinaryData& key, uint64_t size)
 {
-    if (size != 64 && size != 128 && size != 256 && size != 384 && size != 512)
+    if (size != 512 && size != 1024 && size != 2048 && size != 3072 && size != 4096)
     {
-        throw DOG_EXCEPTION(ERROR_INVALID_KEY.data());
+        throw DOG_EXCEPTION(ERROR_RSA_INVALID_KEY.data());
     }
     using BigUInt = dog_torch::math::number::BigUnsignedInteger;
     using dog_torch::math::number_theory::power_remainder;
@@ -180,30 +99,33 @@ BinaryData NSROOT::RSA::encrypt(const BinaryData& plain, const BinaryData& key, 
     //std::cout << std::format("e:{}", e.to_num_str(10)) << std::endl;
     BigUInt p = BigUInt::from_bytes(plain.get_data(), false);
     if (p > n)
-        throw DOG_EXCEPTION(array_to_view(ERROR_TO_LARGE));
+        throw DOG_EXCEPTION(array_to_view(ERROR_RSA_TO_LARGE));
     //std::cout << std::format("p:{}", p.to_num_str(10)) << std::endl;
     BigUInt c = power_remainder(p, e, n);
     using dog_torch::math::integer::available_size;
+    // size is in bits; k is the modulus size in bytes.
+    // `total` is the byte length of c (available_size returns bytes).
+    uint64_t k = size / 8;
     uint64_t total = (c.num_.size() - 1) * 8 + available_size(c.num_.back());
     //std::cout << std::format("c:{}", c.to_num_str(10)) << std::endl;
-    if (total == size)
+    if (total == k)
     {
         return BinaryData(c.to_bytes(false));
     }
     else
     {
         BinaryData result;
-        result.resize(size);
+        result.resize(k);
         auto t = c.to_bytes(false);
-        std::copy(t.cbegin(), t.cend(), result.begin() + (size - t.size()));
+        std::copy(t.cbegin(), t.cend(), result.begin() + (k - t.size()));
         return result;
     }
 }
-BinaryData NSROOT::RSA::decrypt(const BinaryData& crypt, const BinaryData& key, uint64_t size, std::function<void(BinaryData&)> unpadding)
+BinaryData NSROOT::RSA::decrypt(const BinaryData& crypt, const BinaryData& key, uint64_t size)
 {
-    if (size != 64 && size != 128 && size != 256 && size != 384 && size != 512)
+    if (size != 512 && size != 1024 && size != 2048 && size != 3072 && size != 4096)
     {
-        throw DOG_EXCEPTION(ERROR_INVALID_KEY.data());
+        throw DOG_EXCEPTION(ERROR_RSA_INVALID_KEY.data());
     }
     using BigUInt = dog_torch::math::number::BigUnsignedInteger;
     using dog_torch::math::number_theory::power_remainder;
@@ -216,7 +138,7 @@ BinaryData NSROOT::RSA::decrypt(const BinaryData& crypt, const BinaryData& key, 
     //std::cout << std::format("d:{}", d.to_num_str(10)) << std::endl;
     BigUInt c = BigUInt::from_bytes(crypt.get_data(), false);
     if (c > n)
-        throw DOG_EXCEPTION(array_to_view(ERROR_TO_LARGE));
+        throw DOG_EXCEPTION(array_to_view(ERROR_RSA_TO_LARGE));
     //std::cout << std::format("c:{}", c.to_num_str(10)) << std::endl;
     BigUInt p = power_remainder(c, d, n);
     //std::cout << std::format("p:{}", p.to_num_str(10)) << std::endl;
@@ -231,12 +153,8 @@ std::unique_ptr<NSROOT::Algorithm> NSROOT::RSA::clone() const
 const NSROOT::Config& NSROOT::RSA::get_allow_config() const
 {
     static const Config config = Config{
-        "RSA","64,128,256,384,512",
-        std::map<std::string, ParamInfo>{
-            {"padding",         ParamInfo{ParamType::String, "opinion:\"\",\"PKCS1\",\"OAEP\""}},
-            {"OAEP_hash",       ParamInfo{ParamType::Hash,   "only effective in OAEP padding"}},
-            {"OAEP_label",      ParamInfo{ParamType::String, "only effective in OAEP padding"}}
-        }
+        "RSA","512,1024,2048,3072,4096",
+        std::map<std::string, ParamInfo>{}
     };
     return config;
 }
@@ -246,15 +164,21 @@ NSROOT::Config NSROOT::RSA::get_config() const
     return RSA::get_allow_config();
 }
 
-KeyPair NSROOT::RSA::generate_key_pair(uint64_t key_size) const
+KeyPair NSROOT::RSA::generate_key_pair() const
 {
-    return RSA::create_key_pair(key_size, this->public_key_);
+    return RSA::create_key_pair(this->key_size, this->public_key_);
 }
 NSROOT::crypt_func NSROOT::RSA::get_encrypt_func() const
 {
-    return crypt_func();
+    return [this](const BinaryData& plain, const BinaryData& key)
+        {
+            return RSA::encrypt(plain, key, this->key_size);
+        };
 }
 NSROOT::crypt_func NSROOT::RSA::get_decrypt_func() const
 {
-    return crypt_func();
+    return [this](const BinaryData& crypt, const BinaryData& key)
+        {
+            return RSA::decrypt(crypt, key, this->key_size);
+        };
 }

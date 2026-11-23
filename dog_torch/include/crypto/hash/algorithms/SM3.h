@@ -6,7 +6,6 @@
 
 #include "utils/compile.h"
 #include "math/math.h"
-#include "serialize/serialize.h"
 #include "../hash_base.h"
 
 namespace dog_torch::crypto::hash::algorithm
@@ -52,6 +51,7 @@ namespace dog_torch::crypto::hash::algorithm
 	};
 }
 
+#if defined(EN_C_API)
 #define NAMESPACE(name) dog_torch__crypto__hash__SM3_##name
 #define SERIALIZE(name) dog_torch__serialize__##name
 #define UTILS(name)     dog_torch__utils__##name
@@ -65,3 +65,4 @@ extern "C"
 #undef NAMESPACE
 #undef SERIALIZE
 #undef UTILS
+#endif

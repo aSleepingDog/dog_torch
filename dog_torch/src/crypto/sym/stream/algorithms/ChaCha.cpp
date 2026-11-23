@@ -1,18 +1,17 @@
 #include "crypto/sym/stream/algorithms/ChaCha.h"
+#include "error_msg.h"
 
 namespace NSROOT = dog_torch::crypto::sym::stream::algorithm;
 using dog_torch::serialize::BinaryData;
-using dog_torch::utils::from_c_str;
-using dog_torch::utils::from_uint64;
-
-using dog_torch::utils::array_to_view;
-
-constexpr auto ERROR_UNSUPPORTED_ROUND = from_c_str("Unsupported ChaCha round");
-constexpr auto ERROR_UNSUPPORTED_KEY_SIZE = from_c_str("Unsupported ChaCha round");
 
 NSROOT::ChaCha::ChaCha(uint64_t round)
 	: Algorithm(round, 40),count_(0)
-{}
+{
+	if (round != 20 && round != 12 && round != 8)
+	{
+		throw DOG_EXCEPTION(array_to_view(ERROR_CHACHA_UNSUPPORTED_ROUND));
+	}
+}
 
 const NSROOT::Config& NSROOT::ChaCha::allowed_config()
 {

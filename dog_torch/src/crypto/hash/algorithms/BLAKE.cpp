@@ -1,16 +1,9 @@
 #include "crypto/hash/algorithms/BLAKE.h"
+#include "error_msg.h"
 
 namespace NSROOT = dog_torch::crypto::hash::algorithm;
 using dog_torch::serialize::BinaryData;
-
-using dog_torch::utils::from_c_str;
 using dog_torch::serialize::from_hex;
-using dog_torch::utils::from_uint64;
-using dog_torch::utils::array_to_view;
-
-constexpr auto ERROR_OUTPUT_SIZE = from_c_str("BLAKE2: Invalid output size");
-constexpr auto ERROR_KEY_SIZE = from_c_str("BLAKE2: Invalid key size");
-constexpr auto ERROR_EFFECTIVE = from_c_str("BLAKE2: only support 64 for BLAKE2b and 32 for BLAKE2s");
 
 const NSROOT::Config& NSROOT::BLAKE2::allowed_config()
 {
@@ -31,10 +24,10 @@ NSROOT::BLAKE2::BLAKE2(uint64_t effective, uint8_t out_size, const BinaryData& k
     {
         this->p.resize(64);
         if (out_size == 0) this->out_size = static_cast<uint8_t>(this->effective);
-        else if (out_size > this->effective) throw DOG_EXCEPTION(array_to_view(ERROR_OUTPUT_SIZE));
+        else if (out_size > this->effective) throw DOG_EXCEPTION(array_to_view(ERROR_BLAKE2_OUTPUT_SIZE));
         else this->out_size = out_size;
         this->p[0] = this->out_size;//Digest len
-        if (this->key.size() > this->effective) throw DOG_EXCEPTION(array_to_view(ERROR_KEY_SIZE));
+        if (this->key.size() > this->effective) throw DOG_EXCEPTION(array_to_view(ERROR_BLAKE2_KEY_SIZE));
         if (this->key.size() > 0) this->key.resize(128), this->t_low = 128;
         this->p[1] = static_cast<uint8_t>(key.size());//Key len
         this->p[2] = 1;//Fanout
@@ -67,10 +60,10 @@ NSROOT::BLAKE2::BLAKE2(uint64_t effective, uint8_t out_size, const BinaryData& k
     {
         this->p.resize(32);
         if (out_size == 0) this->out_size = static_cast<uint8_t>(this->effective);
-        else if (out_size > this->effective) throw DOG_EXCEPTION(array_to_view(ERROR_OUTPUT_SIZE));
+        else if (out_size > this->effective) throw DOG_EXCEPTION(array_to_view(ERROR_BLAKE2_OUTPUT_SIZE));
         else this->out_size = out_size;
         this->p[0] = this->out_size;//Digest len
-        if (this->key.size() > this->effective) throw DOG_EXCEPTION(array_to_view(ERROR_KEY_SIZE));
+        if (this->key.size() > this->effective) throw DOG_EXCEPTION(array_to_view(ERROR_BLAKE2_KEY_SIZE));
         if (this->key.size() > 0) this->key.resize(64), this->t_low = 64;
         this->p[1] = static_cast<uint8_t>(key.size());//Key len
         this->p[2] = 1;//Fanout
@@ -98,7 +91,7 @@ NSROOT::BLAKE2::BLAKE2(uint64_t effective, uint8_t out_size, const BinaryData& k
             }
         }
     }
-    else throw DOG_EXCEPTION(array_to_view(ERROR_EFFECTIVE));
+    else throw DOG_EXCEPTION(array_to_view(ERROR_BLAKE2_EFFECTIVE));
     //std::cout << this->p.to_hex_string(true) << std::endl;
 }
 
@@ -252,7 +245,7 @@ BinaryData NSROOT::BLAKE2::next_block(const BinaryData& data, uint64_t start, ui
     BinaryData buffer;
     uint64_t num = 0;
     data_pos += start;
-    read_bytes(data, data_total, data_pos, buffer, this->effective * 2, num);
+    read_bytes(data.get_data(), data_total, data_pos, buffer.get_data(), this->effective * 2, num);
     this->t_low += num;
     buffer.resize(this->effective * 2);
     data_pos -= start;
@@ -265,7 +258,7 @@ BinaryData NSROOT::BLAKE2::next_block(std::istream& data, uint64_t& data_pos, ui
     using dog_torch::serialize::stream::read_bytes;
     BinaryData buffer;
     uint64_t num = 0;
-    read_bytes(data, data_total, data_pos, buffer, this->effective * 2, num);
+    read_bytes(data, data_total, data_pos, buffer.get_data(), this->effective * 2, num);
     this->t_low += num;
     buffer.resize(this->effective * 2);
     if (data_pos == data_total) this->f0 = UINT64_MAX;
@@ -405,6 +398,7 @@ void NSROOT::BLAKE2::update_32(const BinaryData& block, BinaryData& value, uint3
     }
 }
 
+#if defined(EN_C_API)
 #define NAMESPACE(name) dog_torch__crypto__hash__SHA2_##name
 #define SERIALIZE(name) dog_torch__serialize__##name
 #define UTILS(name)     dog_torch__utils__##name
@@ -533,3 +527,4 @@ SERIALIZE(BinaryData)* NS_BLAKE2(32_file)(LVALUE(UTILS(CppResultSet)) result_set
 #undef NAMESPACE
 #undef SERIALIZE
 #undef UTILS
+#endif

@@ -1,6 +1,12 @@
 #include "crypto/crypto_base.h"
+#include "async/async_base.h"
 
 namespace NSROOT = dog_torch::crypto;
+
+uint8_t NSROOT::alwaysRunning(uint64_t a, uint64_t b)
+{
+    return static_cast<uint8_t>(dog_torch::async::Status::Running);
+}
 
 std::string NSROOT::get_type_name(ParamType type)
 {
@@ -10,7 +16,18 @@ std::string NSROOT::get_type_name(ParamType type)
     case ParamType::UInt64: return "UInt64";
     case ParamType::String: return "String";
     case ParamType::Binary: return "Binary";
-    case ParamType::Hash: return "Hash";
+    }
+    return "";
+}
+
+std::string NSROOT::get_type_name(PrimusType type)
+{
+    switch (type)
+    {
+    case PrimusType::Hash:
+        return "Hash";
+    case PrimusType::Sym:
+        return "Sym";
     }
     return "";
 }
@@ -19,6 +36,7 @@ NSROOT::ParamInfo::ParamInfo(ParamType type_, const std::string& msg_)
     : type(type_), msg(msg_)
 {}
 
+#if defined(EN_C_API)
 #define NAMESPACE(name) dog_torch__crypto__##name
 #define SERIALIZE(name) dog_torch__serialize__##name
 #define UTILS(name)     dog_torch__utils__##name
@@ -58,7 +76,7 @@ NAMESPACE(Param)* NAMESPACE(Param_create_from_binary)(const LVALUE(SERIALIZE(Bin
 
 void NAMESPACE(Param_delete)(NAMESPACE(Param)** self)
 {
-    DEFAULT_DESTOTY(self);
+    DEFAULT_DESTROY(self);
 }
 
 uint64_t NAMESPACE(Param_get_type)(const LVALUE(NAMESPACE(Param)) self)
@@ -140,7 +158,7 @@ NAMESPACE(ParamTreeMap)* NAMESPACE(ParamTreeMap_create_from_hash)(const LVALUE(N
 
 void NAMESPACE(ParamTreeMap_delete)(NAMESPACE(ParamTreeMap)** self)
 {
-    DEFAULT_DESTOTY(self);
+    DEFAULT_DESTROY(self);
 }
 
 LVALUE(NAMESPACE(Param)) NAMESPACE(ParamTreeMap_at_c_str)(LVALUE(UTILS(CppResultSet))result_set, LVALUE(NAMESPACE(ParamTreeMap))self, const char* key)
@@ -204,7 +222,7 @@ NAMESPACE(ParamHashMap)* NAMESPACE(ParamHashMap_create_from_tree)(const LVALUE(N
 
 void NAMESPACE(ParamHashMap_delete)(NAMESPACE(ParamHashMap)** self)
 {
-    DEFAULT_DESTOTY(self);
+    DEFAULT_DESTROY(self);
 }
 
 LVALUE(NAMESPACE(Param)) NAMESPACE(ParamHashMap_at_c_str)(LVALUE(UTILS(CppResultSet))result_set, LVALUE(NAMESPACE(ParamHashMap))self, const char* key)
@@ -253,7 +271,7 @@ LVALUE(NAMESPACE(Param)) NAMESPACE(ParamHashMap_at_string)(LVALUE(UTILS(CppResul
 
 void NAMESPACE(ParamInfoTreeMap_delete)(NAMESPACE(ParamInfoTreeMap)** self)
 {
-    DEFAULT_DESTOTY(self);
+    DEFAULT_DESTROY(self);
 }
 
 uint64_t NAMESPACE(ParamInfoTreeMap_at_c_str)(LVALUE(UTILS(CppResultSet))result_set, LVALUE(NAMESPACE(ParamInfoTreeMap))self, const char* key)
@@ -299,7 +317,8 @@ uint64_t NAMESPACE(ParamInfoTreeMap_at_string)(LVALUE(UTILS(CppResultSet))result
     }
     return static_cast<uint64_t>(self->at(key_).type);
 }
-
 #undef NAMESPACE
 #undef SERIALIZE
 #undef UTILS
+
+#endif

@@ -16,6 +16,19 @@ NSROOT::HKDF::HKDF(const hash_algorithm& alg, const BinaryData salt, bool do_ext
 		this->hmac.set_key(salt);
 	}
 }
+NSROOT::HKDF::HKDF(std::unique_ptr<hash_algorithm>&& alg, const BinaryData salt, bool do_extract, BinaryData ikm)
+	: hmac(salt, std::move(alg))
+{
+	if (do_extract)
+	{
+		auto prk = hmac.generate(ikm);
+		this->hmac.set_key(prk);
+	}
+	else
+	{
+		this->hmac.set_key(salt);
+	}
+}
 
 BinaryData NSROOT::HKDF::derive(const BinaryData& info, uint64_t out_size)
 

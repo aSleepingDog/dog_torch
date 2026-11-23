@@ -1,15 +1,10 @@
 #include "crypto/sym/stream/sym_stream_base.h"
+#include "error_msg.h"
 
 namespace NSROOT = dog_torch::crypto::sym::stream;
 using BinaryData = dog_torch::serialize::BinaryData;
 using Value = dog_torch::serialize::tlv::Value;
-
-using dog_torch::utils::from_c_str;
-using dog_torch::utils::from_uint64;
-using dog_torch::utils::array_to_view;
-
-constexpr auto ERROR_SHIFT_TOO_LARGE = from_c_str("StreamCipher: shift is too large than algorithm updata size");
-constexpr auto ERROR_CIPHER = from_c_str("StreamCipher: cipher is not initialized, call init() first");
+using Cipher = dog_torch::crypto::sym::Cipher;
 
 NSROOT::algorithm::Config::Config(const std::string& name, const std::string& effective_region, const std::string& key_size_region)
 	: name(name), effective_region(effective_region), key_size_region(key_size_region) {}
@@ -78,6 +73,11 @@ NSROOT::StreamCipher::StreamCipher(const algorithm::Algorithm& alg, uint64_t shi
 	: alg_(alg.clone()), shift_(shift), is_bit_(is_bit)
 {}
 
+std::unique_ptr<Cipher> NSROOT::StreamCipher::clone() const
+{
+    return std::make_unique<StreamCipher>(*this->alg_, this->shift_, this->is_bit_);
+}
+
 void NSROOT::StreamCipher::init()
 {
     if (
@@ -85,7 +85,7 @@ void NSROOT::StreamCipher::init()
         (this->is_bit_&& this->alg_->updata_size() * 8 < this->shift_)
         )
     {
-        throw DOG_EXCEPTION(array_to_view(ERROR_SHIFT_TOO_LARGE));
+        throw DOG_EXCEPTION(array_to_view(ERROR_STREAMCIPHER_SHIFT_TOO_LARGE));
     }
     this->alg_->init();
     this->is_effective_ = true;
@@ -123,7 +123,7 @@ Value NSROOT::StreamCipher::serialize() const
 
 BinaryData NSROOT::StreamCipher::encrypt(const BinaryData& plain)
 {
-	if(!this->is_effective_) throw DOG_EXCEPTION(array_to_view(ERROR_CIPHER));
+	if(!this->is_effective_) throw DOG_EXCEPTION(array_to_view(ERROR_STREAMCIPHER_INIT));
     using dog_torch::serialize::stream::read_bytes;
     using dog_torch::serialize::stream::read_bits;
     using dog_torch::serialize::stream::write_bits;
@@ -140,7 +140,7 @@ BinaryData NSROOT::StreamCipher::encrypt(const BinaryData& plain)
     {
         BinaryData buffer0, buffer1;
         uint64_t now = 0, num = 0;
-        while (read_bytes(plain, plain.size(), now, buffer0, shift, num) == shift)
+        while (read_bytes(plain.get_data(), plain.size(), now, buffer0.get_data(), shift, num) == shift)
         {
             buffer1 = up_func(this->ori_key_);
             cm_func(buffer0, buffer1);
@@ -155,15 +155,15 @@ BinaryData NSROOT::StreamCipher::encrypt(const BinaryData& plain)
         BinaryData buffer0, buffer1;
         uint64_t now = 0, num = 0;
         uint8_t read_now_bit = 0, write_byte_buffer = 0, write_now_bit = 0;
-        while (read_bits(plain, plain.size(), now, read_now_bit, buffer0, shift, num) == shift)
+        while (read_bits(plain.get_data(), plain.size(), now, read_now_bit, buffer0.get_data(), shift, num) == shift)
         {
             buffer1 = up_func(this->ori_key_);
             cm_func(buffer0, buffer1);
-            write_bits(crypt, write_byte_buffer, write_now_bit, shift, buffer0, shift);
+            write_bits(crypt.get_data(), write_byte_buffer, write_now_bit, shift, buffer0.get_data(), shift);
         }
         buffer1 = up_func(this->ori_key_);
         cm_func(buffer0, buffer1);
-        write_bits(crypt, write_byte_buffer, write_now_bit, shift, buffer0, num);
+        write_bits(crypt.get_data(), write_byte_buffer, write_now_bit, shift, buffer0.get_data(), num);
     }
     alg_->init();
     return crypt;
@@ -173,9 +173,9 @@ BinaryData NSROOT::StreamCipher::decrypt(const BinaryData& crypt)
 	return encrypt(crypt);
 }
 
-void NSROOT::StreamCipher::encrypt_stream(std::istream& plain, uint64_t total, std::ostream& crypt)
+void NSROOT::StreamCipher::encrypt_stream(std::istream& plain, uint64_t total, std::ostream& crypt, std::function<uint8_t(uint64_t, uint64_t)> onRunning)
 {
-	if(!this->is_effective_) throw DOG_EXCEPTION(array_to_view(ERROR_CIPHER));
+	if(!this->is_effective_) throw DOG_EXCEPTION(array_to_view(ERROR_STREAMCIPHER_INIT));
     using dog_torch::serialize::stream::read_bytes;
     using dog_torch::serialize::stream::read_bits;
     using dog_torch::serialize::stream::write_bits;
@@ -189,8 +189,9 @@ void NSROOT::StreamCipher::encrypt_stream(std::istream& plain, uint64_t total, s
     {
         BinaryData buffer0, buffer1;
         uint64_t now = 0, num = 0;
-        while (read_bytes(plain, total, now, buffer0, shift, num) == shift)
+        while (read_bytes(plain, total, now, buffer0.get_data(), shift, num) == shift)
         {
+            if (onRunning(shift, total) > 0x80) return;
             buffer1 = up_func(this->ori_key_);
             cm_func(buffer0, buffer1);
             crypt.write(buffer0.data_stream(), shift);
@@ -204,79 +205,26 @@ void NSROOT::StreamCipher::encrypt_stream(std::istream& plain, uint64_t total, s
         BinaryData buffer0, buffer1;
         uint64_t now = 0, num = 0;
         uint8_t read_now_bit = 0, write_byte_buffer = 0, write_now_bit = 0;
-        while (read_bits(plain, total, now, read_now_bit, buffer0, shift, num) == shift)
+        while (read_bits(plain, total, now, read_now_bit, buffer0.get_data(), shift, num) == shift)
         {
+            if (onRunning(shift / 8, total) > 0x80) return;
             buffer1 = up_func(this->ori_key_);
             cm_func(buffer0, buffer1);
-            write_bits(crypt, write_byte_buffer, write_now_bit, shift, buffer0, shift);
+            write_bits(crypt, write_byte_buffer, write_now_bit, shift, buffer0.get_data(), shift);
         }
         buffer1 = up_func(this->ori_key_);
         cm_func(buffer0, buffer1);
-        write_bits(crypt, write_byte_buffer, write_now_bit, shift, buffer0, num);
+        write_bits(crypt, write_byte_buffer, write_now_bit, shift, buffer0.get_data(), num);
     }
     alg_->init();
     crypt.flush();
 }
-void NSROOT::StreamCipher::decrypt_stream(std::istream& crypt, uint64_t total, std::ostream& plain)
+void NSROOT::StreamCipher::decrypt_stream(std::istream& crypt, uint64_t total, std::ostream& plain, std::function<uint8_t(uint64_t, uint64_t)> onRunning)
 {
-    encrypt_stream(crypt, total, plain);
+    encrypt_stream(crypt, total, plain, onRunning);
 }
 
-void NSROOT::StreamCipher::encryptp_stream(PauseableChannel& pc, std::istream& plain, uint64_t total, std::ostream& crypt)
-{
-	if(!this->is_effective_) throw DOG_EXCEPTION(array_to_view(ERROR_CIPHER));
-    using dog_torch::serialize::stream::read_bytes;
-    using dog_torch::serialize::stream::read_bits;
-    using dog_torch::serialize::stream::write_bits;
-    pc.start();
-    bool is_bit = this->shift_ == 0 ? false : this->is_bit_;
-    uint64_t shift = this->shift_ == 0 ? this->alg_->updata_size() : this->shift_;
-    auto up_func = this->alg_->update_func();
-    auto cm_func = this->alg_->combine_func();
-
-    if (!is_bit)
-    {
-        BinaryData buffer0, buffer1;
-        uint64_t now = 0, num = 0;
-        while (read_bytes(plain, total, now, buffer0, shift, num) == shift)
-        {
-            if (pc.check_status()) break;
-            buffer1 = up_func(this->ori_key_);
-            cm_func(buffer0, buffer1);
-            crypt.write(buffer0.data_stream(), shift);
-            pc.add_progress(shift * 1.0 / total);
-        }
-        buffer1 = up_func(this->ori_key_);
-        cm_func(buffer0, buffer1);
-        crypt.write(buffer0.data_stream(), num);
-    }
-    else
-    {
-        BinaryData buffer0, buffer1;
-        uint64_t now = 0, num = 0;
-        uint8_t read_now_bit = 0, write_byte_buffer = 0, write_now_bit = 0;
-        while (read_bits(plain, total, now, read_now_bit, buffer0, shift, num) == shift)
-        {
-            if (pc.check_status()) break;
-            buffer1 = up_func(this->ori_key_);
-            cm_func(buffer0, buffer1);
-            write_bits(crypt, write_byte_buffer, write_now_bit, shift, buffer0, shift);
-            pc.add_progress(shift * 1.0 / (total * 8));
-        }
-        buffer1 = up_func(this->ori_key_);
-        cm_func(buffer0, buffer1);
-        write_bits(crypt, write_byte_buffer, write_now_bit, shift, buffer0, num);
-    }
-    crypt.flush();
-    alg_->init();
-    pc.set_progress(1.0);
-    pc.stop();
-}
-void NSROOT::StreamCipher::decryptp_stream(PauseableChannel& pc, std::istream& crypt, uint64_t total, std::ostream& plain)
-{
-    encryptp_stream(pc, crypt, total, plain);
-}
-
+#if defined(EN_C_API)
 #define NS_ROOT(name) dog_torch__crypto__sym__stream__##name
 #define NS_ALG(name) dog_torch__crypto__sym__stream__algorithm__##name
 #define UTILS(name)  dog_torch__utils__##name
@@ -304,7 +252,7 @@ UTILS(CppString)* NS_ROOT(Algorithm_fmt_string)(const LVALUE(NS_ROOT(Algorithm))
 }
 void NS_ROOT(Algorithm_delete)(NS_ROOT(Algorithm)** self)
 {
-    DEFAULT_DESTOTY(self);
+    DEFAULT_DESTROY(self);
 }
 
 NS_ROOT(StreamCipher)* NS_ROOT(StreamCipher_create)(LVALUE(UTILS(CppResultSet)) result_set, const LVALUE(NS_ROOT(Algorithm)) alg, uint64_t shift, uint8_t is_bit)
@@ -326,9 +274,10 @@ NS_ROOT(StreamCipher)* NS_ROOT(StreamCipher_create)(LVALUE(UTILS(CppResultSet)) 
 }
 void NS_ROOT(StreamCipher_delete)(NS_ROOT(StreamCipher)** self)
 {
-    DEFAULT_DESTOTY(self);
+    DEFAULT_DESTROY(self);
 }
 
 #undef NS_ROOT
 #undef NS_ALG
 #undef UTILS
+#endif

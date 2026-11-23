@@ -48,22 +48,15 @@ void NSROOT::PausedThreadPool::work(PausedThreadPool& self, Worker& self_worker)
 			task = self.tasks_.take_front();
 		}
 		self_worker.task_id = task.id;
+		self_worker.pc.reset();
 		self_worker.pc.params() = std::move(task.params);
-		try
-		{
-			task.func(self_worker.pc);
-		}
-		catch (const std::exception& e)
-		{
-			std::cout << e.what() << std::endl;
-		}
+		self_worker.pc.start();
+		task.func(self_worker.pc);
     	self_worker.pc.set_progress(1.0);
     	self_worker.pc.stop();
 		auto detail = self_worker.pc.to_detail();
 		detail.task_id = self_worker.task_id;	
 		self.finished_tasks_.push_back(std::move(detail));
-		self_worker.pc.stop();
-		self_worker.pc.reset();
 		self_worker.task_id = 0;
 	}
 };

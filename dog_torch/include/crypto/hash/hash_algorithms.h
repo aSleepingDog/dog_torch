@@ -3,7 +3,6 @@
 
 #include <iostream>
 
-#include "crypto/crypto_base.h"
 #include "hash_base.h"
 #include "./algorithms/SHA2.h"
 #include "./algorithms/SM3.h"
@@ -15,6 +14,7 @@ namespace dog_torch::crypto::hash::algorithm
 	CPP_API std::unique_ptr<Algorithm> create(const std::string& name, uint64_t effective, const std::unordered_map<std::string, Param>& params);
 }
 
+#if defined(EN_C_API)
 #define NAMESPACE(name) dog_torch__crypto__hash__algorithm__##name
 #define CRYPTO_HASH_BASE(name) dog_torch__crypto__hash__##name
 #define CRYPTO_BASE(name) dog_torch__crypto__##name
@@ -39,3 +39,4 @@ extern "C"
 #undef CRYPTO_BASE
 #undef SERIALIZE
 #undef UTILS
+#endif

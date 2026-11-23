@@ -20,10 +20,6 @@ void u64mul(uint64_t a, uint64_t b, uint64_t* result_high, uint64_t* result_low)
 // a_h|a_l = b * q + r  a_h|a_l<=b*0xffffffffffffffff
 void u128div(uint64_t a_h, uint64_t a_l, uint64_t b, uint64_t* q, uint64_t* r);
 
-//__ == ::
-#define NAMESPACE(func) dog_torch__math__number__##func
-
-
 namespace dog_torch::math::number
 {
     struct CPP_API Integer64
@@ -221,5 +217,11 @@ namespace std
         size_t operator()(const dog_torch::math::number::Integer64& value) const;
     };
 }
+
+#if defined(EN_C_API)
+
+#define NAMESPACE(func) dog_torch__math__number__##func
+
 #undef NAMESPACE
 
+#endif

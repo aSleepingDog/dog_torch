@@ -16,14 +16,39 @@
 
 namespace dog_torch::async::pool
 {
+	using dog_torch::async::thread::PauseableChannel;
+	using dog_torch::async::thread::PauseableDetail;
+
+	template<typename Func, typename... Args>
+	concept PauseFunc = requires(Func f, PauseableChannel& pc, Args&&... args)
+	{
+		f(pc, std::forward<Args>(args)...);
+	};
+
+	template<typename Func, typename... Args>
+	concept CallFunc = requires(Func f, std::function<uint8_t(uint64_t, uint64_t)> onRunning, Args&&... args)
+	{
+		f(onRunning, std::forward<Args>(args)...);
+	};
+
+	template<typename Func, typename... Args>
+	concept PauseCallFunc = requires(Func f, PauseableChannel& pc, std::function<uint8_t(uint64_t, uint64_t)> onRunning, Args&&... args)
+	{
+		f(pc, onRunning, std::forward<Args>(args)...);
+	};
+
+	template<typename Func, typename... Args>
+	concept CallPauseFunc = requires(Func f, std::function<uint8_t(uint64_t, uint64_t)> onRunning, PauseableChannel & pc, Args&&... args)
+	{
+		f(onRunning, pc, std::forward<Args>(args)...);
+	};
+
+
 	template<typename T,typename Alloc = std::allocator<T>>
 	using VectorMove = dog_torch::async::container::VectorMove<T, Alloc>;
 	template<typename T, typename Alloc = std::allocator<T>>
 	using DequeMove = dog_torch::async::container::DequeMove<T, Alloc>;
 
-	using dog_torch::async::thread::PauseableChannel;
-	using dog_torch::async::thread::PauseableDetail;
-	using dog_torch::async::thread::PauseFunc;
 	template<typename T>
 	struct SharedResult;
 
@@ -240,69 +265,6 @@ namespace dog_torch::async::pool
 		 * @tparam Func 任务执行的函数类型
 		 * @tparam Args The types of the arguments to be passed to the function.
 		 * @tparam Args 传递给函数的参数类型
-		 * @param func The function to be executed by the task.
-		 * @param func 任务执行的函数
-		 * @param args The arguments to be passed to the function.
-		 * @param args 传递给函数的参数
-		 * @return Result<decltype(func(std::declval<PauseableChannel&>(), std::forward<Args>(args)...))> The shared result of the task.
-		 * @return Result<decltype(func(std::declval<PauseableChannel&>(), std::forward<Args>(args)...))> 任务的结果
-		 */
-		template<typename Func, typename... Args>
-			requires PauseFunc<Func, Args...>
-		auto add_task(Func&& func, Args&&... args) -> Result<decltype(func(std::declval<PauseableChannel&>(), std::forward<Args>(args)...))>
-		{
-			using ResType = decltype(func(std::declval<PauseableChannel&>(), std::forward<Args>(args)...));
-			using promRes = std::promise<ResType>;
-
-			std::shared_ptr<promRes> prom = std::make_shared<promRes>();
-			auto func_bind = std::bind(func, std::placeholders::_1, std::forward<Args>(args)...);
-			std::function<void(PauseableChannel&)> task;
-			auto future = prom->get_future();
-			if constexpr (std::is_void_v<ResType>)
-			{
-				auto doing = [func_bind, prom](PauseableChannel& pc)->void
-					{
-						try
-						{
-							func_bind(pc);
-							prom->set_value();
-						}
-						catch (std::exception& e)
-						{
-							prom->set_exception(std::make_exception_ptr(e));
-						}
-					};
-				task = std::move(doing);
-			}
-			else
-			{
-				auto doing = [func_bind, prom](PauseableChannel& pc)->void
-					{
-						try
-						{
-							prom->set_value(func_bind(pc));
-						}
-						catch (std::exception& e)
-						{
-							prom->set_exception(std::make_exception_ptr(e));
-						}
-					};
-				task = std::move(doing);
-			}
-			std::unique_lock lock(this->mutex_);
-			uint64_t task_id = this->task_next_id_++;
-			this->tasks_.emplace_back(Task{ std::move(task),{},task_id });
-			condition_variable_->notify_one();
-			return Result{ task_id, std::move(future) };
-		}
-
-		/**
-		 * @brief Add a task to the thread pool.
-		 * @brief 向线程池中添加任务
-		 * @tparam Func The type of the function to be executed by the task.
-		 * @tparam Func 任务执行的函数类型
-		 * @tparam Args The types of the arguments to be passed to the function.
-		 * @tparam Args 传递给函数的参数类型
 		 * @param params extra info with task
 		 * @param params 任务额外信息
 		 * @param func The function to be executed by the task.
@@ -314,7 +276,7 @@ namespace dog_torch::async::pool
 		 */
 		template<typename Func, typename... Args>
 			requires PauseFunc<Func, Args...>
-		auto add_task(const std::unordered_map<std::string,std::any>& params, Func&& func, Args&&... args) -> Result<decltype(func(std::declval<PauseableChannel&>(), std::forward<Args>(args)...))>
+		auto add_task(const std::unordered_map<std::string, std::any>& params, Func&& func, Args&&... args) -> Result<decltype(func(std::declval<PauseableChannel&>(), std::forward<Args>(args)...))>
 		{
 			using ResType = decltype(func(std::declval<PauseableChannel&>(), std::forward<Args>(args)...));
 			using promRes = std::promise<ResType>;
@@ -361,6 +323,128 @@ namespace dog_torch::async::pool
 			return Result{ task_id, std::move(future) };
 		}
 
+		template<typename Func, typename... Args>
+			requires CallFunc<Func, Args...>
+		auto add_task(const std::unordered_map<std::string, std::any>& params, Func&& func, Args&&... args) -> Result<decltype(func(std::declval<std::function<uint8_t(uint64_t, uint64_t)>>(), std::forward<Args>(args)...))>
+		{
+			using ResType = decltype(func(std::declval<std::function<int8_t(uint64_t, uint64_t)>>(), std::forward<Args>(args)...));
+			using promRes = std::promise<ResType>;
+
+			std::shared_ptr<promRes> prom = std::make_shared<promRes>();
+			auto func_bind = std::bind(func, std::placeholders::_1, std::forward<Args>(args)...);
+			std::function<void(PauseableChannel&)> task;
+			auto future = prom->get_future();
+			if constexpr (std::is_void_v<ResType>)
+			{
+				auto doing = [func_bind, prom](PauseableChannel& pc)->void
+					{
+						auto onRunning = [&pc](uint64_t block, uint64_t total) -> uint8_t
+							{
+								Status status = pc.check_status();
+								pc.add_progress(block * 1.0 / total);
+								return static_cast<uint8_t>(status);
+							};
+						try
+						{
+							func_bind(onRunning);
+							prom->set_value();
+						}
+						catch (std::exception& e)
+						{
+							prom->set_exception(std::make_exception_ptr(e));
+						}
+					};
+				task = std::move(doing);
+			}
+			else
+			{
+				auto doing = [func_bind, prom](PauseableChannel& pc)->void
+					{
+						auto onRunning = [&pc](uint64_t block, uint64_t total) -> uint8_t
+							{
+								Status status = pc.check_status();
+								pc.add_progress(block * 1.0 / total);
+								return static_cast<uint8_t>(status);
+							};
+						try
+						{
+							prom->set_value(func_bind(onRunning));
+						}
+						catch (std::exception& e)
+						{
+							prom->set_exception(std::make_exception_ptr(e));
+						}
+					};
+				task = std::move(doing);
+			}
+			std::unique_lock lock(this->mutex_);
+			uint64_t task_id = this->task_next_id_++;
+			this->tasks_.emplace_back(Task{ std::move(task),params,task_id });
+			condition_variable_->notify_one();
+			return Result{ task_id, std::move(future) };
+		}
+
+		template<typename Func, typename... Args>
+			requires PauseCallFunc<Func, Args...>
+		auto add_task(const std::unordered_map<std::string, std::any>& params, Func&& func, Args&&... args) -> Result<decltype(func(std::declval<PauseableChannel&>(), std::declval<std::function<uint8_t(uint64_t, uint64_t)>>(), std::forward<Args>(args)...))>
+		{
+			using ResType = decltype(func(std::declval<PauseableChannel&>(), std::declval<std::function<uint8_t(uint64_t, uint64_t)>>(), std::forward<Args>(args)...));
+			using promRes = std::promise<ResType>;
+
+			std::shared_ptr<promRes> prom = std::make_shared<promRes>();
+			auto func_bind = std::bind(func, std::placeholders::_1, std::placeholders::_2, std::forward<Args>(args)...);
+			std::function<void(PauseableChannel&)> task;
+			auto future = prom->get_future();
+			if constexpr (std::is_void_v<ResType>)
+			{
+				auto doing = [func_bind, prom](PauseableChannel& pc)->void
+					{
+						auto onRunning = [&pc](uint64_t block, uint64_t total) -> uint8_t
+							{
+								Status status = pc.check_status();
+								pc.add_progress(block * 1.0 / total);
+								return static_cast<uint8_t>(status);
+							};
+						try
+						{
+							func_bind(pc, onRunning);
+							prom->set_value();
+						}
+						catch (std::exception& e)
+						{
+							prom->set_exception(std::make_exception_ptr(e));
+						}
+					};
+				task = std::move(doing);
+			}
+			else
+			{
+				auto doing = [func_bind, prom](PauseableChannel& pc)->void
+					{
+						auto onRunning = [&pc](uint64_t block, uint64_t total) -> uint8_t
+							{
+								Status status = pc.check_status();
+								pc.add_progress(block * 1.0 / total);
+								return static_cast<uint8_t>(status);
+							};
+						try
+						{
+							prom->set_value(func_bind(pc, onRunning));
+						}
+						catch (std::exception& e)
+						{
+							prom->set_exception(std::make_exception_ptr(e));
+						}
+					};
+				task = std::move(doing);
+			}
+			std::unique_lock lock(this->mutex_);
+			uint64_t task_id = this->task_next_id_++;
+			this->tasks_.emplace_back(Task{ std::move(task),params,task_id });
+			condition_variable_->notify_one();
+			return Result{ task_id, std::move(future) };
+		}
+
 		/**
 		 * @brief Add a task to the thread pool.
 		 * @brief 向线程池中添加任务
@@ -392,6 +476,6 @@ namespace dog_torch::async::pool
 			this->tasks_.emplace_back(Task{ std::move(task),{}, task_id });
 			condition_variable_->notify_one();
 			return task_id;
-		}
+		};
 	};
 }

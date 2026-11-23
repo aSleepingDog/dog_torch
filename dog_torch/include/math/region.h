@@ -35,6 +35,8 @@ namespace dog_torch::math::region
 
 }
 
+#if defined(EN_C_API)
+
 #define NAMESPACE(name) dog_torch__region__##name
 #define UTILS(name) dog_torch__utils__##name
 
@@ -50,3 +52,5 @@ extern "C"
 
 #undef NAMESPACE
 #undef UTILS
+
+#endif

@@ -2,9 +2,11 @@
 
 namespace NSROOT = dog_torch::crypto::mac;
 
-NSROOT::HMacGenerator::HMacGenerator(const BinaryData& key, const hash_algorithm_uptr& hash_algorithm) : MacGenerator(key), hash_algorithm_(hash_algorithm->clone())
+NSROOT::HMacGenerator::HMacGenerator(const BinaryData& key, const hash_algorithm_uptr& hash_algorithm) 
+    : MacGenerator(key), hash_algorithm_(hash_algorithm->clone())
 {}
-NSROOT::HMacGenerator::HMacGenerator(const BinaryData & key, hash_algorithm_uptr&& hash_algorithm) noexcept : MacGenerator(key), hash_algorithm_(std::move(hash_algorithm))
+NSROOT::HMacGenerator::HMacGenerator(const BinaryData & key, hash_algorithm_uptr&& hash_algorithm) noexcept 
+    : MacGenerator(key), hash_algorithm_(std::move(hash_algorithm))
 {}
 
 NSROOT::HMacGenerator::~HMacGenerator() = default;
@@ -99,7 +101,7 @@ NSROOT::BinaryData NSROOT::HMacGenerator::generate(PauseableChannel& pc, std::is
     pc.add_progress(block_size * 1.0 / total);
     do
     {
-        if (pc.check_status()) break;
+        if (static_cast<uint8_t>(pc.check_status()) > 0x80) break;
         BinaryData block = this->hash_algorithm_->next_block(input, pos, total + block_size);
         update_func(block, value);
         pc.add_progress(block_size * 1.0 / total);

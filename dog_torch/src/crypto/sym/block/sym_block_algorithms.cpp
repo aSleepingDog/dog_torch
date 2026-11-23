@@ -32,7 +32,7 @@ std::unique_ptr<NSROOT::Algorithm> NSROOT::create(const std::string& name, uint6
     return nullptr;
 }
 
-
+#if defined(EN_C_API)
 #define NS_ROOT(name) dog_torch__crypto__sym__block__##name
 #define NS_ALG(name) dog_torch__crypto__sym__block__algorithm__##name
 #define CRYPTO_BASE(name) dog_torch__crypto__##name
@@ -45,7 +45,7 @@ NS_ALG(ConfigVector)* NS_ALG(get_all)()
 }
 void NS_ALG(ConfigVector_delete)(NS_ALG(ConfigVector)** self)
 {
-    DEFAULT_DESTOTY(self);
+    DEFAULT_DESTROY(self);
 }
 uint64_t NS_ALG(ConfigVector_size)(const LVALUE(NS_ALG(ConfigVector)) self)
 {
@@ -87,4 +87,5 @@ NS_ROOT(Algorithm)* NS_ROOT(Algorithm_create_string)  (const LVALUE(UTILS(CppStr
 #undef CRYPTO_BASE
 #undef SERIALIZE
 #undef UTILS
+#endif
 

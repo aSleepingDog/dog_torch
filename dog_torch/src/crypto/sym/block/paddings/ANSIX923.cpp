@@ -1,17 +1,50 @@
 #include "crypto/sym/block/paddings/ANSIX923.h"
+#include "error_msg.h"
 
 namespace NSROOT = dog_torch::crypto::sym::block::padding;
 
 void NSROOT::ANSIX923::padding(BinaryData& data, uint64_t block_size)
 {
+	if (block_size == 0 || block_size > 0xff)
+		throw DOG_EXCEPTION(array_to_view(ERROR_PKCS7_SIZE_WRONG));
 	uint8_t fill = static_cast<uint8_t>(block_size - data.size());
-	while (data.size() < block_size - 1) data.push_back(0);
-	data.push_back(fill);
+	data.resize(block_size);
+	data.back() = fill;
 }
 void NSROOT::ANSIX923::unpadding(BinaryData& data, uint64_t block_size)
 {
+	if (block_size == 0 || block_size > 0xff)
+		throw DOG_EXCEPTION(array_to_view(ERROR_ANSIX923_SIZE_WRONG));
+	if (data.size() != block_size)
+	{
+		throw DOG_EXCEPTION(array_to_view(ERROR_ANSIX923_BLOCK_WRONG));
+	}
 	uint8_t unfill = data.back();
-	data.resize(data.size() >= unfill ? data.size() - unfill : data.size());
+	if (unfill == 0 || unfill > block_size)
+	{
+		throw DOG_EXCEPTION(array_to_view(ERROR_ANSIX923_BLOCK_WRONG));
+	}
+	volatile uint8_t x = 0;
+	for (uint64_t i = 0; i < block_size; ++i)
+	{
+		if (i < block_size - unfill)
+		{
+			x |= 0;
+		}
+		else if (i != block_size - 1)
+		{
+			x |= data[i];
+		}
+		else
+		{
+			x |= data[i] ^ unfill;
+		}
+	}
+	if (x != 0)
+	{
+		throw DOG_EXCEPTION(array_to_view(ERROR_ANSIX923_BLOCK_WRONG));
+	}
+	data.resize(data.size() - unfill);
 }
 const NSROOT::Config& NSROOT::ANSIX923::allowed_config()
 {

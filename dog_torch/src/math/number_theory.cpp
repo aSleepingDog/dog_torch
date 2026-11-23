@@ -180,11 +180,18 @@ bool NSROOT::is_possible_prime(const BigUInt& n, uint64_t start_prime_index, uin
 NSROOT::BigUInt NSROOT::generate_prime(uint64_t byte_length, uint64_t extra_test)
 {
 	BigUInt big_pi = 6;
+	// Candidates are q = big_pi * k + offset. is_possible_prime() rejects any
+	// candidate with extra_test | (q - 1), so the offset must be chosen such
+	// that (q - 1) is not divisible by extra_test for every k.
+	// offset = 1 -> q - 1 = 6k (always divisible by 3). If extra_test divides
+	// big_pi (e.g. e = 3), that progression can never yield a usable prime and
+	// this loop would spin forever, so fall back to offset = 5 (q - 1 = 6k + 4).
+	uint64_t offset = (extra_test > 1 && (6 % extra_test) == 0) ? 5 : 1;
 	BigUInt max = BigUInt{ IntegerNS::get_power_2_minus_1(byte_length * 8) };
 	BigUInt max_r = max / big_pi;
 	BigUInt min = BigUInt{ IntegerNS::get_power_2_minus_1(byte_length * 8 - 1) };
 	BigUInt min_r = min / big_pi;
-	BigUInt q = BigUInt{ IntegerNS::random_num(min_r.num_, max_r.num_) } * big_pi + BigUInt{ std::vector<uint64_t>{1} };
+	BigUInt q = BigUInt{ IntegerNS::random_num(min_r.num_, max_r.num_) } * big_pi + BigUInt{ std::vector<uint64_t>{offset} };
 	uint64_t i = 0;
 	uint64_t test_times = 0;
 	while (!is_possible_prime(q, 1, extra_test))
@@ -192,7 +199,7 @@ NSROOT::BigUInt NSROOT::generate_prime(uint64_t byte_length, uint64_t extra_test
 		q += big_pi;
 		if (q > max || test_times > 100)
 		{
-			q = BigUInt{ IntegerNS::random_num(min_r.num_, max_r.num_) } * big_pi + BigUInt{ std::vector<uint64_t>{1} };
+			q = BigUInt{ IntegerNS::random_num(min_r.num_, max_r.num_) } * big_pi + BigUInt{ std::vector<uint64_t>{offset} };
 			test_times = 0;
 		}
 	}

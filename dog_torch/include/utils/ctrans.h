@@ -11,9 +11,11 @@
 #include <filesystem>
 #include "exception.h"
 
+#if defined(EN_C_API)
+
 #define NAMESPACE(name) dog_torch__utils__##name
 #define LVALUE(type)            type* const
-#define DEFAULT_DESTOTY(ptr)\
+#define DEFAULT_DESTROY(ptr)\
 if(ptr == nullptr || (*ptr)==nullptr) return;\
 delete (*ptr);\
 (*ptr) = nullptr
@@ -63,3 +65,4 @@ extern "C"
 }
 
 #undef NAMESPACE
+#endif

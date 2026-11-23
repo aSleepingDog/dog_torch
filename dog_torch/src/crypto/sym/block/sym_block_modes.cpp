@@ -106,6 +106,7 @@ std::unique_ptr<NSROOT::Mode> NSROOT::create(const std::string& name, const padd
     }
 }
 
+#if defined(EN_C_API)
 #define NS_ROOT(name) dog_torch__crypto__sym__block__##name
 #define NS_MODE(name) dog_torch__crypto__sym__block__mode__##name
 #define CRYPTO_BASE(name) dog_torch__crypto__##name
@@ -120,7 +121,7 @@ NS_MODE(ConfigVector)* NS_MODE(get_all)()
 }
 void NS_MODE(ConfigVector_delete)(NS_MODE(ConfigVector)** self)
 {
-    DEFAULT_DESTOTY(self);
+    DEFAULT_DESTROY(self);
 }
 uint64_t NS_MODE(ConfigVector_size)(const LVALUE(NS_MODE(ConfigVector)) self)
 {
@@ -160,3 +161,4 @@ NS_ROOT(Mode)* NS_ROOT(Mode_create_string)(const LVALUE(UTILS(CppString)) name, 
 #undef CRYPTO_BASE
 #undef SERIALIZE
 #undef UTILS
+#endif

@@ -1,4 +1,5 @@
 #include "BinaryData_wrapper.h"
+#include "TLV_wrapper.h"
 #include "region_wrapper.h"
 #include "crypto_utils_wrapper.h"
 #include "crypto_hash_wrapper.h"
@@ -13,6 +14,9 @@ Napi::Object Init(Napi::Env env, Napi::Object exports)
     BinaryDataWrapper::registerClass(env, exports);
     BinaryParamsWrapper::registerClass(env, exports);
     NumberIteratorWrapper::registerClass(env, exports);
+
+    exports["TlvType"] = registerTLVTypeEnum(env);
+    TlvObjectWrapper::registerClass(env, exports);
 
     Napi::Object crypto = Napi::Object::New(env);
     crypto["ParamType"] = registerCryptoTypeEnum(env);

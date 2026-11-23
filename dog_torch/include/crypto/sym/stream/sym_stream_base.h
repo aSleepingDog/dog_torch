@@ -6,13 +6,11 @@
 
 #include "utils/ctrans.h"
 #include "utils/compile.h"
-#include "serialize/serialize.h"
+#include "crypto/crypto_base.h"
 #include "crypto/sym/sym_base.h"
 
 namespace dog_torch::crypto::sym::stream
 {
-	using PauseableChannel = dog_torch::async::thread::PauseableChannel;
-
 	namespace algorithm
 	{
 		struct Config
@@ -63,6 +61,7 @@ namespace dog_torch::crypto::sym::stream
 		uint64_t shift_ = 0;
 	public:
 		StreamCipher(const algorithm::Algorithm& alg, uint64_t shift = 0, bool is_bit = false);
+		std::unique_ptr<Cipher> clone() const override;
 
 		void init() override;
 		bool effective() const override;
@@ -72,14 +71,12 @@ namespace dog_torch::crypto::sym::stream
 		BinaryData encrypt(const BinaryData& plain) override;
 		BinaryData decrypt(const BinaryData& crypt) override;
 
-		void encrypt_stream(std::istream& plain, uint64_t total, std::ostream& crypt) override;
-		void decrypt_stream(std::istream& crypt, uint64_t total, std::ostream& plain) override;
-
-		void encryptp_stream(PauseableChannel& pc, std::istream& plain, uint64_t total, std::ostream& crypt) override;
-		void decryptp_stream(PauseableChannel& pc, std::istream& crypt, uint64_t total, std::ostream& plain) override;
+		void encrypt_stream(std::istream& plain, uint64_t total, std::ostream& crypt, std::function<uint8_t(uint64_t, uint64_t)> onRunning = alwaysRunning) override;
+		void decrypt_stream(std::istream& crypt, uint64_t total, std::ostream& plain, std::function<uint8_t(uint64_t, uint64_t)> onRunning = alwaysRunning) override;
 	};
 }
 
+#if defined(EN_C_API)
 #define NS_ROOT(name) dog_torch__crypto__sym__stream__##name
 #define NS_ALG(name) dog_torch__crypto__sym__stream__algorithm__##name
 #define UTILS(name)  dog_torch__utils__##name
@@ -105,3 +102,4 @@ extern "C"
 #undef NS_ROOT
 #undef NS_ALG
 #undef UTILS
+#endif

@@ -1,14 +1,7 @@
 #include "serialize/tlv.h"
+#include "error_msg.h"
 
 namespace NSROOT = dog_torch::serialize::tlv;
-
-using dog_torch::utils::from_c_str;
-using dog_torch::utils::from_uint64;
-using dog_torch::utils::array_to_view;
-using dog_torch::utils::operator+;
-constexpr auto ERROR_WRONG_TYPE = from_c_str("Value is not ");
-constexpr auto ERROR_WRONG_TAG = from_c_str("Invalid tag");
-constexpr auto ERROR_UNSUPPORT_FLOAT = from_c_str("Invalid float tag ");
 
 NSROOT::MIBString::MIBString(const std::string& str, uint64_t mid) : string(str), mib(mid) {}
 NSROOT::MIBString::MIBString(std::string&& str, uint64_t mid) : string(std::move(str)), mib(mid) {}
@@ -244,143 +237,143 @@ NSROOT::Type NSROOT::Value::type() const
 std::nullptr_t NSROOT::Value::to_null() const
 {
 	if (this->value_.index() != 0)
-		throw DOG_EXCEPTION(array_to_view((ERROR_WRONG_TYPE + from_c_str("null"))));
+		throw DOG_EXCEPTION(array_to_view((ERROR_TLV_WRONG_TYPE + from_c_str("null"))));
 	return std::get<std::nullptr_t>(this->value_);
 }
 
 bool& NSROOT::Value::to_bool()
 {
 	if (this->value_.index() != 1)
-		throw DOG_EXCEPTION(array_to_view((ERROR_WRONG_TYPE + from_c_str("bool"))));
+		throw DOG_EXCEPTION(array_to_view((ERROR_TLV_WRONG_TYPE + from_c_str("bool"))));
 	return std::get<bool>(this->value_);
 }
 bool NSROOT::Value::to_bool() const
 {
 	if (this->value_.index() != 1)
-		throw DOG_EXCEPTION(array_to_view((ERROR_WRONG_TYPE + from_c_str("bool"))));
+		throw DOG_EXCEPTION(array_to_view((ERROR_TLV_WRONG_TYPE + from_c_str("bool"))));
 	return std::get<bool>(this->value_);
 }
 
 NSROOT::Integer64& NSROOT::Value::to_integer()
 {
 	if (this->value_.index() != 2)
-		throw DOG_EXCEPTION(array_to_view((ERROR_WRONG_TYPE + from_c_str("integer"))));
+		throw DOG_EXCEPTION(array_to_view((ERROR_TLV_WRONG_TYPE + from_c_str("integer"))));
 	return std::get<NSROOT::Integer64>(this->value_);
 }
 const NSROOT::Integer64& NSROOT::Value::to_integer() const
 {
 	if (this->value_.index() != 2)
-		throw DOG_EXCEPTION(array_to_view((ERROR_WRONG_TYPE + from_c_str("integer"))));
+		throw DOG_EXCEPTION(array_to_view((ERROR_TLV_WRONG_TYPE + from_c_str("integer"))));
 	return std::get<NSROOT::Integer64>(this->value_);
 }
 
 double& NSROOT::Value::to_float()
 {
 	if (this->value_.index() != 3)
-		throw DOG_EXCEPTION(array_to_view((ERROR_WRONG_TYPE + from_c_str("float"))));
+		throw DOG_EXCEPTION(array_to_view((ERROR_TLV_WRONG_TYPE + from_c_str("float"))));
 	return std::get<double>(this->value_);
 }
 double NSROOT::Value::to_float() const
 {
 	if (this->value_.index() != 3)
-		throw DOG_EXCEPTION(array_to_view((ERROR_WRONG_TYPE + from_c_str("float"))));
+		throw DOG_EXCEPTION(array_to_view((ERROR_TLV_WRONG_TYPE + from_c_str("float"))));
 	return std::get<double>(this->value_);
 }
 
 std::vector<uint8_t>& NSROOT::Value::to_binary()
 {
 	if (this->value_.index() != 4)
-		throw DOG_EXCEPTION(array_to_view((ERROR_WRONG_TYPE + from_c_str("binary"))));
+		throw DOG_EXCEPTION(array_to_view((ERROR_TLV_WRONG_TYPE + from_c_str("binary"))));
 	return std::get<std::vector<uint8_t>>(this->value_);
 }
 const std::vector<uint8_t>& NSROOT::Value::to_binary() const
 {
 	if (this->value_.index() != 4)
-		throw DOG_EXCEPTION(array_to_view((ERROR_WRONG_TYPE + from_c_str("binary"))));
+		throw DOG_EXCEPTION(array_to_view((ERROR_TLV_WRONG_TYPE + from_c_str("binary"))));
 	return std::get<std::vector<uint8_t>>(this->value_);
 }
 
 NSROOT::MIBString& NSROOT::Value::to_string()
 {
 	if (this->value_.index() != 5)
-		throw DOG_EXCEPTION(array_to_view((ERROR_WRONG_TYPE + from_c_str("string"))));
+		throw DOG_EXCEPTION(array_to_view((ERROR_TLV_WRONG_TYPE + from_c_str("string"))));
 	return std::get<NSROOT::MIBString>(this->value_);
 }
 const NSROOT::MIBString& NSROOT::Value::to_string() const
 {
 	if (this->value_.index() != 5)
-		throw DOG_EXCEPTION(array_to_view((ERROR_WRONG_TYPE + from_c_str("string"))));
+		throw DOG_EXCEPTION(array_to_view((ERROR_TLV_WRONG_TYPE + from_c_str("string"))));
 	return std::get<NSROOT::MIBString>(this->value_);
 }
 
 std::vector<NSROOT::Value>& NSROOT::Value::to_array()
 {
 	if (this->value_.index() != 6)
-		throw DOG_EXCEPTION(array_to_view((ERROR_WRONG_TYPE + from_c_str("array"))));
+		throw DOG_EXCEPTION(array_to_view((ERROR_TLV_WRONG_TYPE + from_c_str("array"))));
 	return std::get<std::vector<NSROOT::Value>>(this->value_);
 }
 const std::vector<NSROOT::Value>& NSROOT::Value::to_array() const
 {
 	if (this->value_.index() != 6)
-		throw DOG_EXCEPTION(array_to_view((ERROR_WRONG_TYPE + from_c_str("array"))));
+		throw DOG_EXCEPTION(array_to_view((ERROR_TLV_WRONG_TYPE + from_c_str("array"))));
 	return std::get<std::vector<NSROOT::Value>>(this->value_);
 }
 
 std::unordered_set<NSROOT::Value>& NSROOT::Value::to_set()
 {
 	if (this->value_.index() != 7)
-		throw DOG_EXCEPTION(array_to_view((ERROR_WRONG_TYPE + from_c_str("set"))));
+		throw DOG_EXCEPTION(array_to_view((ERROR_TLV_WRONG_TYPE + from_c_str("set"))));
 	return std::get<std::unordered_set<NSROOT::Value>>(this->value_);
 }
 const std::unordered_set<NSROOT::Value>& NSROOT::Value::to_set() const
 {
 	if (this->value_.index() != 7)
-		throw DOG_EXCEPTION(array_to_view((ERROR_WRONG_TYPE + from_c_str("set"))));
+		throw DOG_EXCEPTION(array_to_view((ERROR_TLV_WRONG_TYPE + from_c_str("set"))));
 	return std::get<std::unordered_set<NSROOT::Value>>(this->value_);
 }
 
 std::unordered_map<NSROOT::Integer64, NSROOT::Value>& NSROOT::Value::to_enum()
 {
 	if (this->value_.index() != 8)
-		throw DOG_EXCEPTION(array_to_view((ERROR_WRONG_TYPE + from_c_str("enum"))));
+		throw DOG_EXCEPTION(array_to_view((ERROR_TLV_WRONG_TYPE + from_c_str("enum"))));
 	return std::get<std::unordered_map<Integer64, Value>>(this->value_);
 }
 const std::unordered_map<NSROOT::Integer64, NSROOT::Value>& NSROOT::Value::to_enum() const
 {
 	if (this->value_.index() != 8)
-		throw DOG_EXCEPTION(array_to_view((ERROR_WRONG_TYPE + from_c_str("enum"))));
+		throw DOG_EXCEPTION(array_to_view((ERROR_TLV_WRONG_TYPE + from_c_str("enum"))));
 	return std::get<std::unordered_map<Integer64, Value>>(this->value_);
 }
 
 std::unordered_map<NSROOT::Value, NSROOT::Value>& NSROOT::Value::to_map()
 {
 	if (this->value_.index() != 9)
-		throw DOG_EXCEPTION(array_to_view((ERROR_WRONG_TYPE + from_c_str("map"))));
+		throw DOG_EXCEPTION(array_to_view((ERROR_TLV_WRONG_TYPE + from_c_str("map"))));
 	return std::get<std::unordered_map<Value, Value>>(this->value_);
 }
 const std::unordered_map<NSROOT::Value, NSROOT::Value>& NSROOT::Value::to_map() const
 {
 	if (this->value_.index() != 9)
-		throw DOG_EXCEPTION(array_to_view((ERROR_WRONG_TYPE + from_c_str("map"))));
+		throw DOG_EXCEPTION(array_to_view((ERROR_TLV_WRONG_TYPE + from_c_str("map"))));
 	return std::get<std::unordered_map<Value, Value>>(this->value_);
 }
 
 std::unordered_map<NSROOT::MIBString, NSROOT::Value>& NSROOT::Value::to_object()
 {
 	if (this->value_.index() != 10)
-		throw DOG_EXCEPTION(array_to_view((ERROR_WRONG_TYPE + from_c_str("object"))));
+		throw DOG_EXCEPTION(array_to_view((ERROR_TLV_WRONG_TYPE + from_c_str("object"))));
 	return std::get<std::unordered_map<MIBString, Value>>(this->value_);
 }
 const std::unordered_map<NSROOT::MIBString, NSROOT::Value> NSROOT::Value::to_object() const
 {
 	if (this->value_.index() != 10)
-		throw DOG_EXCEPTION(array_to_view((ERROR_WRONG_TYPE + from_c_str("object"))));
+		throw DOG_EXCEPTION(array_to_view((ERROR_TLV_WRONG_TYPE + from_c_str("object"))));
 	return std::get<std::unordered_map<MIBString, Value>>(this->value_);
 }
 
 NSROOT::Value NSROOT::Value::parse(std::vector<uint8_t>::const_iterator& pos, std::vector<uint8_t>::const_iterator end)
 {
-	if (pos == end) throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_TAG));
+	if (pos == end) throw DOG_EXCEPTION(array_to_view(ERROR_TLV_WRONG_TAG));
 	uint8_t tag = *pos++;
 	if ((tag >> 4) == 0b0010)
 	{
@@ -406,7 +399,7 @@ NSROOT::Value NSROOT::Value::parse(std::vector<uint8_t>::const_iterator& pos, st
 	{
 		if ((tag & 0b11) == 0b00 || (tag & 0b11) == 0b11)
 		{
-			throw DOG_EXCEPTION(array_to_view(ERROR_UNSUPPORT_FLOAT));
+			throw DOG_EXCEPTION(array_to_view(ERROR_TLV_UNSUPPORT_FLOAT));
 		}
 		else if ((tag & 0b11) == 0b01)
 		{
@@ -430,7 +423,7 @@ NSROOT::Value NSROOT::Value::parse(std::vector<uint8_t>::const_iterator& pos, st
 		}
 		else
 		{
-			throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_TAG));
+			throw DOG_EXCEPTION(array_to_view(ERROR_TLV_WRONG_TAG));
 		}
 	}
 	else if ((tag >> 5) == 0b100)
@@ -534,12 +527,12 @@ NSROOT::Value NSROOT::Value::parse(std::vector<uint8_t>::const_iterator& pos, st
 		}
 		else
 		{
-			throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_TAG));
+			throw DOG_EXCEPTION(array_to_view(ERROR_TLV_WRONG_TAG));
 		}
 	}
 	else
 	{
-		throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_TAG));
+		throw DOG_EXCEPTION(array_to_view(ERROR_TLV_WRONG_TAG));
 	}
 }
 
@@ -574,7 +567,7 @@ NSROOT::Value NSROOT::Value::parse(std::istream& input)
 	{
 		if ((tag & 0b11) == 0b00 || (tag & 0b11) == 0b11)
 		{
-			throw DOG_EXCEPTION(array_to_view(ERROR_UNSUPPORT_FLOAT));
+			throw DOG_EXCEPTION(array_to_view(ERROR_TLV_UNSUPPORT_FLOAT));
 		}
 		else if ((tag & 0b11) == 0b01)
 		{
@@ -598,7 +591,7 @@ NSROOT::Value NSROOT::Value::parse(std::istream& input)
 		}
 		else
 		{
-			throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_TAG));
+			throw DOG_EXCEPTION(array_to_view(ERROR_TLV_WRONG_TAG));
 		}
 	}
 	else if ((tag >> 5) == 0b100)
@@ -702,12 +695,12 @@ NSROOT::Value NSROOT::Value::parse(std::istream& input)
 		}
 		else
 		{
-			throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_TAG));
+			throw DOG_EXCEPTION(array_to_view(ERROR_TLV_WRONG_TAG));
 		}
 	}
 	else
 	{
-		throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_TAG));
+		throw DOG_EXCEPTION(array_to_view(ERROR_TLV_WRONG_TAG));
 	}
 }
 

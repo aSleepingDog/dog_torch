@@ -4,20 +4,25 @@
 #include <string>
 #include <variant>
 #include <filesystem>
+#include <map>
+#include <unordered_map>
 
 #include "serialize/serialize.h"
 
 namespace dog_torch::crypto
 {
-	using dog_torch::serialize::BinaryData;
+	using BinaryData = dog_torch::serialize::BinaryData;
+	using Value = dog_torch::serialize::tlv::Value;
 	using Param = std::variant<bool, uint64_t, std::string, BinaryData>;
+
+	uint8_t alwaysRunning(uint64_t a, uint64_t b);
+
 	enum class ParamType : uint64_t
 	{
 		Bool = 0,
 		UInt64 = 1,
 		String = 2,
-		Binary = 3,
-		Hash = 4,
+		Binary = 3
 	};
 	std::string get_type_name(ParamType type);
 	struct ParamInfo
@@ -26,7 +31,16 @@ namespace dog_torch::crypto
 		std::string msg;
 		ParamInfo(ParamType type_, const std::string& msg_ = "");
 	};
+
+	enum class PrimusType : uint64_t
+	{
+		Hash = 0,
+		Sym = 1
+	};
+	std::string get_type_name(PrimusType type);
 }
+
+#if defined(EN_C_API)
 
 #define NAMESPACE(name) dog_torch__crypto__##name
 #define SERIALIZE(name) dog_torch__serialize__##name
@@ -83,3 +97,4 @@ extern "C"
 #undef NAMESPACE
 #undef SERIALIZE
 #undef UTILS
+#endif

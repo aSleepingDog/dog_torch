@@ -37,7 +37,7 @@ std::unique_ptr<NSROOT::Algorithm> NSROOT::create(const std::string& name, uint6
         {
             salt = std::get<BinaryData>(params.at("salt"));
         }
-        if (params.find("person") != params.end() && params.at("personalization").index() == (size_t)ParamType::Binary)
+        if (params.find("personalization") != params.end() && params.at("personalization").index() == (size_t)ParamType::Binary)
         {
             person = std::get<BinaryData>(params.at("personalization"));
         }
@@ -46,7 +46,7 @@ std::unique_ptr<NSROOT::Algorithm> NSROOT::create(const std::string& name, uint6
     return nullptr;
 }
 
-
+#if defined(EN_C_API)
 #define NAMESPACE(name) dog_torch__crypto__hash__algorithm__##name
 #define CRYPTO_HASH_BASE(name) dog_torch__crypto__hash__##name
 #define CRYPTO_BASE(name) dog_torch__crypto__##name
@@ -59,7 +59,7 @@ NAMESPACE(ConfigVector)* NAMESPACE(get_all)()
 }
 void NAMESPACE(ConfigVector_delete)(NAMESPACE(ConfigVector)** self)
 {
-    DEFAULT_DESTOTY(self);
+    DEFAULT_DESTROY(self);
 }
 
 uint64_t NAMESPACE(ConfigVector_size)(const LVALUE(NAMESPACE(ConfigVector))self)
@@ -104,3 +104,4 @@ CRYPTO_HASH_BASE(Algorithm)* CRYPTO_HASH_BASE(Algorithm_create_string)(const LVA
 #undef CRYPTO_BASE
 #undef SERIALIZE
 #undef UTILS
+#endif

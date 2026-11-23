@@ -1,69 +1,7 @@
 #include "serialize/BinaryData.h"
+#include "error_msg.h"
 
 namespace NSROOT = dog_torch::serialize;
-
-using dog_torch::utils::from_c_str;
-
-using dog_torch::utils::array_to_view;
-
-constexpr auto ERROR_UNEXPECT_CHAR = from_c_str("unexcept char");
-constexpr auto ERROR_WRONG_FORMAT = from_c_str("unexcept format");
-constexpr auto ERROR_UNEXPECT_TYPE = from_c_str("unexcept type");
-
-std::string NSROOT::to_utf8(uint64_t code)
-{
-    std::string result = "";
-    if (code <= 0x7F)
-    {
-        result += (char)code;
-    }
-    else if (code <= 0x7FF)
-    {
-        result += (char)(0b11000000 | ((code >> 06) & 0x1F));
-        result += (char)(0b10000000 | ((code >> 00) & 0x3F));
-    }
-    else if (code <= 0xFFFF)
-    {
-        result += (char)(0b11100000 | ((code >> 12) & 0x0F));
-        result += (char)(0b10000000 | ((code >> 06) & 0x3F));
-        result += (char)(0b10000000 | ((code >> 00) & 0x3F));
-    }
-    else if (code <= 0x1FFFFF)
-    {
-        result += (char)(0b11110000 | ((code >> 18) & 0x07));
-        result += (char)(0b10000000 | ((code >> 12) & 0x3F));
-        result += (char)(0b10000000 | ((code >> 06) & 0x3F));
-        result += (char)(0b10000000 | ((code >> 00) & 0x3F));
-    }
-    else if (code <= 0x3FFFFFF)
-    {
-        result += (char)(0b11111000 | ((code >> 24) & 0x03));
-        result += (char)(0b10000000 | ((code >> 18) & 0x3F));
-        result += (char)(0b10000000 | ((code >> 12) & 0x3F));
-        result += (char)(0b10000000 | ((code >> 06) & 0x3F));
-        result += (char)(0b10000000 | ((code >> 00) & 0x3F));
-    }
-    else if (code <= 0x7FFFFFFF)
-    {
-        result += (char)(0b11111100 | ((code >> 30) & 0x01));
-        result += (char)(0b10000000 | ((code >> 24) & 0x3F));
-        result += (char)(0b10000000 | ((code >> 18) & 0x3F));
-        result += (char)(0b10000000 | ((code >> 12) & 0x3F));
-        result += (char)(0b10000000 | ((code >> 06) & 0x3F));
-        result += (char)(0b10000000 | ((code >> 00) & 0x3F));
-    }
-    else if (code <= 0xFFFFFFFF)
-    {
-        result += (char)(0b11111100 | ((code >> 36) & 0x01));
-        result += (char)(0b10000000 | ((code >> 30) & 0x3F));
-        result += (char)(0b10000000 | ((code >> 24) & 0x3F));
-        result += (char)(0b10000000 | ((code >> 18) & 0x3F));
-        result += (char)(0b10000000 | ((code >> 12) & 0x3F));
-        result += (char)(0b10000000 | ((code >> 06) & 0x3F));
-        result += (char)(0b10000000 | ((code >> 00) & 0x3F));
-    }
-    return result;
-}
 
 NSROOT::BinaryData::BinaryData()
 {}
@@ -79,6 +17,11 @@ NSROOT::BinaryData::BinaryData(std::vector<uint8_t> && data)
 {
     this->data_ = std::move(data);
 }
+NSROOT::BinaryData::BinaryData(std::u8string_view str)
+{
+    this->data_.resize(str.size());
+    this->data_.assign(str.begin(), str.end());
+}
 NSROOT::BinaryData::BinaryData(std::string_view str, Type type)
 {
     uint64_t size = str.size();
@@ -93,7 +36,7 @@ NSROOT::BinaryData::BinaryData(std::string_view str, Type type)
             {
                 if (c != '0' && c != '1')
                 {
-                    throw DOG_EXCEPTION(array_to_view(ERROR_UNEXPECT_CHAR));
+                    throw DOG_EXCEPTION(array_to_view(ERROR_BINARYDATA_UNEXPECT_CHAR));
                 }
                 return c - '0';
             };
@@ -135,7 +78,7 @@ NSROOT::BinaryData::BinaryData(std::string_view str, Type type)
                 {
                     return c - 'a' + 10;
                 }
-                throw DOG_EXCEPTION(array_to_view(ERROR_UNEXPECT_CHAR));
+                throw DOG_EXCEPTION(array_to_view(ERROR_BINARYDATA_UNEXPECT_CHAR));
             };
         uint64_t i = size % 2, pos = i;
         if (i)
@@ -180,11 +123,11 @@ NSROOT::BinaryData::BinaryData(std::string_view str, Type type)
                 {
                     return 0xff;
                 }
-                throw DOG_EXCEPTION(array_to_view(ERROR_UNEXPECT_CHAR));
+                throw DOG_EXCEPTION(array_to_view(ERROR_BINARYDATA_UNEXPECT_CHAR));
             };
         if (size % 4 != 0)
         {
-            throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_FORMAT));
+            throw DOG_EXCEPTION(array_to_view(ERROR_BINARYDATA_WRONG_FORMAT));
         }
         this->data_.reserve((size / 4) * 3);
         uint64_t i = 0;
@@ -223,7 +166,7 @@ NSROOT::BinaryData::BinaryData(std::string_view str, Type type)
     }
     else
     {
-        throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_FORMAT));
+        throw DOG_EXCEPTION(array_to_view(ERROR_BINARYDATA_WRONG_FORMAT));
     }
 }
 NSROOT::BinaryData::BinaryData(const std::string& str, Type type) : BinaryData(std::string_view(str), type) {};
@@ -240,11 +183,13 @@ NSROOT::BinaryData& NSROOT::BinaryData::operator=(const BinaryData & other)
 NSROOT::BinaryData::BinaryData(BinaryData&& other) noexcept
 {
     this->data_ = std::move(other.data_);
+    other.data_.assign(other.data_.size(), 0);
 }
 NSROOT::BinaryData& NSROOT::BinaryData::operator=(BinaryData && other) noexcept
 {
     if (this == &other) return *this;
     this->data_ = std::move(other.data_);
+    other.data_.assign(other.data_.size(), 0);
     return *this;
 }
 
@@ -425,6 +370,7 @@ void NSROOT::BinaryData::emplace_back(uint8_t elem)
 }
 void NSROOT::BinaryData::pop_back()
 {
+    this->data_.back() = 0;
     this->data_.pop_back();
 }
 void NSROOT::BinaryData::resize(uint64_t count)
@@ -440,9 +386,19 @@ void NSROOT::BinaryData::swap(BinaryData & other)
     this->data_.swap(other.data_);
 }
 
-bool NSROOT::BinaryData::operator==(const BinaryData & other) const
+bool NSROOT::BinaryData::operator==(const BinaryData& other) const
 {
     return this->data_ == other.data_;
+}
+bool NSROOT::BinaryData::save_equal(const BinaryData& other) const
+{
+    if (this->data_.size() != other.data_.size()) return false;
+    volatile uint64_t x = 0;
+    for (uint64_t i = 0; i < this->data_.size(); ++i)
+    {
+        x |= this->data_[i] ^ other.data_[i];
+    }
+    return x == 0;
 }
 bool NSROOT::BinaryData::operator!=(const BinaryData& other) const
 {
@@ -977,6 +933,7 @@ std::streamsize NSROOT::EmptyBuffer::xsputn(const char_type* s, std::streamsize 
     return count;
 }
 
+#if defined(EN_C_API)
 #define NAMESPACE(name) dog_torch__serialize__##name
 #define UTILS(name) dog_torch__utils__##name
 
@@ -1008,7 +965,7 @@ NAMESPACE(BinaryData)* NAMESPACE(BinaryData_create_from_string)(LVALUE(UTILS(Cpp
 
 void NAMESPACE(BinaryData_delete)(NAMESPACE(BinaryData)** self)
 {
-    DEFAULT_DESTOTY(self);
+    DEFAULT_DESTROY(self);
 }
 
 UTILS(CppString)* NAMESPACE(BinaryData_to_string)(const LVALUE(NAMESPACE(BinaryData)) self)
@@ -1028,3 +985,4 @@ UTILS(CppString)* NAMESPACE(BinaryData_to_base64_string)(const LVALUE(NAMESPACE(
 
 #undef NAMESPACE
 #undef UTILS
+#endif

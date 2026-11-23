@@ -82,7 +82,7 @@ Json
 
 ## 使用方法
 
-本项目采用C++20标准，CMake构建，使用下面的命令进行编译
+本项目采用C++20标准（CMake中使用的是C++23，但没有使用相关特性），CMake构建，使用下面的命令进行编译
 
 ```shell
 git clone https://github.com/aSleepingDog/dog_torch.git
@@ -106,6 +106,8 @@ link_dog_torch(your_project SHARED)
 #静态和动态仅需要选择一个即可
 ```
 
+`node_api`中的不参与此处编译，详情请看内部详细
+
 ### 使用示例
 
 #### 封装数据
@@ -117,10 +119,10 @@ int main()
 {
     using dog_torch::serialize::BinaryData;
     //input 输入
-    BinaryData data0{"hello world",BinaryData::Type::UTF8};
-    BinaryData data1{"303132333435",BinaryData::Type::HEX};
-    BinaryData data1{"010101011101",BinaryData::Type::Binary};
-    BinaryData data1{"abcdabcdabc=",BinaryData::Type::Base64};
+    BinaryData data0{ "hello world",BinaryData::Type::UTF8 };
+    BinaryData data1{ "303132333435",BinaryData::Type::Hex };
+    BinaryData data2{ "010101011101",BinaryData::Type::Binary };
+    BinaryData data3{ "abcdabcdabc=",BinaryData::Type::Base64 };
     //output 输出
     data0.to_string();//to utf8 string 转换为UTF8
     data1.to_bin_string();//to binary string 转换为二进制字符串
@@ -180,30 +182,23 @@ int main()
 int main()
 {
     using dog_torch::serialize::BinaryData;
-    BinaryData plain{"hello world",BinaryData::Type::UTF8};
-    BinaryData key{"0123456789ABCDEF",BinaryData::Type::UTF8};
+    BinaryData plain{ "hello world",BinaryData::Type::UTF8 };
+    BinaryData key{ "0123456789ABCDEF",BinaryData::Type::UTF8 };
 
-    using dog_torch::crypto::sym::block::algorithm::AES;
-    using algorithm_create = dog_torch::crypto::sym::block::algorithm::create;
-
-    using dog_torch::crypto::sym::block::padding::PKCS7;
-    using padding_create = dog_torch::crypto::sym::block::padding::create;
-
-    using dog_torch::crypto::sym::block::mode::ECB;
-    using mode_create = dog_torch::crypto::sym::block::mode::create;
+    namespace SymBlock = dog_torch::crypto::sym::block;
 
     using dog_torch::crypto::sym::block::BlockCipher;
 
-    auto alg0 = AES(256);//support 128 192 256
-    auto alg_p = algorithm_create("AES",128,128);
+    auto alg0 = SymBlock::algorithm::AES(256);//support 128 192 256
+    auto alg_p = SymBlock::algorithm::create("AES", 128, 128);
 
-    auto pad0 = PKCS7();//support 128 192 256
-    auto pad_p = padding_create("PKCS7");
+    auto pad0 = SymBlock::padding::PKCS7();//support 128 192 256
+    auto pad_p = SymBlock::padding::create("PKCS7");
 
-    auto mode0 = ECB(pad0);
-    auto mode_p = mode_create("ECB",pad_p,{});
+    auto mode0 = SymBlock::mode::ECB(pad0);
+    auto mode_p = SymBlock::mode::create("ECB", *pad_p, {});
 
-    BlockCipher cipher0(alg0,mode0);
+    BlockCipher cipher0(alg0, mode0);
 
     /**
      * must set key before every encrypt and decrypt
@@ -213,7 +208,7 @@ int main()
      * 必须在每次加解密之前调用init()来初始化加密器
      * 当参数无效或密钥无效时可能会抛出异常
      */
-    cipher0.set_key(key)
+    cipher0.set_key(key);
     cipher0.init();
 
     BinaryData crypt = cipher0.encrypt(plain);//encrypt 加密

@@ -94,7 +94,7 @@ namespace dog_torch::async::thread
 		 * @brief check task status
 		 * @brief 检查任务状态
 		 */
-		bool check_status();
+		Status check_status();
 		/**
 		 * @brief check task status
 		 * @brief 检查任务状态
@@ -109,7 +109,7 @@ namespace dog_torch::async::thread
 		 * @brief cancel task
 		 * @brief 取消任务
 		 */
-		void cancel();//Running|Blocked -> Stopped
+		void cancel();//Running|Blocked -> Canceled
 		/**
 		 * @brief reset task
 		 * @brief 重置任务
@@ -168,13 +168,4 @@ namespace dog_torch::async::thread
 		double get_progress();
 	};
 
-	/**
-	 * @brief concept for function with PauseableChannel as first arg
-	 * @brief 使用了线程控制块的方法概念
-	 */
-	template<typename Func, typename... Args>
-	concept PauseFunc = requires(Func f, PauseableChannel & pc, Args&&... args)
-	{
-		f(pc, std::forward<Args>(args)...);
-	};
 }

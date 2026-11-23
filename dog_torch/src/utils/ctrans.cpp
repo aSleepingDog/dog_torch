@@ -1,5 +1,6 @@
 #include "utils/ctrans.h"
 
+#if defined(EN_C_API)
 namespace NSROOT = dog_torch::utils;
 #define NAMESPACE(name) dog_torch__utils__##name
 
@@ -113,3 +114,4 @@ void NAMESPACE(CppUint64Array_delete)(NAMESPACE(CppUint64Array)** target)
 }
 
 #undef NAMESPACE
+#endif

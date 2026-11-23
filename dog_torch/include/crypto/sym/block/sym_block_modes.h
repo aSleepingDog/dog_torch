@@ -4,15 +4,14 @@
 #include <iostream>
 
 #include "utils/ctrans.h"
-#include "crypto/crypto_base.h"
 #include "sym_block_base.h"
-#include "crypto/sym/block/modes/ECB.h"
-#include "crypto/sym/block/modes/CBC.h"
-#include "crypto/sym/block/modes/PCBC.h"
-#include "crypto/sym/block/modes/CFB.h"
-#include "crypto/sym/block/modes/OFB.h"
-#include "crypto/sym/block/modes/CTR.h"
-#include "crypto/sym/block/modes/GCM.h"
+#include "./modes/ECB.h"
+#include "./modes/CBC.h"
+#include "./modes/PCBC.h"
+#include "./modes/CFB.h"
+#include "./modes/OFB.h"
+#include "./modes/CTR.h"
+#include "./modes/GCM.h"
 
 namespace dog_torch::crypto::sym::block::mode
 {
@@ -20,6 +19,7 @@ namespace dog_torch::crypto::sym::block::mode
 	CPP_API std::unique_ptr<Mode> create(const std::string& name, const padding::Padding& padding, const std::unordered_map<std::string, Param>& params);
 }
 
+#if defined(EN_C_API)
 #define NS_ROOT(name) dog_torch__crypto__sym__block__##name
 #define NS_MODE(name) dog_torch__crypto__sym__block__mode__##name
 #define CRYPTO_BASE(name) dog_torch__crypto__##name
@@ -43,3 +43,4 @@ extern "C"
 #undef CRYPTO_BASE
 #undef SERIALIZE
 #undef UTILS
+#endif

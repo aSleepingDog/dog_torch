@@ -8,9 +8,21 @@ file(GLOB_RECURSE resource_code_file RELATIVE
   "${CMAKE_SOURCE_DIR}/../dog_torch/src" *.h
 )
 
-#EN_AES_IN
-#enable AES IN on supported CPU
-#在支持AES的CPU上启用AES IN
+# macro
+# 相关宏
+#
+# EN_C_API
+# 启动C语言API导出 (默认关闭)
+# export c style api (default off)
+#
+# EN_AES_IN
+# 启动硬件的AES组件加速(如果不支持则退化成软件实现) (默认开启)
+# using hardware AES acceleration like AES-IN (if not supported, fallback to software implementation) (default on)
+#
+# EN_GCM_IN
+# 启动硬件的GCM组件加速(如果不支持则退化成软件实现) (默认关闭)
+# using hardware GCM acceleration (if not supported, fallback to software implementation) (default off)
+
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     add_compile_options(-maes -msse4.2)

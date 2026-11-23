@@ -1,20 +1,7 @@
 #include "math/number.h"
+#include "error_msg.h"
 
 namespace NSROOT = dog_torch::math::number;
-using dog_torch::utils::from_c_str;
-using dog_torch::utils::operator+;
-using dog_torch::utils::from_uint64;
-using dog_torch::utils::array_to_view;
-
-constexpr auto ERROR_DIVIDE_BY_ZERO = from_c_str("division by zero");
-constexpr auto ERROR_UNEXPECT_RADIX = from_c_str("unsupported radix");
-
-constexpr auto ERROR_RADIX_UNEXPECT_CHAR_2 = (from_c_str("unexcept char when ") + from_uint64<2>());
-constexpr auto ERROR_RADIX_UNEXPECT_CHAR_8 = (from_c_str("unexcept char when ") + from_uint64<8>());
-constexpr auto ERROR_RADIX_UNEXPECT_CHAR_10 = (from_c_str("unexcept char when ") + from_uint64<10>());
-constexpr auto ERROR_RADIX_UNEXPECT_CHAR_16 = (from_c_str("unexcept char when ") + from_uint64<16>());
-
-constexpr auto ERROR_UNSIGNED_SUBTRACT_LESS = "a<b when unsigned numbers subtract";
 
 #if defined(__x86_64__) || defined(_M_X64)
     #include <immintrin.h>
@@ -498,7 +485,7 @@ void NSROOT::UnsignedInteger128::operator*=(const UnsignedInteger128& other) noe
 NSROOT::UnsignedInteger128 NSROOT::UnsignedInteger128::operator/(const UnsignedInteger128& other) const
 {
     if (other == 0)
-        throw DOG_EXCEPTION(array_to_view(ERROR_DIVIDE_BY_ZERO));
+        throw DOG_EXCEPTION(array_to_view(ERROR_NUMBER_DIVIDE_BY_ZERO));
     else if (*this < other)
     {
         return 0;
@@ -538,7 +525,7 @@ NSROOT::UnsignedInteger128 NSROOT::UnsignedInteger128::operator/(const UnsignedI
 NSROOT::UnsignedInteger128 NSROOT::UnsignedInteger128::operator%(const UnsignedInteger128& other) const
 {
     if (other == 0)
-        throw DOG_EXCEPTION(array_to_view(ERROR_DIVIDE_BY_ZERO));
+        throw DOG_EXCEPTION(array_to_view(ERROR_NUMBER_DIVIDE_BY_ZERO));
     else if (*this < other)
     {
         return 0;
@@ -619,7 +606,7 @@ NSROOT::BigUnsignedInteger::BigUnsignedInteger(std::string_view str, uint64_t ra
     std::vector<uint32_t> buf32;
     if (radix != 2 && radix != 8 && radix != 10 && radix != 16)
     {
-        throw DOG_EXCEPTION(array_to_view(ERROR_UNEXPECT_RADIX));
+        throw DOG_EXCEPTION(array_to_view(ERROR_NUMBER_UNEXPECT_RADIX));
     }
     else if (radix == 2 || radix == 8 || radix == 16)
     {
@@ -651,11 +638,11 @@ NSROOT::BigUnsignedInteger::BigUnsignedInteger(std::string_view str, uint64_t ra
             else
             {
                 if (radix == 2)
-                    throw DOG_EXCEPTION(array_to_view(ERROR_RADIX_UNEXPECT_CHAR_2));
+                    throw DOG_EXCEPTION(array_to_view(ERROR_NUMBER_RADIX_UNEXPECT_CHAR_2));
                 else if (radix == 8)
-                    throw DOG_EXCEPTION(array_to_view(ERROR_RADIX_UNEXPECT_CHAR_8));
+                    throw DOG_EXCEPTION(array_to_view(ERROR_NUMBER_RADIX_UNEXPECT_CHAR_8));
                 else
-                    throw DOG_EXCEPTION(array_to_view(ERROR_RADIX_UNEXPECT_CHAR_16));
+                    throw DOG_EXCEPTION(array_to_view(ERROR_NUMBER_RADIX_UNEXPECT_CHAR_16));
             }
             buf |= now << buf_size;
             buf_size += buf_add;
@@ -680,7 +667,7 @@ NSROOT::BigUnsignedInteger::BigUnsignedInteger(std::string_view str, uint64_t ra
         {
             char c = str[i];
             if (c < '0' || c > '9')
-                throw DOG_EXCEPTION(array_to_view(ERROR_RADIX_UNEXPECT_CHAR_10));
+                throw DOG_EXCEPTION(array_to_view(ERROR_NUMBER_RADIX_UNEXPECT_CHAR_10));
             mid_p[i] = c - '0';
         }
         uint64_t real_start = 0, now = 0, remainder = 0;
@@ -920,7 +907,7 @@ std::string NSROOT::BigUnsignedInteger::to_num_str(uint64_t radix, bool is_upper
     }
     else
     {
-        throw DOG_EXCEPTION(array_to_view(ERROR_UNEXPECT_RADIX));
+        throw DOG_EXCEPTION(array_to_view(ERROR_NUMBER_UNEXPECT_RADIX));
     }
     return str;
 }
@@ -1057,7 +1044,7 @@ NSROOT::BigUnsignedInteger NSROOT::BigUnsignedInteger::operator++(int) noexcept
 
 std::vector<uint64_t> NSROOT::BigUnsignedInteger::v_subtract(const vec64& a, const vec64& b)
 {
-    if (v_compare(a, b) == CompareResult::LESS) throw DOG_EXCEPTION(ERROR_UNSIGNED_SUBTRACT_LESS);
+    if (v_compare(a, b) == CompareResult::LESS) throw DOG_EXCEPTION(array_to_view(ERROR_NUMBER_UNSIGNED_SUBTRACT_LESS));
     uint64_t g_len = a.size(), s_len = b.size();
     uint64_t now = 0, borrow = 0, i = 0;
     vec64 result(g_len);
@@ -1164,7 +1151,7 @@ NSROOT::BigUnsignedInteger NSROOT::BigUnsignedInteger::operator*(const BigUInt& 
 std::pair<std::vector<uint64_t>, uint64_t> NSROOT::BigUnsignedInteger::v_divide_single(const vec64& a, uint64_t b)
 {
     if (b == 0)
-        throw DOG_EXCEPTION(array_to_view(ERROR_DIVIDE_BY_ZERO));
+        throw DOG_EXCEPTION(array_to_view(ERROR_NUMBER_DIVIDE_BY_ZERO));
     uint64_t a_t_h = 0, a_t_l = 0, q = 0, i = a.size() - 1;
     vec64 result(a.size());
     for (auto rit = a.crbegin(); rit != a.crend(); ++rit)
@@ -1179,7 +1166,7 @@ std::pair<std::vector<uint64_t>, uint64_t> NSROOT::BigUnsignedInteger::v_divide_
 std::pair<std::vector<uint64_t>, std::vector<uint64_t>> NSROOT::BigUnsignedInteger::v_divide_knuth(const vec64& a, const vec64& b, bool recover_remainder)
 {
     if (b.size() == 1 && b.back() == 0)
-        throw DOG_EXCEPTION(array_to_view(ERROR_DIVIDE_BY_ZERO));
+        throw DOG_EXCEPTION(array_to_view(ERROR_NUMBER_DIVIDE_BY_ZERO));
     uint64_t b_head = b.back();
     uint64_t d = 1;
     if (b_head < 0x7FFFFFFFFFFFFFFF)
@@ -1228,7 +1215,7 @@ std::pair<std::vector<uint64_t>, std::vector<uint64_t>> NSROOT::BigUnsignedInteg
 }
 std::pair<std::vector<uint64_t>, std::vector<uint64_t>> NSROOT::BigUnsignedInteger::v_divide(const vec64& a, const vec64& b, bool recover_remainder)
 {
-    if (v_compare(b, { 0 }) == CompareResult::EQUAL) throw DOG_EXCEPTION(array_to_view(ERROR_DIVIDE_BY_ZERO));
+    if (v_compare(b, { 0 }) == CompareResult::EQUAL) throw DOG_EXCEPTION(array_to_view(ERROR_NUMBER_DIVIDE_BY_ZERO));
     if (v_compare(a, { 0 }) == CompareResult::EQUAL) return { {0},{0} };
     if (v_compare(b, { 1 }) == CompareResult::EQUAL) return { a,{0} };
     auto com_r = v_compare(a, b);

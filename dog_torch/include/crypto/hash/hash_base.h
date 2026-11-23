@@ -44,21 +44,21 @@ namespace dog_torch::crypto::hash
 
 			virtual ~Algorithm() = default;
 
-			virtual Config config() const;
-			virtual std::string fmt_string() const;
+			virtual Config config() const = 0;
+			virtual std::string fmt_string() const = 0;
 			
-			virtual void init();
-			virtual BinaryData init_data() const;
-			virtual update_func get_update() const;
-			virtual trims_func get_trims() const;
-			virtual std::unique_ptr<Algorithm> clone() const;
+			virtual void init() = 0;
+			virtual BinaryData init_data() const = 0;
+			virtual update_func get_update() const = 0;
+			virtual trims_func get_trims() const = 0;
+			virtual std::unique_ptr<Algorithm> clone() const = 0;
 
-			virtual uint64_t get_block_size() const;
-			virtual uint64_t get_out_size() const;
+			virtual uint64_t get_block_size() const = 0;
+			virtual uint64_t get_out_size() const = 0;
 
-			virtual bool have_next_block(uint64_t data_pos, uint64_t data_total);
-			virtual BinaryData next_block(const BinaryData& data, uint64_t start, uint64_t& data_pos, uint64_t data_total);
-			virtual BinaryData next_block(std::istream& data, uint64_t& data_pos, uint64_t data_total);
+			virtual bool have_next_block(uint64_t data_pos, uint64_t data_total) = 0;
+			virtual BinaryData next_block(const BinaryData& data, uint64_t start, uint64_t& data_pos, uint64_t data_total) = 0;
+			virtual BinaryData next_block(std::istream& data, uint64_t& data_pos, uint64_t data_total) = 0;
 		};
 	}
 
@@ -78,22 +78,14 @@ namespace dog_torch::crypto::hash
 		Generator& operator=(Generator&& other) noexcept;
 
 		void init();
-		BinaryData calculate(const BinaryData& source);
-		BinaryData calculate(std::istream& source, uint64_t total);
-		BinaryData calculate(PauseableChannel& pc, std::istream& source, uint64_t total);
-		static BinaryData calculate_with(PauseableChannel& pc, Generator& self, std::istream& source, uint64_t total);
 		std::string fmt_string() const;
+
+		BinaryData calculate(const BinaryData& source);
+		BinaryData calculate(std::istream& source, uint64_t total, std::function<uint8_t(uint64_t, uint64_t)> onRunning = alwaysRunning);
 	};
 }
 
-#ifdef SHARED
-#include "async/pool/pool.h"
-namespace dog_torch::async::pool
-{
-	using hash_stream_func = std::function<dog_torch::serialize::BinaryData(PauseableChannel&, dog_torch::crypto::hash::Generator&,std::istream&,uint64_t)>;
-	template<> dog_torch::async::pool::Result<dog_torch::serialize::BinaryData> PausedThreadPool::add_task(hash_stream_func&&,dog_torch::crypto::hash::Generator&,std::istream&,uint64_t&&);
-};
-#endif // SHARED
+#if defined(EN_C_API)
 
 #define NAMESPACE(name) dog_torch__crypto__hash__##name
 #define CRYPTO_BASE(name) dog_torch__crypto__##name
@@ -126,3 +118,4 @@ extern "C"
 #undef CRYPTO_BASE
 #undef SERIALIZE
 #undef UTILS
+#endif

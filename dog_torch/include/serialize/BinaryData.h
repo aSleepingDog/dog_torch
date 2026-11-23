@@ -7,13 +7,11 @@
 
 #include "utils/ctrans.h"
 #include "utils/compile.h"
-#include "math/number.h"
 #include "utils/exception.h"
 
 namespace dog_torch::serialize
 {
     // !\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~
-    CPP_API std::string to_utf8(uint64_t code);
     class CPP_API BinaryData
     {
     private:
@@ -42,6 +40,7 @@ namespace dog_torch::serialize
             data_ = std::vector<uint8_t>(data.begin(), data.end());
         }
 
+        BinaryData(std::u8string_view str);
         BinaryData(std::string_view str, Type type);
         BinaryData(const std::string& str, Type type);
         BinaryData(const char* str, Type type);
@@ -120,6 +119,7 @@ namespace dog_torch::serialize
         void swap(BinaryData& other);
 
         bool operator==(const BinaryData& other) const;
+        bool save_equal(const BinaryData& other) const;
         bool operator!=(const BinaryData& other) const;
 
         /**
@@ -397,6 +397,8 @@ namespace dog_torch::serialize
     }
 }
 
+#if defined(EN_C_API)
+
 #define NAMESPACE(name) dog_torch__serialize__##name
 #define UTILS(name) dog_torch__utils__##name
 
@@ -416,3 +418,4 @@ extern "C"
 
 #undef NAMESPACE
 #undef UTILS
+#endif

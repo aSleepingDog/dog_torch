@@ -1,22 +1,14 @@
 #include "crypto/sym/block/algorithms/Camellia.h"
+#include "error_msg.h"
 
 namespace NSROOT = dog_torch::crypto::sym::block::algorithm;
 using dog_torch::serialize::BinaryData;
-using dog_torch::utils::from_c_str;
-using dog_torch::utils::operator+;
-using dog_torch::utils::from_uint64;
-using dog_torch::utils::array_to_view;
-
-constexpr auto ERROR_UNSUPPORTED_KEY_SIZE = from_c_str("Camellia: key size must be 128, 192 or 256");
-constexpr auto ERROR_NOT_EXTEND_KEY_16 = (from_c_str("Camellia: key size must be bigger than ") + from_uint64<16>() + from_c_str("B"));
-constexpr auto ERROR_NOT_EXTEND_KEY_24 = (from_c_str("Camellia: key size must be bigger than ") + from_uint64<24>() + from_c_str("B"));
-constexpr auto ERROR_NOT_EXTEND_KEY_32 = (from_c_str("Camellia: key size must be bigger than ") + from_uint64<32>() + from_c_str("B"));
 
 NSROOT::Camellia::Camellia(uint64_t key_size) : Algorithm(128, key_size)
 {
 	if (key_size != 128 && key_size != 192 && key_size != 256)
 	{
-		throw DOG_EXCEPTION(array_to_view(ERROR_UNSUPPORTED_KEY_SIZE));
+		throw DOG_EXCEPTION(array_to_view(ERROR_CAMELLIA_UNSUPPORTED_KEY_SIZE));
 	}
 }
 
@@ -242,7 +234,7 @@ BinaryData NSROOT::Camellia::extend_key(const BinaryData& key, uint64_t block_si
 	BinaryData res;
 	if (key.size() < 16)
 	{
-		throw DOG_EXCEPTION(array_to_view(ERROR_NOT_EXTEND_KEY_16));
+		throw DOG_EXCEPTION(array_to_view(ERROR_CAMELLIA_NOT_EXTEND_KEY_16));
 	}
 	uint64_t kll = 0, klr = 0, krl = 0, krr = 0;
 	for (uint64_t i = 0; i < 8; i++)
@@ -255,7 +247,7 @@ BinaryData NSROOT::Camellia::extend_key(const BinaryData& key, uint64_t block_si
 	{
 		if (key.size() < 24)
 		{
-			throw DOG_EXCEPTION(array_to_view(ERROR_NOT_EXTEND_KEY_24));
+			throw DOG_EXCEPTION(array_to_view(ERROR_CAMELLIA_NOT_EXTEND_KEY_24));
 		}
 		for (uint64_t i = 0; i < 8; i++)
 		{
@@ -267,7 +259,7 @@ BinaryData NSROOT::Camellia::extend_key(const BinaryData& key, uint64_t block_si
 	{
 		if (key.size() < 32)
 		{
-			throw DOG_EXCEPTION(array_to_view(ERROR_NOT_EXTEND_KEY_32));
+			throw DOG_EXCEPTION(array_to_view(ERROR_CAMELLIA_NOT_EXTEND_KEY_32));
 		}
 		for (uint64_t i = 0; i < 8; i++)
 		{
@@ -277,7 +269,7 @@ BinaryData NSROOT::Camellia::extend_key(const BinaryData& key, uint64_t block_si
 	}
 	else if (key_size != 128)
 	{
-		throw DOG_EXCEPTION(array_to_view(ERROR_NOT_EXTEND_KEY_16));
+		throw DOG_EXCEPTION(array_to_view(ERROR_CAMELLIA_NOT_EXTEND_KEY_16));
 	}
 	auto add_uint64 = [&res](uint64_t n) -> void
 		{

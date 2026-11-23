@@ -129,6 +129,7 @@ std::string NSROOT::type_fmt_string(Type type)
 	case Type::Hex: return "Hex";
 	case Type::Base64: return "Base64";
 	}
+    return "";
 }
 
 #ifdef _WIN32
@@ -231,7 +232,7 @@ std::optional<uint64_t> input_uint64(bool allow_empty = false)
         }
         catch (std::exception& e)
         {
-            std::cout << "invalid param or arg" << std::endl;
+            std::cout << "invalid param or arg" << e.what() << std::endl;
             return std::nullopt;
         }
     }
@@ -256,7 +257,7 @@ std::optional<uint64_t> input_uint64(bool allow_empty = false)
         }
         catch (std::exception& e)
         {
-            std::cout << "invalid param or arg" << std::endl;
+            std::cout << "invalid param or arg" << e.what() << std::endl;
             return std::nullopt;
         }
     }
@@ -424,6 +425,7 @@ std::optional<std::variant<BinaryParams, fs::path>> output_type(bool allow_file)
         std::cout << "invalid operation" << std::endl;
         return std::nullopt;
     }
+    return std::nullopt;
 }
 using dog_torch::crypto::hash::Generator;
 namespace hash = dog_torch::crypto::hash;
@@ -507,22 +509,17 @@ std::shared_ptr<Generator> get_hash_generator()
 }
 using dog_torch::async::pool::PausedThreadPool;
 using dog_torch::async::thread::PauseableDetail;
-struct HashThreadResult
-{
-    BinaryData output;
-    PauseableDetail detail;
-    HashThreadResult(const BinaryData& output, const PauseableDetail& detail) : output(output), detail(detail) {}
-};
+
 struct HashResult
 {
-    fs::path input_path;
+    std::unordered_map<std::string, std::any> params;
     BinaryParams output_type;
-    std::shared_future<HashThreadResult> result;
+    std::shared_future<BinaryData> result;
     HashResult(
-        const fs::path& input_path_,
+        std::unordered_map<std::string, std::any> params_,
         const BinaryParams& output_type_,
-        const std::shared_future<HashThreadResult>& result_
-    ) : input_path(input_path_),output_type(output_type_), result{ result_ } {}
+        const std::shared_future<BinaryData>& result_
+    ) : params(params_),output_type(output_type_), result{ result_ } {}
     HashResult() = default;
     template <class Rep, class Per>
     std::future_status wait_for(const std::chrono::duration<Rep, Per>& Rel_time) const
@@ -531,17 +528,30 @@ struct HashResult
     }
     std::string get_binary_str()
     {
-        auto out = result.get().output;
+        auto out = result.get();
         return output_type.fmt_BinaryData(out);
     }
     std::string get_config_str()
     {
-        return std::any_cast<std::string>(result.get().detail.params.at("config_str"));
+        return std::any_cast<std::string>(params.at("config_str"));
     }
     std::string get_input_path_str()
     {
-        return input_path.string();
+        return std::any_cast<std::string>(params.at("path"));
     }
+};
+struct CryptResult
+{
+    uint64_t task_id;
+    std::unordered_map<std::string, std::any> params;
+    std::shared_future<std::string> future;
+    CryptResult(
+        uint64_t id_,
+        std::unordered_map<std::string, std::any> params_,
+        const std::shared_future<std::string>& future_
+    ) : task_id(id_),params(params_), future{ future_ } {}
+    CryptResult() = default;
+
 };
 void handle_trans()
 {
@@ -594,24 +604,26 @@ void handle_hash(
     {
         auto fpath = std::get<1>(data.value());
         auto result = pool.add_task(
-            [gen](dog_torch::async::thread::PauseableChannel& pc, fs::path path)
+            std::unordered_map<std::string, std::any>{
+                { "type", TaskType::Hash },
+                { "path", fpath.string() },
+                { "config_str", gen->fmt_string() }
+            },
+            [gen](std::function<uint8_t(uint64_t,uint64_t)> onRunning, fs::path path)
             {
-                pc.param("type") = TaskType::Hash;
-                pc.param("path") = path.string();
                 std::ifstream ifs(path, std::ios::binary);
                 uint64_t size = fs::file_size(path);
-                pc.param("config_str") = gen->fmt_string();
-                auto data = hash::Generator::calculate_with(pc, *gen, ifs, size);
-                if (pc.is_cancel())
-                {
-                    data = BinaryData{};
-                }
-                return HashThreadResult(std::move(data), std::move(pc.to_detail()));
+                auto data = gen->calculate(ifs, size, onRunning);
+                return data;
             },
             fpath
         );
         hash_results[result.task_id] = HashResult{
-            fpath, std::get<0>(ot.value()),result.share().future
+            std::unordered_map<std::string, std::any>{
+                { "type", TaskType::Hash },
+                { "path", fpath.string() },
+                { "config_str", gen->fmt_string() }
+            }, std::get<0>(ot.value()),result.share().future
         };
         std::cout << "success to add task query, id is " << result.task_id << "\n";
     }
@@ -647,7 +659,7 @@ using dog_torch::async::thread::PauseableDetail;
 void task_manage(
     PausedThreadPool& pool, 
     std::unordered_map<uint64_t, HashResult>& hash_results,
-    std::vector<SharedResult<PauseableDetail>>& crypto_result
+    std::vector<CryptResult>& crypto_result
 )
 {
     clear_cmd();
@@ -680,20 +692,24 @@ void task_manage(
             {
                 std::cout << std::format("id: {}\n", crypt.task_id);
                 std::cout << "=====plain=====" << "\n";
-                std::cout << std::any_cast<std::string>(crypt.future.get().params.at("plain")) << "\n";
+                std::cout << std::any_cast<std::string>(crypt.params.at("plain")) << "\n";
                 std::cout << "=====key=====" << "\n";
-                std::cout << std::any_cast<std::string>(crypt.future.get().params.at("key")) << "\n";
+                std::cout << std::any_cast<std::string>(crypt.params.at("key")) << "\n";
                 std::cout << "=====operate=====" << "\n";
-                std::cout << std::any_cast<std::string>(crypt.future.get().params.at("config_str")) << "\n";
+                std::cout << std::any_cast<std::string>(crypt.params.at("config_str")) << "\n";
                 std::cout << "=====crypt=====" << "\n";
-                std::cout << std::any_cast<std::string>(crypt.future.get().params.at("crypt")) << "\n";
+                std::cout << std::any_cast<std::string>(crypt.params.at("crypt")) << "\n";
                 std::cout << "=====result=====" << "\n";
-                std::cout << std::any_cast<std::string>(crypt.future.get().params.at("status")) << "\n";
+                std::cout << std::any_cast<std::string>(crypt.params.at("status")) << "\n";
             }
         }
         std::cout << "=====tasks deatil=====" << "\n";
         for (auto& detail : details)
         {
+            if (!detail.params.contains("type") || detail.params.at("type").type() != typeid(TaskType))
+            {
+                continue;
+            }
             std::cout << "{" << "\n";
             if (std::any_cast<TaskType>(detail.params.at("type")) == TaskType::Hash)
             {
@@ -1007,7 +1023,7 @@ std::shared_ptr<block_crypto::BlockCipher> parse_block_cipher(Value value)
     return std::make_shared<block_crypto::BlockCipher>(*alg_ptr, *mode);
 
 }
-void handle_sym_crypt(PausedThreadPool& pool, std::vector<SharedResult<PauseableDetail>>& crypto_result)
+void handle_sym_crypt(PausedThreadPool& pool, std::vector<CryptResult>& crypto_result)
 {
     using dog_torch::serialize::tlv::Value;
     std::optional<uint64_t> op = 0;
@@ -1089,14 +1105,16 @@ void handle_sym_crypt(PausedThreadPool& pool, std::vector<SharedResult<Pauseable
             auto crypt_path = std::get<1>(ot.value());
             std::string fmt_key = std::format("{}:{}", type_fmt_string(static_cast<serializeType>(key_type)), key_str);
             auto task = pool.add_task(
+                std::unordered_map<std::string,std::any>{
+                    {"type", TaskType::Crypt},
+                    {"plain", plain_path.string()},
+                    {"crypt", crypt_path.string()},
+                    {"key", fmt_key},
+                    {"config_str", block_cipher->fmt_string()}
+                },
                 [add_head_ = add_head.value(), block_cipher, fmt_key]
-                (dog_torch::async::thread::PauseableChannel& pc, fs::path plain, fs::path crypt) -> PauseableDetail
+                (std::function<uint8_t(uint64_t, uint64_t)> onRunning, fs::path plain, fs::path crypt) -> std::string
                 {
-                    //todo test
-                    pc.param("type") = TaskType::Crypt;
-                    pc.param("plain") = plain.string();
-                    pc.param("crypt") = crypt.string();
-                    pc.param("key") = fmt_key;
                     uint64_t plain_size = fs::file_size(plain);
                     std::ifstream plain_stream(plain, std::ios::binary);
                     std::ofstream crypt_stream(crypt, std::ios::binary);
@@ -1107,22 +1125,30 @@ void handle_sym_crypt(PausedThreadPool& pool, std::vector<SharedResult<Pauseable
                         crypt_stream.write(file_head.data_stream(), file_head.size());
                     }
                     block_cipher->init();
-                    pc.param("config_str") = block_cipher->fmt_string();
                     try
                     {
-                        block_cipher->encryptp_stream(pc, plain_stream, plain_size, crypt_stream);
-                        pc.param("result") = std::string("success");
+                        block_cipher->encrypt_stream(plain_stream, plain_size, crypt_stream, onRunning);
                     }
                     catch (std::exception& e)
                     {
-                        pc.param("result") = std::string(e.what());
+                        return std::string(e.what());
                     }
-                    return pc.to_detail();
+                    return "success";
                 },
                 plain_path, crypt_path
             );
             std::cout << "success to add task query, id is " << task.task_id << "\n";
-            crypto_result.emplace_back(task.share());
+            crypto_result.emplace_back(
+                task.task_id, 
+                std::unordered_map<std::string, std::any>{
+                    { "type", TaskType::Crypt},
+                    { "plain", plain_path.string() },
+                    { "crypt", crypt_path.string() },
+                    { "key", fmt_key },
+                    { "config_str", block_cipher->fmt_string() }
+                }, 
+                task.share().future
+            );
         }
     }
     else if (op == 2)
@@ -1221,34 +1247,44 @@ void handle_sym_crypt(PausedThreadPool& pool, std::vector<SharedResult<Pauseable
             auto plain_path = std::get<1>(ot.value());
             std::string fmt_key = std::format("{}:{}", type_fmt_string(static_cast<serializeType>(key_type)), key_str);
             auto task = pool.add_task(
+                std::unordered_map<std::string, std::any>{
+                    {"type", TaskType::Crypt},
+                    { "plain", plain_path.string() },
+                    { "crypt", crypt_path.string() },
+                    { "key", fmt_key },
+                    { "config_str", block_cipher->fmt_string() }
+                },
                 [add_head_ = add_head.value(), block_cipher, fmt_key, head_size]
-                (dog_torch::async::thread::PauseableChannel& pc, fs::path crypt, fs::path plain) -> PauseableDetail
+                (std::function<uint8_t(uint64_t, uint64_t)> onRunning, fs::path crypt, fs::path plain) -> std::string
                 {
-                    //todo test
-                    pc.param("type") = TaskType::Crypt;
-                    pc.param("plain") = plain.string();
-                    pc.param("crypt") = crypt.string();
-                    pc.param("key") = fmt_key;
                     uint64_t crypt_size = fs::file_size(crypt) - head_size;
                     std::ifstream crypt_stream(crypt, std::ios::binary);
                     crypt_stream.seekg(head_size);
                     std::ofstream plain_stream(plain, std::ios::binary);
                     block_cipher->init();
-                    pc.param("config_str") = block_cipher->fmt_string();
                     try
                     {
-                        block_cipher->decryptp_stream(pc, crypt_stream, crypt_size, plain_stream);
-                        pc.param("status") = std::string("success");
+                        block_cipher->decrypt_stream(crypt_stream, crypt_size, plain_stream, onRunning);
                     }
                     catch (std::exception& e)
                     {
-                        pc.param("status") = std::string(e.what());
+                        return std::string(e.what());
                     }
-                    return pc.to_detail();
+                    return "success";
                 },
                 crypt_path, plain_path
             );
-            crypto_result.emplace_back(task.share());
+            crypto_result.emplace_back(
+                task.task_id,
+                std::unordered_map<std::string, std::any>{
+                    { "type", TaskType::Crypt},
+                    { "plain", plain_path.string() },
+                    { "crypt", crypt_path.string() },
+                    { "key", fmt_key },
+                    { "config_str", block_cipher->fmt_string() }
+                },
+                task.share().future
+            );
             std::cout << "success to add task query, id is " << task.task_id << "\n";
         }
     }
@@ -1264,7 +1300,7 @@ void using_mode()
     pool.start();
 
     std::unordered_map<uint64_t, HashResult> hash_results;
-    std::vector<SharedResult<PauseableDetail>> crypt_results;
+    std::vector<CryptResult> crypt_results;
     std::optional<uint64_t> op = 0;
     do
     {

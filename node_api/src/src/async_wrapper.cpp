@@ -43,6 +43,15 @@ ThreadPoolWrapper::ThreadPoolWrapper(const Napi::CallbackInfo& info)
 {
     this->self = std::make_unique<dog_torch::async::pool::PausedThreadPool>(4);
 }
+
+std::string ThreadPoolWrapper::now_time_point()
+{
+    namespace Time = std::chrono;
+    static const auto tz = Time::current_zone();
+    auto now = Time::floor<Time::seconds>(Time::system_clock::now());
+    return std::format("{:%Y-%m-%d %H:%M:%S}", Time::zoned_time{tz, now});
+}
+
 Napi::Value ThreadPoolWrapper::start(const Napi::CallbackInfo& info)
 {
     try{
@@ -254,7 +263,7 @@ Napi::Value ThreadPoolWrapper::add_hash_task(const Napi::CallbackInfo& info)
             {"operator", hash_generator.fmt_string()},
             {"input", path_str},
             {"output", params->fmt_string()},
-            {"timePoint", std::string(std::format("{:%Y-%m-%d %H:%M:%S}", std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now())))}
+            {"timePoint",now_time_point()}
         };
         if(!std::filesystem::exists(path_str))
         {
@@ -264,7 +273,13 @@ Napi::Value ThreadPoolWrapper::add_hash_task(const Napi::CallbackInfo& info)
         {
             uint64_t size = std::filesystem::file_size(path);
             std::ifstream file(path, std::ios::binary);
-            auto hash = dog_torch::crypto::hash::Generator::calculate_with(pc,gen,file,size);
+            auto onRunning = [&pc](uint64_t block, uint64_t total) -> uint8_t
+                {
+                    uint8_t status = static_cast<uint8_t>(pc.check_status());
+                    pc.add_progress(block * 1.0 / total);
+                    return status;
+                };
+            auto hash = gen.calculate(file,size,onRunning);
             return params.fmt_binary(hash);
         };
         auto task_con = this->self->add_task(params_async, task, hash_generator, path_str, params->toBinaryParams());
@@ -319,8 +334,8 @@ Napi::Value ThreadPoolWrapper::add_encrypt_task(const Napi::CallbackInfo& info)
                 {"operator", shared_block_cipher->fmt_string()},
                 {"input", plain_path_str},
                 {"output", crypt_path_str},
-                {"timePoint", std::string(std::format("{:%Y-%m-%d %H:%M:%S}", std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now())))}
-            };
+                {"timePoint",now_time_point()}
+           };
             auto task = [](
                 PauseableChannel& pc,
                 std::shared_ptr<BlockCipher> cipher, bool with_head, std::string plain_path, std::string crypt_path)
@@ -333,7 +348,13 @@ Napi::Value ThreadPoolWrapper::add_encrypt_task(const Napi::CallbackInfo& info)
                     std::ofstream crypt_file(crypt_path, std::ios::binary);
                     auto header = cipher->serialize().serialize();
                     crypt_file.write(reinterpret_cast<const char*>(header.data()), header.size());
-                    cipher->encryptp_stream(pc,plain_file,size,crypt_file);
+                    auto onRunning = [&pc](uint64_t block, uint64_t total) -> uint8_t
+                        {
+                            uint8_t status = static_cast<uint8_t>(pc.check_status());
+                            pc.add_progress(block * 1.0 / total);
+                            return status;
+                        };
+                    cipher->encrypt_stream(plain_file,size,crypt_file,onRunning);
                     return std::string("success");
                 }
                 catch (const std::exception& e)
@@ -369,7 +390,7 @@ Napi::Value ThreadPoolWrapper::add_encrypt_task(const Napi::CallbackInfo& info)
                 {"operator", shared_stream_cipher->fmt_string()},
                 {"input", plain_path_str},
                 {"output", crypt_path_str},
-                {"timePoint", std::string(std::format("{:%Y-%m-%d %H:%M:%S}", std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now())))}
+                {"timePoint",now_time_point()}
             };
             auto task = [](
                 PauseableChannel& pc,
@@ -383,7 +404,13 @@ Napi::Value ThreadPoolWrapper::add_encrypt_task(const Napi::CallbackInfo& info)
                     std::ofstream crypt_file(crypt_path, std::ios::binary);
                     auto header = cipher->serialize().serialize();
                     crypt_file.write(reinterpret_cast<const char*>(header.data()), header.size());
-                    cipher->encryptp_stream(pc,plain_file,size,crypt_file);
+                    auto onRunning = [&pc](uint64_t block, uint64_t total) -> uint8_t
+                        {
+                            uint8_t status = static_cast<uint8_t>(pc.check_status());
+                            pc.add_progress(block * 1.0 / total);
+                            return status;
+                        };
+                    cipher->encrypt_stream(plain_file,size,crypt_file,onRunning);
                     return std::string("success");
                 }
                 catch (const std::exception& e)
@@ -539,7 +566,7 @@ Napi::Value ThreadPoolWrapper::add_decrypt_task(const Napi::CallbackInfo& info)
                 {"operator", cipher->fmt_string()},
                 {"input", crypt_path},
                 {"output", plain_path},
-                {"timePoint", std::string(std::format("{:%Y-%m-%d %H:%M:%S}", std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now())))}
+                {"timePoint",now_time_point()}
             };
             auto task = [](PauseableChannel& pc, std::shared_ptr<BlockCipher> cipher, std::string crypt_path, std::string plain_path)
             {
@@ -548,8 +575,14 @@ Napi::Value ThreadPoolWrapper::add_decrypt_task(const Napi::CallbackInfo& info)
                     uint64_t size = std::filesystem::file_size(crypt_path);
                     std::ifstream crypt{crypt_path, std::ios::binary};
                     std::ofstream plain{plain_path, std::ios::binary};
+                    auto onRunning = [&pc](uint64_t block, uint64_t total) -> uint8_t
+                        {
+                            uint8_t status = static_cast<uint8_t>(pc.check_status());
+                            pc.add_progress(block * 1.0 / total);
+                            return status;
+                        };
                     cipher->init();
-                    cipher->decryptp_stream(pc,crypt,size,plain);
+                    cipher->decrypt_stream(crypt,size,plain,onRunning);
                     return std::string("success");
                 }
                 catch (const std::exception& e)
@@ -583,7 +616,7 @@ Napi::Value ThreadPoolWrapper::add_decrypt_task(const Napi::CallbackInfo& info)
                 {"operator", cipher->fmt_string()},
                 {"input", crypt_path},
                 {"output", plain_path},
-                {"timePoint", std::string(std::format("{:%Y-%m-%d %H:%M:%S}", std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now())))}
+                {"timePoint",now_time_point()}
             };
             auto task = [](PauseableChannel& pc, std::shared_ptr<StreamCipher> cipher, std::string crypt_path, std::string plain_path)
             {
@@ -592,8 +625,14 @@ Napi::Value ThreadPoolWrapper::add_decrypt_task(const Napi::CallbackInfo& info)
                     uint64_t size = std::filesystem::file_size(crypt_path);
                     std::ifstream crypt{crypt_path, std::ios::binary};
                     std::ofstream plain{plain_path, std::ios::binary};
+                    auto onRunning = [&pc](uint64_t block, uint64_t total) -> uint8_t
+                        {
+                            uint8_t status = static_cast<uint8_t>(pc.check_status());
+                            pc.add_progress(block * 1.0 / total);
+                            return status;
+                        };
                     cipher->init();
-                    cipher->decryptp_stream(pc,crypt,size,plain);
+                    cipher->decrypt_stream(crypt,size,plain,onRunning);
                     return std::string("success");
                 }
                 catch (const std::exception& e)
@@ -626,7 +665,7 @@ Napi::Value ThreadPoolWrapper::add_decrypt_task(const Napi::CallbackInfo& info)
                 {"operator", "parse..."},
                 {"input", crypt_path},
                 {"output", plain_path},
-                {"timePoint", std::string(std::format("{:%Y-%m-%d %H:%M:%S}", std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now())))}
+                {"timePoint",now_time_point()}
             };
             auto task = [](PauseableChannel& pc, BinaryData key, std::string crypt_path, std::string plain_path)
             {
@@ -639,7 +678,13 @@ Napi::Value ThreadPoolWrapper::add_decrypt_task(const Napi::CallbackInfo& info)
                     cipher->init();
                     std::ofstream plain{plain_path, std::ios::binary};
                     pc.param("operator") = std::string(cipher->fmt_string());
-                    cipher->decryptp_stream(pc,crypt,total-size,plain);
+                    auto onRunning = [&pc](uint64_t block, uint64_t total) -> uint8_t
+                        {
+                            uint8_t status = static_cast<uint8_t>(pc.check_status());
+                            pc.add_progress(block * 1.0 / total);
+                            return status;
+                        };
+                    cipher->decrypt_stream(crypt,total-size,plain,onRunning);
                     return std::string("success");
                 }
                 catch (const std::exception& e)

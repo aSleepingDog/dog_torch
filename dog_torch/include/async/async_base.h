@@ -13,7 +13,7 @@ namespace dog_torch::async
 	/**
 	 * ```
 	 *           (init)    
-	 * Created --> Ready -[start]-> Running -[stop]-> Stopped -[reset]-> Ready
+	 * Created --> Ready -[start]-> Running -[stop/Cancel]-> Stopped/Canceled -[reset]-> Ready
 	 *                          pause | ^
 	 *                                v | resume
 	 *                              Blocked
@@ -25,7 +25,8 @@ namespace dog_torch::async
 		Ready = 1,
 		Running = 2,
 		Blocked = 3,
-		Stopped = 4
+		Stopped = 0xFF,
+		Canceled = 0xFE
 	};
 
 	/**
@@ -90,7 +91,7 @@ namespace dog_torch::async
 		for (uint64_t i = static_cast<uint64_t>(S); i <= static_cast<uint64_t>(E); ++i)
 		{
 			result[i - static_cast<uint64_t>(S)] = value % time_unit_table[i];
-			value /= time_unit_table[i - static_cast<uint64_t>(S)];
+			value /= time_unit_table[i];
 		}
 		return result;
 	}

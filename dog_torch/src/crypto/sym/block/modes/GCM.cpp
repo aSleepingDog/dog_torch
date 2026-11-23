@@ -1,14 +1,9 @@
 #include "crypto/sym/block/modes/GCM.h"
+#include "error_msg.h"
 
 namespace NSROOT = dog_torch::crypto::sym::block::mode;
 using dog_torch::serialize::BinaryData;
 using dog_torch::serialize::tlv::Value;
-using dog_torch::utils::from_c_str;
-
-using dog_torch::utils::from_uint64;
-using dog_torch::utils::array_to_view;
-
-constexpr auto ERROR_TAG_WRONG = from_c_str("GCM: tag is wrong because of wrong key or plain");
 
 NSROOT::GCM::GCM(const BinaryData& iv, uint64_t shift, const padding::Padding& padding, const BinaryData& a, uint64_t tag_out)
 	: Mode(padding), shift_(shift), tag_out_(tag_out), iv_(iv), aad_(a)
@@ -96,7 +91,7 @@ Value NSROOT::GCM::serialize() const
 {
 	using dog_torch::serialize::tlv::MIBString;
 	using dog_torch::math::number::Integer64;
-	Value total = static_cast<Mode>(*this).serialize();
+	Value total = reinterpret_cast<const Mode*>(this)->serialize();
 	total.to_array()[0] = MIBString{ this->config().name };
 	Value params = std::unordered_map<MIBString, Value>{};
 	total.to_array()[0] = MIBString{ this->config().name };
@@ -141,31 +136,16 @@ NSROOT::crypt_func NSROOT::GCM::get_mult_decrypt() const
 
 NSROOT::stream_crypt_func NSROOT::GCM::get_stream_encrypt() const
 {
-	return [this](std::istream& p, uint64_t t, std::ostream& c, const BinaryData& k, const algorithm::Algorithm& a)->void
+	return [this](std::function<uint8_t(uint64_t, uint64_t)> onRunning, std::istream& p, uint64_t t, std::ostream& c, const BinaryData& k, const algorithm::Algorithm& a)->void
 		{
-			return GCM::encrypt_stream(p, t, c, k, a, this->padding_->get_padding(), this->iv_, this->shift_, this->aad_, this->tag_out_);
+			return GCM::encrypt_stream(p, t, c, k, a, this->padding_->get_padding(), this->iv_, this->shift_, this->aad_, this->tag_out_, onRunning);
 		};
 }
 NSROOT::stream_crypt_func NSROOT::GCM::get_stream_decrypt() const
 {
-	return [this](std::istream& c, uint64_t t, std::ostream& p, const BinaryData& k, const algorithm::Algorithm& a)->void
+	return [this](std::function<uint8_t(uint64_t, uint64_t)> onRunning, std::istream& c, uint64_t t, std::ostream& p, const BinaryData& k, const algorithm::Algorithm& a)->void
 		{
-			return GCM::decrypt_stream(c, t, p, k, a, this->padding_->get_unpadding(), this->iv_, this->shift_, this->aad_, this->tag_out_);
-		};
-}
-
-NSROOT::streamp_crypt_func NSROOT::GCM::get_streamp_encrypt() const
-{
-	return[this](PauseableChannel& pc, std::istream& p, uint64_t t, std::ostream& c, const BinaryData& k, const algorithm::Algorithm& a)->void
-		{
-			return GCM::encryptp_stream(pc, p, t, c, k, a, this->padding_->get_padding(), this->iv_, this->shift_, this->aad_, this->tag_out_);
-		};
-}
-NSROOT::streamp_crypt_func NSROOT::GCM::get_streamp_decrypt() const
-{
-	return[this](PauseableChannel& pc, std::istream& c, uint64_t t, std::ostream& p, const BinaryData& k, const algorithm::Algorithm& a)->void
-		{
-			return GCM::decryptp_stream(pc, c, t, p, k, a, this->padding_->get_unpadding(), this->iv_, this->shift_, this->aad_, this->tag_out_);
+			return GCM::decrypt_stream(c, t, p, k, a, this->padding_->get_unpadding(), this->iv_, this->shift_, this->aad_, this->tag_out_, onRunning);
 		};
 }
 
@@ -429,7 +409,7 @@ BinaryData NSROOT::GCM::encrypt(
 
 	BinaryData buffer0{ 16 }, buffer1;
 	uint64_t now = 0, num = 0;
-	while (read_bytes(plain, plain.size(), now, buffer0, shift, num) == shift)
+	while (read_bytes(plain.get_data(), plain.size(), now, buffer0.get_data(), shift, num) == shift)
 	{
 
 		incr(iv_, 32);
@@ -500,7 +480,7 @@ BinaryData NSROOT::GCM::decrypt(
 
 	BinaryData buffer0{ 16 }, buffer1;
 	uint64_t now = 0, num = 0;
-	while (read_bytes(crypt, total, now, buffer0, shift, num) == shift && now < total)
+	while (read_bytes(crypt.get_data(), total, now, buffer0.get_data(), shift, num) == shift && now < total)
 	{
 		buffer0.resize(num);
 		buffer0.resize(16);
@@ -536,9 +516,10 @@ BinaryData NSROOT::GCM::decrypt(
 	BinaryData ori_tag = crypt.sub_bytes_len(now, tag_out);
 	//std::cout << now_tag.to_hex_string(true) << std::endl;
 	//std::cout << ori_tag.to_hex_string(true) << std::endl;
-	if (now_tag != ori_tag)
+	//if (now_tag != ori_tag)
+	if (!now_tag.save_equal(ori_tag))
 	{
-		throw DOG_EXCEPTION(array_to_view(ERROR_TAG_WRONG));
+		throw DOG_EXCEPTION(array_to_view(ERROR_GCM_TAG_WRONG));
 	}
 	return plain;
 
@@ -548,7 +529,8 @@ void NSROOT::GCM::encrypt_stream(
 	std::istream& plain, uint64_t total, std::ostream& crypt,
 	const BinaryData& available_key,
 	const algorithm::Algorithm& algorithm, padding::padding_func padding,
-	const BinaryData& iv, uint64_t shift, const BinaryData& acc, uint64_t tag_out
+	const BinaryData& iv, uint64_t shift, const BinaryData& acc, uint64_t tag_out,
+	std::function<uint8_t(uint64_t, uint64_t)> onRunning
 )
 {
 	GCM_ININ;
@@ -577,9 +559,9 @@ void NSROOT::GCM::encrypt_stream(
 
 	BinaryData buffer0{ 16 }, buffer1;
 	uint64_t now = 0, num = 0;
-	while (read_bytes(plain, total, now, buffer0, shift, num) == shift)
+	while (read_bytes(plain, total, now, buffer0.get_data(), shift, num) == shift)
 	{
-
+		if (onRunning(block_size, total) > 0x80) return;
 		incr(iv_, 32);
 		buffer1 = block_encryption(iv_, block_size, key, key_size);
 		buffer0 ^= buffer1;
@@ -616,7 +598,8 @@ void NSROOT::GCM::decrypt_stream(
 	std::istream& crypt, uint64_t total, std::ostream& plain,
 	const BinaryData& available_key,
 	const algorithm::Algorithm& algorithm, padding::padding_func unpadding,
-	const BinaryData& iv, uint64_t shift, const BinaryData& acc, uint64_t tag_out
+	const BinaryData& iv, uint64_t shift, const BinaryData& acc, uint64_t tag_out,
+	std::function<uint8_t(uint64_t, uint64_t)> onRunning
 )
 {
 	GCM_ININ;
@@ -647,8 +630,9 @@ void NSROOT::GCM::decrypt_stream(
 
 	BinaryData buffer0{ 16 }, buffer1;
 	uint64_t now = 0, num = 0;
-	while (read_bytes(crypt, total, now, buffer0, shift, num) == shift&& now < total)
+	while (read_bytes(crypt, total, now, buffer0.get_data(), shift, num) == shift&& now < total)
 	{
+		if (onRunning(block_size, total) > 0x80) return;
 		buffer0.resize(num);
 		buffer0.resize(16);
 		s = GHASH(h, s ^ buffer0);
@@ -681,169 +665,12 @@ void NSROOT::GCM::decrypt_stream(
 	BinaryData now_tag = j0_crypto ^ s;
 	now_tag.resize(tag_out);
 	BinaryData ori_tag{ tag_out };
-	read_bytes(crypt, total + tag_out, now, ori_tag, shift, num);
+	read_bytes(crypt, total + tag_out, now, ori_tag.get_data(), shift, num);
 	//std::cout << now_tag.to_hex_string(true) << std::endl;
 	//std::cout << ori_tag.to_hex_string(true) << std::endl;
-	if (now_tag != ori_tag)
+	if (!now_tag.save_equal(ori_tag))
 	{
-		throw DOG_EXCEPTION(array_to_view(ERROR_TAG_WRONG));
+		throw DOG_EXCEPTION(array_to_view(ERROR_GCM_TAG_WRONG));
 	}
 	plain.flush();
-}
-
-void NSROOT::GCM::encryptp_stream(
-	PauseableChannel& pc,
-	std::istream& plain, uint64_t total, std::ostream& crypt,
-	const BinaryData& available_key,
-	const algorithm::Algorithm& algorithm, padding::padding_func padding,
-	const BinaryData& iv, uint64_t shift, const BinaryData& acc, uint64_t tag_out
-)
-{
-	GCM_ININ;
-	pc.start();
-	BinaryData h_ = block_encryption(BinaryData{ block_size }, block_size, available_key, key_size);
-	auto h = GCM_VALUE_H;
-	if (iv_.size() == 12)
-	{
-		iv_.resize(iv_.size() + 4);
-		iv_.back() = 0x01;
-	}
-	else
-	{
-		uint64_t s = iv_.size() * 8;
-		iv_.resize(fill_size(iv_.size()) + 8);
-		for (uint64_t i = 0; i < 8; ++i)
-		{
-			iv_.push_back(static_cast<uint8_t>(s >> (56 - i * 8)));
-		}
-		iv_ = GHASH(h, iv_);
-	}
-	BinaryData j0_crypto = block_encryption(iv_, block_size, available_key, key_size);
-	BinaryData s = acc;
-	s.resize(fill_size(s.size()));
-	s = GHASH(h, s);
-
-	BinaryData buffer0{ 16 }, buffer1;
-	uint64_t now = 0, num = 0;
-	while (read_bytes(plain, total, now, buffer0, shift, num) == shift)
-	{
-
-		if (pc.check_status()) break;
-		incr(iv_, 32);
-		buffer1 = block_encryption(iv_, block_size, key, key_size);
-		buffer0 ^= buffer1;
-		buffer0.resize(num);
-		crypt.write(buffer0.data_stream(), shift);
-		buffer0.resize(16);
-		s = GHASH(h, s ^ buffer0);
-		pc.add_progress(shift * 1.0 / (total * 8));
-	}
-	incr(iv_, 32);
-	buffer1 = block_encryption(iv_, block_size, key, key_size);
-	buffer0.resize(num);
-	padding(buffer0, shift);
-	buffer0 ^= buffer1.sub_bytes_len(0, buffer0.size());
-	crypt.write(buffer0.data_stream(), buffer0.size());
-	if (buffer0.size())
-	{
-		buffer0.resize(16);
-		s = GHASH(h, s ^ buffer0);
-	}
-	BinaryData len{ 16 };
-	for (uint64_t i = 0; i < 8; ++i)
-	{
-		len[i] = static_cast<uint8_t>((acc.size() * 8) >> (56 - i * 8));
-		len[i + 8] = static_cast<uint8_t>((total * 8) >> (56 - i * 8));
-	}
-	s = GHASH(h, s ^ len);
-	BinaryData tag = j0_crypto ^ s;
-	tag.resize(tag_out);
-	//std::cout << tag.to_hex_string(true) << std::endl;
-	crypt.write(tag.data_stream(), tag_out);
-	crypt.flush();    
-	pc.set_progress(1.0);
-	pc.stop();
-}
-void NSROOT::GCM::decryptp_stream(
-	PauseableChannel& pc,
-	std::istream& crypt, uint64_t total, std::ostream& plain,
-	const BinaryData& available_key,
-	const algorithm::Algorithm& algorithm, padding::padding_func unpadding,
-	const BinaryData& iv, uint64_t shift, const BinaryData& acc, uint64_t tag_out
-)
-{
-	GCM_ININ;
-	pc.start();
-	BinaryData h_ = block_encryption(BinaryData{ block_size }, block_size, available_key, key_size);
-	auto h = GCM_VALUE_H;
-	if (iv_.size() == 12)
-	{
-		iv_.resize(iv_.size() + 4);
-		iv_.back() = 0x01;
-	}
-	else
-	{
-		uint64_t s = iv_.size() * 8;
-		iv_.resize(fill_size(iv_.size()) + 8);
-		for (uint64_t i = 0; i < 8; ++i)
-		{
-			iv_.push_back(static_cast<uint8_t>(s >> (56 - i * 8)));
-		}
-		iv_ = GHASH(h, iv_);
-	}
-	BinaryData j0_crypto = block_encryption(iv_, block_size, available_key, key_size);
-	BinaryData s = acc;
-	s.resize(fill_size(s.size()));
-	s = GHASH(h, s);
-
-	total = total - tag_out;
-
-	BinaryData buffer0{ 16 }, buffer1;
-	uint64_t now = 0, num = 0;
-	while (read_bytes(crypt, total, now, buffer0, shift, num) == shift&& now < total)
-	{
-		if (pc.check_status()) break;
-		buffer0.resize(num);
-		buffer0.resize(16);
-		s = GHASH(h, s ^ buffer0);
-		incr(iv_, 32);
-		buffer1 = block_encryption(iv_, block_size, key, key_size);
-		buffer0 ^= buffer1;
-		plain.write(buffer0.data_stream(), shift);
-		pc.add_progress(shift * 1.0 / (total * 8));
-	}
-	incr(iv_, 32);
-	buffer1 = block_encryption(iv_, block_size, key, key_size);
-	buffer0.resize(num);
-	buffer1.resize(num);
-	buffer1 ^= buffer0;
-	unpadding(buffer1, shift);
-	plain.write(buffer1.data_stream(), buffer0.size());
-	if (buffer0.size())
-	{
-		buffer0.resize(16);
-		s = GHASH(h, s ^ buffer0);
-	}
-
-
-	BinaryData len{ 16 };
-	for (uint64_t i = 0; i < 8; ++i)
-	{
-		len[i] = static_cast<uint8_t>((acc.size() * 8) >> (56 - i * 8));
-		len[i + 8] = static_cast<uint8_t>((total * 8) >> (56 - i * 8));
-	}
-	s = GHASH(h, s ^ len);
-	BinaryData now_tag = j0_crypto ^ s;
-	now_tag.resize(tag_out);
-	BinaryData ori_tag{ tag_out };
-	read_bytes(crypt, total + tag_out, now, ori_tag, shift, num);
-	//std::cout << now_tag.to_hex_string(true) << std::endl;
-	//std::cout << ori_tag.to_hex_string(true) << std::endl;
-	if (now_tag != ori_tag&& pc.status() != dog_torch::async::Status::Stopped)
-	{
-		throw DOG_EXCEPTION(array_to_view(ERROR_TAG_WRONG));
-	}
-	plain.flush();
-	pc.set_progress(1.0);
-	pc.stop();
 }

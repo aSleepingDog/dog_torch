@@ -1,16 +1,7 @@
 #include "math/region.h"
+#include "error_msg.h"
 
 namespace NSROOT = dog_torch::math::region;
-
-using dog_torch::utils::from_c_str;
-
-using dog_torch::utils::from_uint64;
-using dog_torch::utils::array_to_view;
-
-
-constexpr auto ERROR_UNEXPECT_CHAR = from_c_str("Unexpected character");
-constexpr auto ERROR_UNEXPECT_FORMAT = from_c_str("Unexpected format");
-constexpr auto ERROR_NUMBER_OVERFLOW = from_c_str("Number is too big");
 
 uint64_t NSROOT::identify_integer(std::string_view::const_iterator& pos, const std::string_view::const_iterator& end)
 {
@@ -206,11 +197,11 @@ uint64_t NSROOT::identify_integer(std::string_view::const_iterator& pos, const s
     }
     if (stage == -1)
     {
-        throw DOG_EXCEPTION(array_to_view(ERROR_UNEXPECT_CHAR));
+        throw DOG_EXCEPTION(array_to_view(ERROR_REGION_UNEXPECT_CHAR));
     }
     else if (stage == -2)
     {
-        throw DOG_EXCEPTION(array_to_view(ERROR_NUMBER_OVERFLOW));
+        throw DOG_EXCEPTION(array_to_view(ERROR_REGION_NUMBER_OVERFLOW));
     }
     return number;
 }
@@ -257,7 +248,7 @@ NSROOT::NumberIterator::NumberIterator(std::string_view str)
                 c = *pos++;
                 if (c != ',' && c != '|')
                 {
-                    throw DOG_EXCEPTION(array_to_view(ERROR_UNEXPECT_CHAR));
+                    throw DOG_EXCEPTION(array_to_view(ERROR_REGION_UNEXPECT_CHAR));
                 }
             }
         } while (stage == 1);
@@ -269,43 +260,43 @@ NSROOT::NumberIterator::NumberIterator(std::string_view str)
         this->numbers_.push_back(identify_integer(pos, end));
         if (pos == end)
         {
-            throw DOG_EXCEPTION(array_to_view(ERROR_UNEXPECT_FORMAT));
+            throw DOG_EXCEPTION(array_to_view(ERROR_REGION_UNEXPECT_FORMAT));
         }
         else if (*pos != ',')
         {
-            throw DOG_EXCEPTION(array_to_view(ERROR_UNEXPECT_CHAR));
+            throw DOG_EXCEPTION(array_to_view(ERROR_REGION_UNEXPECT_CHAR));
         }
         ++pos;
 
         this->numbers_.push_back(identify_integer(pos, end));
         if (pos == end)
         {
-            throw DOG_EXCEPTION(array_to_view(ERROR_UNEXPECT_FORMAT));
+            throw DOG_EXCEPTION(array_to_view(ERROR_REGION_UNEXPECT_FORMAT));
         }
         else if (*pos != '|')
         {
-            throw DOG_EXCEPTION(array_to_view(ERROR_UNEXPECT_CHAR));
+            throw DOG_EXCEPTION(array_to_view(ERROR_REGION_UNEXPECT_CHAR));
         }
         ++pos;
 
         this->numbers_.push_back(identify_integer(pos, end));
         if (*pos != ']')
         {
-            throw DOG_EXCEPTION(array_to_view(ERROR_UNEXPECT_FORMAT));
+            throw DOG_EXCEPTION(array_to_view(ERROR_REGION_UNEXPECT_FORMAT));
         }
         ++pos;
         if (pos != end)
         {
-            throw DOG_EXCEPTION(array_to_view(ERROR_UNEXPECT_FORMAT));
+            throw DOG_EXCEPTION(array_to_view(ERROR_REGION_UNEXPECT_FORMAT));
         }
 
         if (this->numbers_[1] < this->numbers_[0])
         {
-            throw DOG_EXCEPTION(array_to_view(ERROR_UNEXPECT_FORMAT));
+            throw DOG_EXCEPTION(array_to_view(ERROR_REGION_UNEXPECT_FORMAT));
         }
         else if (this->numbers_[1] == this->numbers_[0] && this->numbers_[2] != 0)
         {
-            throw DOG_EXCEPTION(array_to_view(ERROR_UNEXPECT_FORMAT));
+            throw DOG_EXCEPTION(array_to_view(ERROR_REGION_UNEXPECT_FORMAT));
         }
         this->index_ = this->numbers_[0];
     }
@@ -365,6 +356,8 @@ uint64_t NSROOT::NumberIterator::next()
     }
 }
 
+#if defined(EN_C_API)
+
 #define NAMESPACE(name) dog_torch__region__##name
 #define UTILS(name) dog_torch__utils__##name
 
@@ -395,7 +388,7 @@ UTILS(CppUint64Array)* NAMESPACE(NumberIterator_all_numbers)(LVALUE(NAMESPACE(Nu
 
 void NAMESPACE(NumberIterator_delete)(NAMESPACE(NumberIterator)** self)
 {
-    DEFAULT_DESTOTY(self);
+    DEFAULT_DESTROY(self);
 }
 
 uint8_t NAMESPACE(NumberIterator_has_next)(const LVALUE(NAMESPACE(NumberIterator))self)
@@ -411,3 +404,4 @@ uint64_t NAMESPACE(NumberIterator_next)(LVALUE(NAMESPACE(NumberIterator))self)
 }
 #undef NAMESPACE
 #undef UTILS
+#endif

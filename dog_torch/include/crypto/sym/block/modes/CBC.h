@@ -4,13 +4,7 @@
 #include <iostream>
 #include <functional>
 
-#include "utils/compile.h"
-#include "serialize/serialize.h"
-#include "crypto/sym/sym_base.h"
 #include "crypto/sym/block/sym_block_base.h"
-#include "async/thread/async_thread_base.h"
-#include "serialize/stream.h"
-#include "utils/tmp_macro.h"
 
 namespace dog_torch::crypto::sym::block::mode
 {
@@ -46,9 +40,6 @@ namespace dog_torch::crypto::sym::block::mode
 		stream_crypt_func get_stream_encrypt() const override;
 		stream_crypt_func get_stream_decrypt() const override;
 
-		streamp_crypt_func get_streamp_encrypt() const override;
-		streamp_crypt_func get_streamp_decrypt() const override;
-
 		static BinaryData encrypt(
 			const BinaryData& plain, 
 			const BinaryData& available_key,
@@ -62,24 +53,14 @@ namespace dog_torch::crypto::sym::block::mode
 		static void encrypt_stream(
 			std::istream& plain, uint64_t total, std::ostream& crypt, 
 			const BinaryData& available_key,
-			const algorithm::Algorithm& algorithm, padding::padding_func padding, const BinaryData& iv
+			const algorithm::Algorithm& algorithm, padding::padding_func padding, const BinaryData& iv,
+			std::function<uint8_t(uint64_t, uint64_t)> = alwaysRunning
 		);
 		static void decrypt_stream(
 			std::istream& crypt, uint64_t total, std::ostream& plain, 
 			const BinaryData& available_key,
-			const algorithm::Algorithm& algorithm, padding::padding_func unpadding, const BinaryData& iv
-		);
-		static void encryptp_stream(
-			PauseableChannel& pc,
-			std::istream& plain, uint64_t total, std::ostream& crypt, 
-			const BinaryData& available_key,
-			const algorithm::Algorithm& algorithm, padding::padding_func padding, const BinaryData& iv
-		);
-		static void decryptp_stream(
-			PauseableChannel& pc,
-			std::istream& crypt, uint64_t total, std::ostream& plain, 
-			const BinaryData& available_key,
-			const algorithm::Algorithm& algorithm, padding::padding_func unpadding, const BinaryData& iv
+			const algorithm::Algorithm& algorithm, padding::padding_func unpadding, const BinaryData& iv,
+			std::function<uint8_t(uint64_t, uint64_t)> = alwaysRunning
 		);
 	};
 }

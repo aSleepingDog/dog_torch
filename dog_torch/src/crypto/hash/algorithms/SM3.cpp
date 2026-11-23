@@ -1,16 +1,9 @@
 #include "crypto/hash/algorithms/SM3.h"
+#include "error_msg.h"
 
 namespace NSROOT = dog_torch::crypto::hash::algorithm;
 using dog_torch::serialize::BinaryData;
 using dog_torch::serialize::from_hex;
-using dog_torch::utils::from_c_str;
-
-using dog_torch::utils::from_uint64;
-using dog_torch::utils::array_to_view;
-
-
-constexpr auto ERROR_WRONG_BLOCK_SIZE = from_c_str("SM3: block size must be 64 bytes");
-constexpr auto ERROR_LARGE_DATA_SIZE = from_c_str("SM3: data size is too large");
 
 uint64_t NSROOT::SM3::max()
 {
@@ -92,7 +85,7 @@ bool NSROOT::SM3::have_next_block(uint64_t data_pos, uint64_t data_total)
 {
 	if (data_total > this->max())
 	{
-		throw DOG_EXCEPTION(array_to_view(ERROR_LARGE_DATA_SIZE));
+		throw DOG_EXCEPTION(array_to_view(ERROR_SM3_LARGE_DATA_SIZE));
 	}
 	auto dur = (data_total - data_pos);
 	return dur >= 64 ? true : !this->is_padding_num_;
@@ -101,7 +94,7 @@ BinaryData NSROOT::SM3::next_block(const BinaryData& data, uint64_t start, uint6
 {
 	if (data_total > this->max())
 	{
-		throw DOG_EXCEPTION(array_to_view(ERROR_LARGE_DATA_SIZE));
+		throw DOG_EXCEPTION(array_to_view(ERROR_SM3_LARGE_DATA_SIZE));
 	}
 	auto res = data.sub_bytes_len(data_pos - start, 64);
 	data_pos += res.size();
@@ -135,11 +128,11 @@ BinaryData NSROOT::SM3::next_block(std::istream& data, uint64_t& data_pos, uint6
 	using dog_torch::serialize::stream::read_bytes;
 	if (data_total > this->max())
 	{
-		throw DOG_EXCEPTION(array_to_view(ERROR_LARGE_DATA_SIZE));
+		throw DOG_EXCEPTION(array_to_view(ERROR_SM3_LARGE_DATA_SIZE));
 	}
 	BinaryData res(64);
 	uint64_t read_size = 0;
-	read_bytes(data, data_total, data_pos, res, 64, read_size);
+	read_bytes(data, data_total, data_pos, res.get_data(), 64, read_size);
 	if (res.size() >= 64) return res;
 	else
 	{
@@ -204,7 +197,7 @@ void NSROOT::SM3::single_update(const BinaryData& block_, BinaryData& value)
 {
 	if (block_.size() != 64)
 	{
-		throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_BLOCK_SIZE));
+		throw DOG_EXCEPTION(array_to_view(ERROR_SM3_WRONG_BLOCK_SIZE));
 	}
 	auto block = block_;
 	uint32_t tempN[8], tempH[8];
@@ -265,6 +258,7 @@ void NSROOT::SM3::single_update(const BinaryData& block_, BinaryData& value)
 	}
 }
 
+#if defined(EN_C_API)
 #define NAMESPACE(name) dog_torch__crypto__hash__SM3_##name
 #define SERIALIZE(name) dog_torch__serialize__##name
 #define UTILS(name)     dog_torch__utils__##name
@@ -323,3 +317,4 @@ SERIALIZE(BinaryData)* NAMESPACE(file)(LVALUE(UTILS(CppResultSet)) result_set, c
 #undef NAMESPACE
 #undef SERIALIZE
 #undef UTILS
+#endif

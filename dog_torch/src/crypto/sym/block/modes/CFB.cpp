@@ -81,7 +81,7 @@ Value NSROOT::CFB::serialize() const
 {
     using dog_torch::serialize::tlv::MIBString;
     using dog_torch::math::number::Integer64;
-    auto total = static_cast<Mode>(*this).serialize();
+    auto total = reinterpret_cast<const Mode*>(this)->serialize();
     total.to_array()[0] = MIBString{ this->config().name };
     Value params = std::unordered_map<MIBString, Value>{};
     params.to_object()[MIBString{ "shift" }] = Value{ Integer64{this->shift_} };
@@ -138,34 +138,17 @@ NSROOT::crypt_func NSROOT::CFB::get_mult_decrypt() const
 
 NSROOT::stream_crypt_func NSROOT::CFB::get_stream_encrypt() const
 {
-    return [this](std::istream& p, uint64_t t, std::ostream& c, const BinaryData& k, const algorithm::Algorithm& a)->void
+    return [this](std::function<uint8_t(uint64_t, uint64_t)> onRunning, std::istream& p, uint64_t t, std::ostream& c, const BinaryData& k, const algorithm::Algorithm& a)->void
         {
-            return CFB::encrypt_stream(p, t, c, k, a, this->padding_->get_padding(), this->iv_, this->shift_);
+            return CFB::encrypt_stream(p, t, c, k, a, this->padding_->get_padding(), this->iv_, this->shift_, onRunning);
         };
 }
 NSROOT::stream_crypt_func NSROOT::CFB::get_stream_decrypt() const
 {
-    return [this](std::istream& p, uint64_t t, std::ostream& c, const BinaryData& k, const algorithm::Algorithm& a)->void
+    return [this](std::function<uint8_t(uint64_t, uint64_t)> onRunning, std::istream& p, uint64_t t, std::ostream& c, const BinaryData& k, const algorithm::Algorithm& a)->void
         {
-            return CFB::decrypt_stream(p, t, c, k, a, this->padding_->get_unpadding(), this->iv_, this->shift_);
+            return CFB::decrypt_stream(p, t, c, k, a, this->padding_->get_unpadding(), this->iv_, this->shift_, onRunning);
         };
-}
-
-NSROOT::streamp_crypt_func NSROOT::CFB::get_streamp_encrypt() const
-{
-    return [this](PauseableChannel& pc, std::istream& p, uint64_t t, std::ostream& c, const BinaryData& k, const algorithm::Algorithm& a)->void
-        {
-            return CFB::encryptp_stream(pc, p, t, c, k, a, this->padding_->get_padding(), this->iv_, this->shift_);
-        };
-
-}
-NSROOT::streamp_crypt_func NSROOT::CFB::get_streamp_decrypt() const
-{
-    return [this](PauseableChannel& pc, std::istream& p, uint64_t t, std::ostream& c, const BinaryData& k, const algorithm::Algorithm& a)->void
-        {
-            return CFB::decryptp_stream(pc, p, t, c, k, a, this->padding_->get_unpadding(), this->iv_, this->shift_);
-        };
-
 }
 
 #define CFB_INIT \
@@ -195,7 +178,7 @@ BinaryData NSROOT::CFB::encrypt(
 
     BinaryData buffer, buffer0;
     uint64_t now = 0, num = 0;
-    while (read_bytes(plain, plain.size(), now, buffer, shift, num) == shift)
+    while (read_bytes(plain.get_data(), plain.size(), now, buffer.get_data(), shift, num) == shift)
     {
         buffer0 = iv_;
         block_self_encryption(iv_, block_size, key, key_size);
@@ -224,7 +207,7 @@ BinaryData NSROOT::CFB::decrypt(
 
     BinaryData buffer0,buffer1,buffer2;
     uint64_t now = 0, num = 0;
-    while (read_bytes(crypt, crypt.size(), now, buffer0, shift, num) == shift && now < crypt.size())
+    while (read_bytes(crypt.get_data(), crypt.size(), now, buffer0.get_data(), shift, num) == shift && now < crypt.size())
     {
         buffer1 = buffer0;
         buffer2 = iv_;
@@ -245,14 +228,16 @@ BinaryData NSROOT::CFB::decrypt(
 void NSROOT::CFB::encrypt_stream(
     std::istream& plain, uint64_t total, std::ostream& crypt, 
     const BinaryData& available_key, 
-    const algorithm::Algorithm& algorithm, padding::padding_func padding, const BinaryData& iv, uint64_t shift)
+    const algorithm::Algorithm& algorithm, padding::padding_func padding, const BinaryData& iv, uint64_t shift,
+    std::function<uint8_t(uint64_t, uint64_t)> onRunning)
 {
     CFB_EN_INIT;
 
     BinaryData buffer, buffer0;
     uint64_t now = 0, num = 0;
-    while (read_bytes(plain, total, now, buffer, shift, num) == shift)
+    while (read_bytes(plain, total, now, buffer.get_data(), shift, num) == shift)
     {
+        if (onRunning(block_size, total) > 0x80) return;
         buffer0 = iv_;
         block_self_encryption(iv_, block_size, key, key_size);
         buffer ^= iv_.sub_bytes_len(0, shift);
@@ -271,14 +256,16 @@ void NSROOT::CFB::encrypt_stream(
 void NSROOT::CFB::decrypt_stream(
     std::istream& crypt, uint64_t total, std::ostream& plain,
     const BinaryData& available_key, 
-    const algorithm::Algorithm& algorithm, padding::padding_func unpadding, const BinaryData& iv, uint64_t shift)
+    const algorithm::Algorithm& algorithm, padding::padding_func unpadding, const BinaryData& iv, uint64_t shift,
+    std::function<uint8_t(uint64_t, uint64_t)> onRunning)
 {
     CFB_EN_INIT;
 
     BinaryData buffer0, buffer1, buffer2;
     uint64_t now = 0, num = 0;
-    while (read_bytes(crypt, total, now, buffer0, shift, num) == shift&& now < total)
+    while (read_bytes(crypt, total, now, buffer0.get_data(), shift, num) == shift&& now < total)
     {
+        if (onRunning(block_size, total) > 0x80) return;
         buffer1 = buffer0;
         buffer2 = iv_;
         block_self_encryption(iv_, block_size, key, key_size);
@@ -293,69 +280,6 @@ void NSROOT::CFB::decrypt_stream(
     unpadding(buffer0, shift);
     plain.write(buffer0.data_stream(), buffer0.size());
     plain.flush();
-}
-
-void NSROOT::CFB::encryptp_stream(
-    PauseableChannel& pc, 
-    std::istream& plain, uint64_t total, std::ostream& crypt, 
-    const BinaryData& available_key, 
-    const algorithm::Algorithm& algorithm, padding::padding_func padding, const BinaryData& iv, uint64_t shift)
-{
-    CFB_EN_INIT;
-    pc.start();
-    BinaryData buffer, buffer0;
-    uint64_t now = 0, num = 0;
-    while (read_bytes(plain, total, now, buffer, shift, num) == shift)
-    {
-        if (pc.check_status()) break;
-        buffer0 = iv_;
-        block_self_encryption(iv_, block_size, key, key_size);
-        buffer ^= iv_.sub_bytes_len(0, shift);
-        crypt.write(buffer.data_stream(), shift);
-        std::move(buffer0.begin() + shift, buffer0.end(), buffer0.begin());
-        std::copy(buffer.begin(), buffer.end(), buffer0.end() - shift);
-        iv_ = buffer0;
-        pc.add_progress(shift * 1.0 / total);
-    }
-    buffer0 = iv_;
-    block_self_encryption(iv_, block_size, key, key_size);
-    padding(buffer, shift);
-    buffer ^= iv_.sub_bytes_len(0, buffer.size());
-    crypt.write(buffer.data_stream(), buffer.size());
-    crypt.flush();
-    pc.set_progress(1.0);
-    pc.stop();
-}
-void NSROOT::CFB::decryptp_stream(
-    PauseableChannel& pc, 
-    std::istream& crypt, uint64_t total, std::ostream& plain, 
-    const BinaryData& available_key, 
-    const algorithm::Algorithm& algorithm, padding::padding_func unpadding, const BinaryData& iv, uint64_t shift)
-{
-    CFB_EN_INIT;
-    pc.start();
-    BinaryData buffer0, buffer1, buffer2;
-    uint64_t now = 0, num = 0;
-    while (read_bytes(crypt, total, now, buffer0, shift, num) == shift&& now < total)
-    {
-        if (pc.check_status()) break;
-        buffer1 = buffer0;
-        buffer2 = iv_;
-        block_self_encryption(iv_, block_size, key, key_size);
-        buffer0 ^= iv_.sub_bytes_len(0, shift);
-        plain.write(buffer0.data_stream(), shift);
-        std::move(buffer2.begin() + shift, buffer2.end(), buffer2.begin());
-        std::copy(buffer1.begin(), buffer1.end(), buffer2.end() - shift);
-        iv_ = buffer2;
-        pc.add_progress(shift * 1.0 / total);
-    }
-    block_self_encryption(iv_, block_size, key, key_size);
-    buffer0 ^= iv_.sub_bytes_len(0, num);
-    unpadding(buffer0, shift);
-    plain.write(buffer0.data_stream(), buffer0.size());
-    plain.flush();
-    pc.set_progress(1.0);
-    pc.stop();
 }
 
 NSROOT::CFBb::CFBb(const BinaryData& iv, uint64_t shift, const padding::Padding& padding)
@@ -435,7 +359,7 @@ Value NSROOT::CFBb::serialize() const
 {
     using dog_torch::serialize::tlv::MIBString;
     using dog_torch::math::number::Integer64;
-    auto total = static_cast<Mode>(*this).serialize();
+    auto total = reinterpret_cast<const Mode*>(this)->serialize();
     total.to_array()[0] = MIBString{ this->config().name };
     Value params = std::unordered_map<MIBString, Value>{};
     params.to_object()[MIBString{ "shift" }] = Value{ Integer64{this->shift_} };
@@ -507,57 +431,28 @@ NSROOT::stream_crypt_func NSROOT::CFBb::get_stream_encrypt() const
 {
     if (this->shift_ % 8 == 0) 
     {
-        return [this](std::istream& p, uint64_t t, std::ostream& c, const BinaryData& k, const algorithm::Algorithm& a)->void
+        return [this](std::function<uint8_t(uint64_t, uint64_t)> onRunning, std::istream& p, uint64_t t, std::ostream& c, const BinaryData& k, const algorithm::Algorithm& a)->void
             {
-                return CFB::encrypt_stream(p, t, c, k, a, this->padding_->get_padding(), this->iv_, this->shift_ / 8);
+                return CFB::encrypt_stream(p, t, c, k, a, this->padding_->get_padding(), this->iv_, this->shift_ / 8, onRunning);
             };
     }
-    return [this](std::istream& p, uint64_t t, std::ostream& c, const BinaryData& k, const algorithm::Algorithm& a)->void
+    return [this](std::function<uint8_t(uint64_t, uint64_t)> onRunning, std::istream& p, uint64_t t, std::ostream& c, const BinaryData& k, const algorithm::Algorithm& a)->void
         {
-            return CFBb::encrypt_stream(p, t, c, k, a, this->iv_, this->shift_);
+            return CFBb::encrypt_stream(p, t, c, k, a, this->iv_, this->shift_, onRunning);
         };
 }
 NSROOT::stream_crypt_func NSROOT::CFBb::get_stream_decrypt() const
 {
     if (this->shift_ % 8 == 0) 
     {
-        return [this](std::istream& p, uint64_t t, std::ostream& c, const BinaryData& k, const algorithm::Algorithm& a)->void
+        return [this](std::function<uint8_t(uint64_t, uint64_t)> onRunning, std::istream& p, uint64_t t, std::ostream& c, const BinaryData& k, const algorithm::Algorithm& a)->void
             {
-                return CFB::decrypt_stream(p, t, c, k, a, this->padding_->get_unpadding(), this->iv_, this->shift_ / 8);
+                return CFB::decrypt_stream(p, t, c, k, a, this->padding_->get_unpadding(), this->iv_, this->shift_ / 8, onRunning);
             };
     }
-    return [this](std::istream& p, uint64_t t, std::ostream& c, const BinaryData& k, const algorithm::Algorithm& a)->void
+    return [this](std::function<uint8_t(uint64_t, uint64_t)> onRunning, std::istream& p, uint64_t t, std::ostream& c, const BinaryData& k, const algorithm::Algorithm& a)->void
         {
-            return CFBb::decrypt_stream(p, t, c, k, a, this->iv_, this->shift_);
-        };
-}
-
-NSROOT::streamp_crypt_func NSROOT::CFBb::get_streamp_encrypt() const
-{
-    if (this->shift_ % 8 == 0)
-    {
-        return [this](PauseableChannel& pc, std::istream& p, uint64_t t, std::ostream& c, const BinaryData& k, const algorithm::Algorithm& a)->void
-            {
-                return CFB::encryptp_stream(pc, p, t, c, k, a, this->padding_->get_padding(), this->iv_, this->shift_ / 8);
-            };
-    }
-    return [this](PauseableChannel& pc, std::istream& p, uint64_t t, std::ostream& c, const BinaryData& k, const algorithm::Algorithm& a)->void
-        {
-            return CFBb::encryptp_stream(pc, p, t, c, k, a, this->iv_, this->shift_);
-        };
-}
-NSROOT::streamp_crypt_func NSROOT::CFBb::get_streamp_decrypt() const
-{
-    if (this->shift_ % 8 == 0)
-    {
-        return [this](PauseableChannel& pc, std::istream& p, uint64_t t, std::ostream& c, const BinaryData& k, const algorithm::Algorithm& a)->void
-            {
-                return CFB::decryptp_stream(pc, p, t, c, k, a, this->padding_->get_unpadding(), this->iv_, this->shift_ / 8);
-            };
-    }
-    return [this](PauseableChannel& pc, std::istream& p, uint64_t t, std::ostream& c, const BinaryData& k, const algorithm::Algorithm& a)->void
-        {
-            return CFBb::decryptp_stream(pc, p, t, c, k, a, this->iv_, this->shift_);
+            return CFBb::decrypt_stream(p, t, c, k, a, this->iv_, this->shift_, onRunning);
         };
 }
 
@@ -573,12 +468,12 @@ BinaryData NSROOT::CFBb::encrypt(
     BinaryData buffer, buffer0;
     uint64_t now = 0, num = 0;
     uint8_t read_now_bit = 0, output_byte_buffer = 0, write_next_bit = 0;
-    while (read_bits(plain, plain.size(), now, read_now_bit, buffer, shift, num) == shift)
+    while (read_bits(plain.get_data(), plain.size(), now, read_now_bit, buffer.get_data(), shift, num) == shift)
     {
         buffer0 = iv_;
         block_self_encryption(iv_, block_size, key, key_size);
         buffer ^= iv_;
-        write_bits(crypt, output_byte_buffer, write_next_bit, shift, buffer, num);
+        write_bits(crypt.get_data(), output_byte_buffer, write_next_bit, shift, buffer.get_data(), num);
         buffer0.bit_move_self(false, false, shift);
         buffer0.resize(block_size);
         buffer.bit_move_self(true, false, (block_size * 8 - shift));
@@ -588,7 +483,7 @@ BinaryData NSROOT::CFBb::encrypt(
     buffer0 = iv_;
     block_self_encryption(iv_, block_size, key, key_size);
     buffer ^= iv_;
-    write_bits(crypt, output_byte_buffer, write_next_bit, shift, buffer, num);
+    write_bits(crypt.get_data(), output_byte_buffer, write_next_bit, shift, buffer.get_data(), num);
     return crypt;
 }
 BinaryData NSROOT::CFBb::decrypt(
@@ -603,13 +498,13 @@ BinaryData NSROOT::CFBb::decrypt(
     BinaryData buffer0, buffer1, buffer2;
     uint64_t now = 0, num = 0;
     uint8_t read_now_bit = 0, output_byte_buffer = 0, write_next_bit = 0;
-    while (read_bits(crypt, crypt.size(), now, read_now_bit, buffer0, shift, num) == shift)
+    while (read_bits(crypt.get_data(), crypt.size(), now, read_now_bit, buffer0.get_data(), shift, num) == shift)
     {
         buffer2 = iv_;
         buffer1 = buffer0;
         block_self_encryption(iv_, block_size, key, key_size);
         buffer0 ^= iv_;
-        write_bits(plain, output_byte_buffer, write_next_bit, shift, buffer0, num);
+        write_bits(plain.get_data(), output_byte_buffer, write_next_bit, shift, buffer0.get_data(), num);
         buffer2.bit_move_self(false, false, shift);
         buffer2.resize(block_size);
         buffer1 >>= (block_size * 8 - shift);
@@ -618,25 +513,27 @@ BinaryData NSROOT::CFBb::decrypt(
     }
     block_self_encryption(iv_, block_size, key, key_size);
     buffer0 ^= iv_;
-    write_bits(plain, output_byte_buffer, write_next_bit, shift, buffer0, num);
+    write_bits(plain.get_data(), output_byte_buffer, write_next_bit, shift, buffer0.get_data(), num);
     return plain;
 }
 
 void NSROOT::CFBb::encrypt_stream(
     std::istream& plain, uint64_t total, std::ostream& crypt, 
     const BinaryData& available_key, 
-    const algorithm::Algorithm& algorithm, const BinaryData& iv, uint64_t shift)
+    const algorithm::Algorithm& algorithm, const BinaryData& iv, uint64_t shift,
+    std::function<uint8_t(uint64_t, uint64_t)> onRunning)
 {
     CFB_EN_INIT;
     BinaryData buffer, buffer0;
     uint64_t now = 0, num = 0;
     uint8_t read_now_bit = 0, output_byte_buffer = 0, write_next_bit = 0;
-    while (read_bits(plain, total, now, read_now_bit, buffer, shift, num) == shift)
+    while (read_bits(plain, total, now, read_now_bit, buffer.get_data(), shift, num) == shift)
     {
+        if (onRunning(block_size, total) > 0x80) return;
         buffer0 = iv_;
         block_self_encryption(iv_, block_size, key, key_size);
         buffer ^= iv_;
-        write_bits(crypt, output_byte_buffer, write_next_bit, shift, buffer, num);
+        write_bits(crypt, output_byte_buffer, write_next_bit, shift, buffer.get_data(), num);
         buffer0.bit_move_self(false, false, shift);
         buffer0.resize(block_size);
         buffer.bit_move_self(true, false, (block_size * 8 - shift));
@@ -645,25 +542,27 @@ void NSROOT::CFBb::encrypt_stream(
     }
     block_self_encryption(iv_, block_size, key, key_size);
     buffer ^= iv_;
-    write_bits(crypt, output_byte_buffer, write_next_bit, shift, buffer, num);
+    write_bits(crypt, output_byte_buffer, write_next_bit, shift, buffer.get_data(), num);
     crypt.flush();
 }
 void NSROOT::CFBb::decrypt_stream(
     std::istream& crypt, uint64_t total, std::ostream& plain,
     const BinaryData& available_key,
-    const algorithm::Algorithm& algorithm, const BinaryData& iv, uint64_t shift)
+    const algorithm::Algorithm& algorithm, const BinaryData& iv, uint64_t shift,
+    std::function<uint8_t(uint64_t, uint64_t)> onRunning)
 {
     CFB_EN_INIT;
     BinaryData buffer0, buffer1, buffer2;
     uint64_t now = 0, num = 0;
     uint8_t read_now_bit = 0, output_byte_buffer = 0, write_next_bit = 0;
-    while (read_bits(crypt, total, now, read_now_bit, buffer0, shift, num) == shift)
+    while (read_bits(crypt, total, now, read_now_bit, buffer0.get_data(), shift, num) == shift)
     {
+        if (onRunning(block_size, total) > 0x80) return;
         buffer2 = iv_;
         buffer1 = buffer0;
         block_self_encryption(iv_, block_size, key, key_size);
         buffer0 ^= iv_;
-        write_bits(plain, output_byte_buffer, write_next_bit, shift, buffer0, num);
+        write_bits(plain, output_byte_buffer, write_next_bit, shift, buffer0.get_data(), num);
         buffer2.bit_move_self(false, false, shift);
         buffer2.resize(block_size);
         buffer1 >>= (block_size * 8 - shift);
@@ -672,72 +571,7 @@ void NSROOT::CFBb::decrypt_stream(
     }
     block_self_encryption(iv_, block_size, key, key_size);
     buffer0 ^= iv_;
-    write_bits(plain, output_byte_buffer, write_next_bit, shift, buffer0, num);
+    write_bits(plain, output_byte_buffer, write_next_bit, shift, buffer0.get_data(), num);
     plain.flush();
 }
 
-void NSROOT::CFBb::encryptp_stream(
-    PauseableChannel& pc, 
-    std::istream& plain, uint64_t total, std::ostream& crypt, 
-    const BinaryData& available_key, 
-    const algorithm::Algorithm& algorithm, const BinaryData& iv, uint64_t shift)
-{
-    CFB_EN_INIT;
-    pc.start();
-    BinaryData buffer, buffer0;
-    uint64_t now = 0, num = 0;
-    uint8_t read_now_bit = 0, output_byte_buffer = 0, write_next_bit = 0;
-    while (read_bits(plain, total, now, read_now_bit, buffer, shift, num) == shift)
-    {
-        if (pc.check_status()) break;
-        buffer0 = iv_;
-        block_self_encryption(iv_, block_size, key, key_size);
-        buffer ^= iv_;
-        write_bits(crypt, output_byte_buffer, write_next_bit, shift, buffer, num);
-        buffer0.bit_move_self(false, false, shift);
-        buffer0.resize(block_size);
-        buffer.bit_move_self(true, false, (block_size * 8 - shift));
-        buffer0 ^= buffer;
-        iv_ = buffer0;
-        pc.add_progress(num * 1.0 / (total * 8));
-    }
-    block_self_encryption(iv_, block_size, key, key_size);
-    buffer ^= iv_;
-    write_bits(crypt, output_byte_buffer, write_next_bit, shift, buffer, num);
-    crypt.flush();
-    pc.set_progress(1.0);
-    pc.stop();
-}
-void NSROOT::CFBb::decryptp_stream(
-    PauseableChannel& pc, 
-    std::istream& crypt, uint64_t total, std::ostream& plain, 
-    const BinaryData& available_key, 
-    const algorithm::Algorithm& algorithm, const BinaryData& iv, uint64_t shift)
-{
-    CFB_EN_INIT;
-    pc.start();
-    BinaryData buffer0, buffer1, buffer2;
-    uint64_t now = 0, num = 0;
-    uint8_t read_now_bit = 0, output_byte_buffer = 0, write_next_bit = 0;
-    while (read_bits(crypt, total, now, read_now_bit, buffer0, shift, num) == shift)
-    {
-        if (pc.check_status()) break;
-        buffer2 = iv_;
-        buffer1 = buffer0;
-        block_self_encryption(iv_, block_size, key, key_size);
-        buffer0 ^= iv_;
-        write_bits(plain, output_byte_buffer, write_next_bit, shift, buffer0, num);
-        buffer2.bit_move_self(false, false, shift);
-        buffer2.resize(block_size);
-        buffer1 >>= (block_size * 8 - shift);
-        buffer2 ^= buffer1;
-        iv_ = buffer2;
-        pc.add_progress(num * 1.0 / (total * 8));
-    }
-    block_self_encryption(iv_, block_size, key, key_size);
-    buffer0 ^= iv_;
-    write_bits(plain, output_byte_buffer, write_next_bit, shift, buffer0, num);
-    plain.flush();
-    pc.set_progress(1.0);
-    pc.stop();
-}

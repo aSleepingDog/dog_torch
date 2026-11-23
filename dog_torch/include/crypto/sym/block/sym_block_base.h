@@ -12,8 +12,6 @@
 
 namespace dog_torch::crypto::sym::block
 {
-	using PauseableChannel = dog_torch::async::thread::PauseableChannel;
-
 	namespace algorithm
 	{
 		struct CPP_API Config
@@ -38,8 +36,8 @@ namespace dog_torch::crypto::sym::block
 			virtual ~Algorithm() = default;
 
 			//static const Config& allowed_config();
-			virtual Config config() const;
-			virtual std::unique_ptr<Algorithm> clone() const;
+			virtual Config config() const = 0;
+			virtual std::unique_ptr<Algorithm> clone() const = 0;
 			virtual std::string fmt_string() const;
 			virtual Value serialize() const;
 
@@ -48,11 +46,11 @@ namespace dog_torch::crypto::sym::block
 			virtual uint64_t get_block_size() const;
 			virtual uint64_t get_key_size() const;
 
-			virtual extend_key_func           get_extend_key() const;
-			virtual block_cryption_func       get_encrypt() const;
-			virtual block_cryption_func       get_decrypt() const;
-			virtual block_self_cryption_func  get_encrypt_self() const;
-			virtual block_self_cryption_func  get_decrypt_self() const;
+			virtual extend_key_func           get_extend_key() const = 0;
+			virtual block_cryption_func       get_encrypt() const = 0;
+			virtual block_cryption_func       get_decrypt() const = 0;
+			virtual block_self_cryption_func  get_encrypt_self() const = 0;
+			virtual block_self_cryption_func  get_decrypt_self() const = 0;
 		};
 	}
 	namespace padding
@@ -78,13 +76,13 @@ namespace dog_torch::crypto::sym::block
 
 			virtual ~Padding() = default;
 
-			virtual Config config() const;
-			virtual std::unique_ptr<Padding> clone() const;
+			virtual Config config() const = 0;
+			virtual std::unique_ptr<Padding> clone() const = 0;
 			virtual std::string fmt_string() const;
 			virtual Value serialize() const;
-			virtual bool check(uint64_t block_size) const;
-			virtual padding_func get_padding() const;
-			virtual padding_func get_unpadding() const;
+			virtual bool check(uint64_t block_size) const = 0;
+			virtual padding_func get_padding() const = 0;
+			virtual padding_func get_unpadding() const = 0;
 		};
 
 		struct CPP_API NoPadding : public Padding
@@ -103,8 +101,7 @@ namespace dog_torch::crypto::sym::block
 	namespace mode
 	{
 		using crypt_func = std::function<BinaryData(const BinaryData&, const BinaryData&, const algorithm::Algorithm&)>;
-		using stream_crypt_func = std::function<void(std::istream&, uint64_t, std::ostream&, const BinaryData&, const algorithm::Algorithm&)>;
-		using streamp_crypt_func = std::function<void(PauseableChannel&, std::istream&, uint64_t, std::ostream&, const BinaryData&, const algorithm::Algorithm&)>;
+		using stream_crypt_func = std::function<void(std::function<uint8_t(uint64_t, uint64_t)>, std::istream&, uint64_t, std::ostream&, const BinaryData&, const algorithm::Algorithm&)>;
 
 
 		struct CPP_API Config
@@ -124,7 +121,7 @@ namespace dog_torch::crypto::sym::block
 
 			Mode(const padding::Padding& padding);
 			Mode(const std::unique_ptr<padding::Padding>& padding);
-			Mode(std::unique_ptr<padding::Padding>&& padding);
+			Mode(std::unique_ptr<padding::Padding>&& padding) noexcept;
 
 			Mode(const Mode& other);
 			Mode& operator=(const Mode& other);
@@ -132,11 +129,10 @@ namespace dog_torch::crypto::sym::block
 			Mode& operator=(Mode&& other) noexcept;
 
 			virtual ~Mode() = default;
-			virtual std::unique_ptr<Mode> clone() const;
+			virtual std::unique_ptr<Mode> clone() const = 0;
 
-			static Config params_config();
-			virtual Config config() const;
-			virtual std::string fmt_string() const;
+			virtual Config config() const = 0;
+			virtual std::string fmt_string() const = 0;
 			virtual Value serialize() const;
 
 			virtual bool set_uint64_param(const std::string& param, uint64_t value);
@@ -144,16 +140,13 @@ namespace dog_torch::crypto::sym::block
 			virtual bool set_binary_param(const std::string& param, const BinaryData& value);
 			virtual bool set_padding(const padding::Padding& value);
 
-			virtual bool check(const algorithm::Algorithm& algorithm) const;
+			virtual bool check(const algorithm::Algorithm& algorithm) const = 0;
 
-			virtual crypt_func get_mult_encrypt() const;
-			virtual crypt_func get_mult_decrypt() const;
+			virtual crypt_func get_mult_encrypt() const = 0;
+			virtual crypt_func get_mult_decrypt() const = 0;
 
-			virtual stream_crypt_func get_stream_encrypt() const;
-			virtual stream_crypt_func get_stream_decrypt() const;
-
-			virtual streamp_crypt_func get_streamp_encrypt() const;
-			virtual streamp_crypt_func get_streamp_decrypt() const;
+			virtual stream_crypt_func get_stream_encrypt() const = 0;
+			virtual stream_crypt_func get_stream_decrypt() const = 0;
 		};
 	}
 
@@ -167,33 +160,35 @@ namespace dog_torch::crypto::sym::block
 		BlockCipher();
 		BlockCipher(const algorithm::Algorithm& algorithm, const mode::Mode& mode);
 		BlockCipher(const BinaryData& key, const algorithm::Algorithm& algorithm, const mode::Mode& mode);
+		BlockCipher(std::unique_ptr<algorithm::Algorithm>&& algorithm, std::unique_ptr<mode::Mode>&& mode);
+		BlockCipher(const BinaryData& key, std::unique_ptr<algorithm::Algorithm>&& algorithm, std::unique_ptr<mode::Mode>&& mode);
 		std::unique_ptr<Cipher> clone() const override;
 		~BlockCipher();
 
-		BlockCipher(const BlockCipher& other) = delete;
-		BlockCipher(BlockCipher&& other) = default;
+		BlockCipher(const BlockCipher& other);
+		BlockCipher& operator=(const BlockCipher& other);
+		BlockCipher(BlockCipher&& other) noexcept;
+		BlockCipher& operator=(BlockCipher&& other) noexcept;
 
 		void init() override;
 		bool effective() const override;
 		std::string fmt_string() const override;
 		Value serialize() const override;
 		algorithm::Algorithm& algorithm();
-		const algorithm::Algorithm& const_algorithm() const;
+		const algorithm::Algorithm& algorithm() const;
 		mode::Mode& mode();
-		const mode::Mode& const_mode() const;
+		const mode::Mode& mode() const;
 
 		BinaryData encrypt(const BinaryData& plain) override;
 		BinaryData decrypt(const BinaryData& crypt) override;
 
-		void encrypt_stream(std::istream& plain, uint64_t total, std::ostream& crypt) override;
-		void decrypt_stream(std::istream& crypt, uint64_t total, std::ostream& plain) override;
-
-		void encryptp_stream(PauseableChannel& pc, std::istream& plain, uint64_t total, std::ostream& crypt) override;
-		void decryptp_stream(PauseableChannel& pc, std::istream& crypt, uint64_t total, std::ostream& plain) override;
+		void encrypt_stream(std::istream& plain, uint64_t total, std::ostream& crypt, std::function<uint8_t(uint64_t, uint64_t)> onRunning = alwaysRunning) override;
+		void decrypt_stream(std::istream& crypt, uint64_t total, std::ostream& plain, std::function<uint8_t(uint64_t, uint64_t)> onRunning = alwaysRunning) override;
 	};
 
 }
 
+#if defined(EN_C_API)
 #define NS_ROOT(name)     dog_torch__crypto__sym__block__##name
 #define NS_ALG(name)      dog_torch__crypto__sym__block__algorithm__##name
 #define NS_MODE(name)     dog_torch__crypto__sym__block__mode__##name
@@ -238,3 +233,4 @@ extern "C"
 #undef CRYPTO_BASE
 #undef SERIALIZE
 #undef UTILS
+#endif

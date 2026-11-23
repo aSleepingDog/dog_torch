@@ -1,15 +1,9 @@
 #include "crypto/sym/block/modes/CBC.h"
+#include "error_msg.h"
 
 namespace NSROOT = dog_torch::crypto::sym::block::mode;
 using dog_torch::serialize::BinaryData;
 using Value = dog_torch::serialize::tlv::Value;
-using dog_torch::utils::from_c_str;
-
-using dog_torch::utils::from_uint64;
-using dog_torch::utils::array_to_view;
-
-constexpr auto ERROR_ALLOW_SIZE_OR_PADDING = from_c_str("CBC: plain size must be multiple of block size when NoPadding");
-constexpr auto ERROR_CRYPT_ALLOW_SIZE = from_c_str("CBC: crypt size must be multiple of block size");
 
 NSROOT::CBC::CBC(const BinaryData& iv, const padding::Padding& padding) : iv_(iv), Mode(padding) {}
 
@@ -61,7 +55,7 @@ std::string NSROOT::CBC::fmt_string() const
 Value NSROOT::CBC::serialize() const
 {
     using dog_torch::serialize::tlv::MIBString;
-    auto total = static_cast<Mode>(*this).serialize();
+    auto total = reinterpret_cast<const Mode*>(this)->serialize();
     total.to_array()[0] = MIBString{ this->config().name };
     Value params = std::unordered_map<MIBString, Value>{};
     params.to_object()[MIBString{ "iv" }] = Value{ this->iv_.get_data() };
@@ -111,33 +105,19 @@ NSROOT::crypt_func NSROOT::CBC::get_mult_decrypt() const
 
 NSROOT::stream_crypt_func NSROOT::CBC::get_stream_encrypt() const
 {
-    return [this](std::istream& p, uint64_t t, std::ostream& c, const BinaryData& k, const algorithm::Algorithm& a)->void
+    return [this](std::function<uint8_t(uint64_t, uint64_t)> onRunning, std::istream& p, uint64_t t, std::ostream& c, const BinaryData& k, const algorithm::Algorithm& a)->void
         {
-            return CBC::encrypt_stream(p, t, c, k, a, this->padding_->get_padding(), this->iv_);
+            return CBC::encrypt_stream(p, t, c, k, a, this->padding_->get_padding(), this->iv_, onRunning);
         };
 }
 NSROOT::stream_crypt_func NSROOT::CBC::get_stream_decrypt() const
 {
-    return [this](std::istream& c, uint64_t t, std::ostream& p, const BinaryData& k, const algorithm::Algorithm& a)->void
+    return [this](std::function<uint8_t(uint64_t, uint64_t)> onRunning, std::istream& c, uint64_t t, std::ostream& p, const BinaryData& k, const algorithm::Algorithm& a)->void
         {
-            return CBC::decrypt_stream(c, t, p, k, a, this->padding_->get_unpadding(), this->iv_);
+            return CBC::decrypt_stream(c, t, p, k, a, this->padding_->get_unpadding(), this->iv_, onRunning);
         };
 }
 
-NSROOT::streamp_crypt_func NSROOT::CBC::get_streamp_encrypt() const
-{
-    return [this](PauseableChannel& pc, std::istream& p, uint64_t t, std::ostream& c, const BinaryData& k, const algorithm::Algorithm& a)->void
-        {
-            return CBC::encryptp_stream(pc, p, t, c, k, a, this->padding_->get_padding(), this->iv_);
-        };
-}
-NSROOT::streamp_crypt_func NSROOT::CBC::get_streamp_decrypt() const
-{
-    return [this](PauseableChannel& pc, std::istream& c, uint64_t t, std::ostream& p, const BinaryData& k, const algorithm::Algorithm& a)->void
-        {
-            return CBC::decryptp_stream(pc, c, t, p, k, a, this->padding_->get_padding(), this->iv_);
-        };
-}
 
 #define CBC_INIT \
 uint64_t block_size = algorithm.get_block_size(); \
@@ -159,21 +139,22 @@ algorithm::block_self_cryption_func block_self_decryption = algorithm.get_decryp
 BinaryData NSROOT::CBC::encrypt(
     const BinaryData& plain, 
     const BinaryData& available_key, 
-    const algorithm::Algorithm& algorithm, padding::padding_func padding, const BinaryData& iv)
+    const algorithm::Algorithm& algorithm, padding::padding_func padding, const BinaryData& iv
+)
 {
     CBC_EN_INIT;
 
     BinaryData buffer;
     padding(buffer, block_size);
     if (plain.size() % block_size != 0 && buffer.size() < block_size) 
-        throw DOG_EXCEPTION(array_to_view(ERROR_ALLOW_SIZE_OR_PADDING));
+        throw DOG_EXCEPTION(array_to_view(ERROR_CBC_ALLOW_SIZE_OR_PADDING));
 
     BinaryData crypt;
     crypt.reserve(((1 + (plain.size() - 1) / block_size) * block_size));
 
     uint64_t now = 0;
     uint64_t buffer_size = 0;
-    while (read_bytes(plain, plain.size(), now, buffer, block_size, buffer_size) == block_size)
+    while (read_bytes(plain.get_data(), plain.size(), now, buffer.get_data(), block_size, buffer_size) == block_size)
     {
         buffer ^= iv_;
         block_self_encryption(buffer, block_size, available_key, key_size);
@@ -183,7 +164,7 @@ BinaryData NSROOT::CBC::encrypt(
     padding(buffer, block_size);
     if (buffer.size() != 0)
     {
-        if (buffer.size() < block_size) throw DOG_EXCEPTION(array_to_view(ERROR_ALLOW_SIZE_OR_PADDING));
+        if (buffer.size() < block_size) throw DOG_EXCEPTION(array_to_view(ERROR_CBC_ALLOW_SIZE_OR_PADDING));
         buffer ^= iv_;
         block_self_encryption(buffer, block_size, available_key, key_size);
         crypt += buffer;
@@ -199,14 +180,14 @@ BinaryData NSROOT::CBC::decrypt(
     CBC_DE_INIT;
 
     if (crypt.size() % block_size != 0)
-        throw DOG_EXCEPTION(array_to_view(ERROR_CRYPT_ALLOW_SIZE));
+        throw DOG_EXCEPTION(array_to_view(ERROR_CBC_CRYPT_ALLOW_SIZE));
     BinaryData plain;
     plain.reserve(crypt.size());
 
     BinaryData buffer0, buffer1;
     uint64_t now = 0;
     uint64_t buffer_size = 0;
-    while (read_bytes(crypt, crypt.size(), now, buffer0, block_size, buffer_size) == block_size && now < crypt.size())
+    while (read_bytes(crypt.get_data(), crypt.size(), now, buffer0.get_data(), block_size, buffer_size) == block_size && now < crypt.size())
     {
         buffer1 = buffer0;
         block_self_decryption(buffer0, block_size, key, key_size);
@@ -216,7 +197,7 @@ BinaryData NSROOT::CBC::decrypt(
     }
     if (buffer0.size() != 0)
     {
-        if (buffer0.size() < block_size) throw DOG_EXCEPTION(array_to_view(ERROR_CRYPT_ALLOW_SIZE));
+        if (buffer0.size() < block_size) throw DOG_EXCEPTION(array_to_view(ERROR_CBC_CRYPT_ALLOW_SIZE));
         block_self_decryption(buffer0, block_size, key, key_size);
         buffer0 ^= iv_;
         unpadding(buffer0, block_size);
@@ -228,18 +209,20 @@ BinaryData NSROOT::CBC::decrypt(
 void NSROOT::CBC::encrypt_stream(
     std::istream& plain, uint64_t total, std::ostream& crypt, 
     const BinaryData& available_key, 
-    const algorithm::Algorithm& algorithm, padding::padding_func padding, const BinaryData& iv)
+    const algorithm::Algorithm& algorithm, padding::padding_func padding, const BinaryData& iv,
+    std::function<uint8_t(uint64_t, uint64_t)> onRunning)
 {
     CBC_EN_INIT;
 
     BinaryData buffer;
     padding(buffer, block_size);
     if (total % block_size != 0 && buffer.size() < block_size) 
-        throw DOG_EXCEPTION(array_to_view(ERROR_ALLOW_SIZE_OR_PADDING));
+        throw DOG_EXCEPTION(array_to_view(ERROR_CBC_ALLOW_SIZE_OR_PADDING));
     uint64_t now = 0;
     uint64_t buffer_size = 0;
-    while (read_bytes(plain, total, now, buffer, block_size, buffer_size) == block_size)
+    while (read_bytes(plain, total, now, buffer.get_data(), block_size, buffer_size) == block_size)
     {
+        if (onRunning(block_size, total) > 0x80) return;
         buffer ^= iv_;
         block_self_encryption(buffer, block_size, key, key_size);
         crypt.write(buffer.data_stream(), block_size);
@@ -248,7 +231,7 @@ void NSROOT::CBC::encrypt_stream(
     padding(buffer, block_size);
     if (buffer.size() != 0)
     {
-        if (buffer.size() < block_size) throw DOG_EXCEPTION(array_to_view(ERROR_ALLOW_SIZE_OR_PADDING));
+        if (buffer.size() < block_size) throw DOG_EXCEPTION(array_to_view(ERROR_CBC_ALLOW_SIZE_OR_PADDING));
         buffer ^= iv_;
         block_self_encryption(buffer, block_size, available_key, key_size);
         crypt.write(buffer.data_stream(), block_size);
@@ -259,17 +242,19 @@ void NSROOT::CBC::encrypt_stream(
 void NSROOT::CBC::decrypt_stream(
     std::istream& crypt, uint64_t total, std::ostream& plain, 
     const BinaryData& available_key, 
-    const algorithm::Algorithm& algorithm, padding::padding_func unpadding, const BinaryData& iv)
+    const algorithm::Algorithm& algorithm, padding::padding_func unpadding, const BinaryData& iv,
+    std::function<uint8_t(uint64_t, uint64_t)> onRunning)
 {
     CBC_DE_INIT;
 
     if (total % block_size != 0) 
-        throw DOG_EXCEPTION(array_to_view(ERROR_CRYPT_ALLOW_SIZE));
+        throw DOG_EXCEPTION(array_to_view(ERROR_CBC_CRYPT_ALLOW_SIZE));
     BinaryData buffer0, buffer1;
     uint64_t now = 0;
     uint64_t buffer_size = 0;
-    while (read_bytes(crypt, total, now, buffer0, block_size, buffer_size) == block_size&& now < total)
+    while (read_bytes(crypt, total, now, buffer0.get_data(), block_size, buffer_size) == block_size&& now < total)
     {
+        if (onRunning(block_size, total) > 0x80) return;
         buffer1 = buffer0;
         block_self_decryption(buffer0, block_size, key, key_size);
         buffer0 ^= iv_;
@@ -278,7 +263,7 @@ void NSROOT::CBC::decrypt_stream(
     }
     if (buffer0.size() != 0)
     {
-        if (buffer0.size() < block_size) throw DOG_EXCEPTION(array_to_view(ERROR_CRYPT_ALLOW_SIZE));
+        if (buffer0.size() < block_size) throw DOG_EXCEPTION(array_to_view(ERROR_CBC_CRYPT_ALLOW_SIZE));
         block_self_decryption(buffer0, block_size, key, key_size);
         buffer0 ^= iv_;
         unpadding(buffer0, block_size);
@@ -286,81 +271,6 @@ void NSROOT::CBC::decrypt_stream(
     }
     plain.flush();
 }
-
-void NSROOT::CBC::encryptp_stream(
-    PauseableChannel& pc, 
-    std::istream& plain, uint64_t total, std::ostream& crypt, 
-    const BinaryData& available_key, 
-    const algorithm::Algorithm& algorithm, padding::padding_func padding, const BinaryData& iv)
-{
-    CBC_EN_INIT;
-    
-    pc.start();
-    BinaryData buffer;
-    padding(buffer, block_size);
-    if (total % block_size != 0 && buffer.size() < block_size) 
-        throw DOG_EXCEPTION(array_to_view(ERROR_ALLOW_SIZE_OR_PADDING));
-    uint64_t now = 0;
-    uint64_t buffer_size = 0;
-    while (read_bytes(plain, total, now, buffer, block_size, buffer_size) == block_size)
-    {
-        if (pc.check_status()) break;
-        buffer ^= iv_;
-        block_self_encryption(buffer, block_size, key, key_size);
-        crypt.write(buffer.data_stream(), block_size);
-        iv_ = buffer;
-        pc.add_progress(block_size * 1.0 / total);
-    }
-    padding(buffer, block_size);
-    if (buffer.size() != 0)
-    {
-        if (buffer.size() < block_size) throw DOG_EXCEPTION(array_to_view(ERROR_ALLOW_SIZE_OR_PADDING));
-        buffer ^= iv_;
-        block_self_encryption(buffer, block_size, available_key, key_size);
-        crypt.write(buffer.data_stream(), block_size);
-    }
-    crypt.flush();
-    pc.set_progress(1.0);
-    pc.stop();
-}
-
-void NSROOT::CBC::decryptp_stream(
-    PauseableChannel& pc, 
-    std::istream& crypt, uint64_t total, std::ostream& plain, 
-    const BinaryData& available_key, 
-    const algorithm::Algorithm& algorithm, padding::padding_func unpadding, const BinaryData& iv)
-{
-    CBC_DE_INIT;
-
-    if (total % block_size != 0) 
-        throw DOG_EXCEPTION(array_to_view(ERROR_CRYPT_ALLOW_SIZE));
-    pc.start();
-    BinaryData buffer0, buffer1;
-    uint64_t now = 0;
-    uint64_t buffer_size = 0;
-    while (read_bytes(crypt, total, now, buffer0, block_size, buffer_size) == block_size&& now < total)
-    {
-        if (pc.check_status()) break;
-        buffer1 = buffer0;
-        block_self_decryption(buffer0, block_size, key, key_size);
-        buffer0 ^= iv_;
-        plain.write(buffer0.data_stream(), block_size);
-        iv_ = buffer1;
-        pc.add_progress(block_size * 1.0 / total);
-    }
-    if (buffer0.size() != 0)
-    {
-        if (buffer0.size() < block_size) throw DOG_EXCEPTION(array_to_view(ERROR_CRYPT_ALLOW_SIZE));
-        block_self_decryption(buffer0, block_size, key, key_size);
-        buffer0 ^= iv_;
-        unpadding(buffer0, block_size);
-        plain.write(buffer0.data_stream(), buffer0.size());
-    }
-    plain.flush();
-    pc.set_progress(1.0);
-    pc.stop();
-}
-
 
 #undef CBC_DE_INIT
 #undef CBC_EN_INIT

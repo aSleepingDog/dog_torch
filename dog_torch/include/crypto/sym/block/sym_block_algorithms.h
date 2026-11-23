@@ -15,6 +15,7 @@ namespace dog_torch::crypto::sym::block::algorithm
 	CPP_API std::unique_ptr<Algorithm> create(const std::string& name, uint64_t block_size, uint64_t key_size);
 }
 
+#if defined(EN_C_API)
 #define NS_ROOT(name) dog_torch__crypto__sym__block__##name
 #define NS_ALG(name) dog_torch__crypto__sym__block__algorithm__##name
 #define CRYPTO_BASE(name) dog_torch__crypto__##name
@@ -38,3 +39,4 @@ extern "C"
 #undef CRYPTO_BASE
 #undef SERIALIZE
 #undef UTILS
+#endif

@@ -6,14 +6,10 @@
 
 #include "utils/ctrans.h"
 #include "serialize/serialize.h"
-#include "async/thread/async_thread_base.h"
+#include "crypto/crypto_base.h"
 
 namespace dog_torch::crypto::sym
 {
-	using BinaryData = dog_torch::serialize::BinaryData;
-	using Value = dog_torch::serialize::tlv::Value;
-	using PauseableChannel = dog_torch::async::thread::PauseableChannel;
-
 	class CPP_API Cipher
 	{
 	protected:
@@ -23,38 +19,25 @@ namespace dog_torch::crypto::sym
 		Cipher();
 		Cipher(const BinaryData& key);
 		virtual ~Cipher();
-		virtual std::unique_ptr<Cipher> clone() const;
+		virtual std::unique_ptr<Cipher> clone() const = 0;
 
-		virtual void init();
+		virtual void init() = 0;
 		virtual bool effective() const;
 		virtual void set_key(const BinaryData& key);
 		virtual BinaryData key() const;
-		virtual std::string fmt_string() const;
-		virtual Value serialize() const;
+		virtual std::string fmt_string() const = 0;
+		virtual Value serialize() const = 0;
 
-		virtual BinaryData encrypt(const BinaryData& plain);
-		virtual BinaryData decrypt(const BinaryData& crypt);
+		virtual BinaryData encrypt(const BinaryData& plain) = 0;
+		virtual BinaryData decrypt(const BinaryData& crypt) = 0;
 
-		virtual void encrypt_stream(std::istream& plain, uint64_t total, std::ostream& crypt);
-		virtual void decrypt_stream(std::istream& crypt, uint64_t total, std::ostream& plain);
-
-		virtual void encryptp_stream(PauseableChannel& pc, std::istream& plain, uint64_t total, std::ostream& crypt);
-		virtual void decryptp_stream(PauseableChannel& pc, std::istream& crypt, uint64_t total, std::ostream& plain);
-		static void cryptp_stream_with(PauseableChannel& pc, Cipher& self, std::istream& input, uint64_t total, std::ostream& output);
-
+		virtual void encrypt_stream(std::istream& plain, uint64_t total, std::ostream& crypt, std::function<uint8_t(uint64_t, uint64_t)> onRunning = alwaysRunning) = 0;
+		virtual void decrypt_stream(std::istream& crypt, uint64_t total, std::ostream& plain, std::function<uint8_t(uint64_t, uint64_t)> onRunning = alwaysRunning) = 0;
 	};
 
 }
 
-#ifdef SHARED
-#include "async/pool/pool.h"
-namespace dog_torch::async::pool
-{
-	using cryptp_stream_func = std::function<void(PauseableChannel&, dog_torch::crypto::sym::Cipher&, std::istream&, uint64_t, std::ostream&)>;
-	template<> Result<void> PausedThreadPool::add_task(cryptp_stream_func&&, dog_torch::crypto::sym::Cipher&, std::istream&, uint64_t&&, std::ostream&);
-};
-#endif // SHARED
-
+#if defined(EN_C_API)
 #define NAMESPACE(name) dog_torch__crypto__sym__##name
 #define CRYPTO_BASE(name) dog_torch__crypto__##name
 #define SERIALIZE(name) dog_torch__serialize__##name
@@ -81,3 +64,4 @@ extern "C"
 #undef CRYPTO_BASE
 #undef SERIALIZE
 #undef UTILS
+#endif

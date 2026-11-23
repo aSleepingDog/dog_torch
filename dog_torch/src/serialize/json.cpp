@@ -1,12 +1,7 @@
 #include "serialize/json.h"
+#include "error_msg.h"
 
 namespace NSROOT = dog_torch::serialize::json;
-using dog_torch::utils::from_c_str;
-
-using dog_torch::utils::from_uint64;
-using dog_torch::utils::array_to_view;
-
-constexpr const auto ERROR_WRONG_FORMAT = from_c_str("Wrong format of in json");
 
 void NSROOT::skip_whitespace(std::string_view::const_iterator& it, const std::string_view::const_iterator& end)
 {
@@ -91,40 +86,40 @@ NSROOT::Value NSROOT::Value::parse(std::string_view::const_iterator& pos, const 
 	skip_whitespace(pos, end);
 	if (pos == end)
 	{
-		throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_FORMAT));
+		throw DOG_EXCEPTION(array_to_view(ERROR_JSON_WRONG_FORMAT));
 	}
 	else if (*pos == 'n')//null
 	{
 		++pos;
-		if (pos == end || *pos != 'u') throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_FORMAT));
+		if (pos == end || *pos != 'u') throw DOG_EXCEPTION(array_to_view(ERROR_JSON_WRONG_FORMAT));
 		++pos;
-		if (pos == end || *pos != 'l') throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_FORMAT));
+		if (pos == end || *pos != 'l') throw DOG_EXCEPTION(array_to_view(ERROR_JSON_WRONG_FORMAT));
 		++pos;
-		if (pos == end || *pos != 'l') throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_FORMAT));
+		if (pos == end || *pos != 'l') throw DOG_EXCEPTION(array_to_view(ERROR_JSON_WRONG_FORMAT));
 		++pos;
 		return Value(nullptr);
 	}
 	else if (*pos == 't')//true
 	{
 		++pos;
-		if (pos == end || *pos != 'r') throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_FORMAT));
+		if (pos == end || *pos != 'r') throw DOG_EXCEPTION(array_to_view(ERROR_JSON_WRONG_FORMAT));
 		++pos;
-		if (pos == end || *pos != 'u') throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_FORMAT));
+		if (pos == end || *pos != 'u') throw DOG_EXCEPTION(array_to_view(ERROR_JSON_WRONG_FORMAT));
 		++pos;
-		if (pos == end || *pos != 'e') throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_FORMAT));
+		if (pos == end || *pos != 'e') throw DOG_EXCEPTION(array_to_view(ERROR_JSON_WRONG_FORMAT));
 		++pos;
 		return Value(true);
 	}
 	else if (*pos == 'f')//false
 	{
 		++pos;
-		if (pos == end || *pos != 'a') throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_FORMAT));
+		if (pos == end || *pos != 'a') throw DOG_EXCEPTION(array_to_view(ERROR_JSON_WRONG_FORMAT));
 		++pos;
-		if (pos == end || *pos != 'l') throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_FORMAT));
+		if (pos == end || *pos != 'l') throw DOG_EXCEPTION(array_to_view(ERROR_JSON_WRONG_FORMAT));
 		++pos;
-		if (pos == end || *pos != 's') throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_FORMAT));
+		if (pos == end || *pos != 's') throw DOG_EXCEPTION(array_to_view(ERROR_JSON_WRONG_FORMAT));
 		++pos;
-		if (pos == end || *pos != 'e') throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_FORMAT));
+		if (pos == end || *pos != 'e') throw DOG_EXCEPTION(array_to_view(ERROR_JSON_WRONG_FORMAT));
 		++pos;
 		return Value(false);
 	}
@@ -137,7 +132,7 @@ NSROOT::Value NSROOT::Value::parse(std::string_view::const_iterator& pos, const 
 		}
 		if (pos == end || *pos < '0' || *pos > '9')
 		{
-			throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_FORMAT));
+			throw DOG_EXCEPTION(array_to_view(ERROR_JSON_WRONG_FORMAT));
 		}
 		if (*pos == '0')
 		{
@@ -170,7 +165,7 @@ NSROOT::Value NSROOT::Value::parse(std::string_view::const_iterator& pos, const 
 
 		if (pos == end || (*pos != '+' && *pos != '-'))
 		{
-			throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_FORMAT));
+			throw DOG_EXCEPTION(array_to_view(ERROR_JSON_WRONG_FORMAT));
 		}
 		if (*pos == '-' || *pos == '+')
 		{
@@ -178,7 +173,7 @@ NSROOT::Value NSROOT::Value::parse(std::string_view::const_iterator& pos, const 
 		}
 		if (pos == end || *pos < '0' || *pos > '9')
 		{
-			throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_FORMAT));
+			throw DOG_EXCEPTION(array_to_view(ERROR_JSON_WRONG_FORMAT));
 		}
 		while (pos != end && *pos >= '0' && *pos <= '9')
 		{
@@ -240,7 +235,7 @@ NSROOT::Value NSROOT::Value::parse(std::string_view::const_iterator& pos, const 
 				}
 				else
 				{
-					throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_FORMAT));
+					throw DOG_EXCEPTION(array_to_view(ERROR_JSON_WRONG_FORMAT));
 				}
 				stage = 0;
 				++pos;
@@ -268,7 +263,7 @@ NSROOT::Value NSROOT::Value::parse(std::string_view::const_iterator& pos, const 
 					++pos;
 					time++;
 				}
-				result += dog_torch::serialize::to_utf8(code);
+				result += dog_torch::utils::to_utf8(code);
 				stage = 0;
 			}
 		}
@@ -285,7 +280,7 @@ NSROOT::Value NSROOT::Value::parse(std::string_view::const_iterator& pos, const 
 	}
 	else
 	{
-		throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_FORMAT));
+		throw DOG_EXCEPTION(array_to_view(ERROR_JSON_WRONG_FORMAT));
 	}
 }
 NSROOT::Value NSROOT::Value::parse(std::string_view str)
@@ -419,23 +414,23 @@ std::unordered_map<std::string, NSROOT::Value> NSROOT::Object::parse_std(std::st
 	skip_whitespace(pos, end);
 	if (pos == end || *pos != '{')
 	{
-		throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_FORMAT));
+		throw DOG_EXCEPTION(array_to_view(ERROR_JSON_WRONG_FORMAT));
 	}
 	++pos;
 	while (pos != end)
 	{
 		skip_whitespace(pos, end);
-		if (pos == end) throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_FORMAT));
+		if (pos == end) throw DOG_EXCEPTION(array_to_view(ERROR_JSON_WRONG_FORMAT));
 		else if (*pos == '}') break;
 		Value key = Value::parse(pos, end);
-		if (key.get_type() != Type::String) throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_FORMAT));
+		if (key.get_type() != Type::String) throw DOG_EXCEPTION(array_to_view(ERROR_JSON_WRONG_FORMAT));
 		skip_whitespace(pos, end);
-		if (pos == end || *pos != ':') throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_FORMAT));
+		if (pos == end || *pos != ':') throw DOG_EXCEPTION(array_to_view(ERROR_JSON_WRONG_FORMAT));
 		else ++pos;
 		Value value = Value::parse(pos, end);
 		object[key.to_string()] = value;
 		skip_whitespace(pos, end);
-		if (pos == end || (*pos != ',' && *pos != '}')) throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_FORMAT));
+		if (pos == end || (*pos != ',' && *pos != '}')) throw DOG_EXCEPTION(array_to_view(ERROR_JSON_WRONG_FORMAT));
 		else if (*pos == ',') ++pos;
 		else if (*pos == '}') break;
 	}
@@ -672,20 +667,20 @@ std::vector<NSROOT::Value> NSROOT::Array::parse_std(std::string_view::iterator& 
 	skip_whitespace(pos, end);
 	if (pos == end || *pos != '[')
 	{
-		throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_FORMAT));
+		throw DOG_EXCEPTION(array_to_view(ERROR_JSON_WRONG_FORMAT));
 	}
 	++pos;
 	while (pos != end)
 	{
 		skip_whitespace(pos, end);
-		if (pos == end) throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_FORMAT));
+		if (pos == end) throw DOG_EXCEPTION(array_to_view(ERROR_JSON_WRONG_FORMAT));
 		else if (*pos == ']') break;
 		Value value = Value::parse(pos, end);
 		array.push_back(value);
 		skip_whitespace(pos, end);
 		if (*pos != ',' && *pos != ']')
 		{
-			throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_FORMAT));
+			throw DOG_EXCEPTION(array_to_view(ERROR_JSON_WRONG_FORMAT));
 		}
 		else if (*pos == ',') ++pos;
 		else if (*pos == ']') break;
@@ -930,6 +925,6 @@ bool NSROOT::Array::operator!=(const Array& other) const
 
 
 
-#undef ERROR_WRONG_FORMAT
+#undef ERROR_JSON_WRONG_FORMAT
 
 #undef NSROOT

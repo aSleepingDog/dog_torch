@@ -1,7 +1,7 @@
 #pragma once
 #include "export.h"
 
-#include <math.h>
+#include <cmath>
 #include <stack>
 #include <vector>
 #include <string>
@@ -9,7 +9,7 @@
 #include <unordered_map>
 
 #include "utils/compile.h"
-#include "BinaryData.h"
+#include "utils/binops.h"
 #include "utils/exception.h"
 
 namespace dog_torch::serialize::json

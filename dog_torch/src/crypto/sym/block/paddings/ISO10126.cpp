@@ -1,9 +1,13 @@
 #include "crypto/sym/block/paddings/ISO10126.h"
+#include "error_msg.h"
 
 namespace NSROOT = dog_torch::crypto::sym::block::padding;
 
 void NSROOT::ISO10126::padding(BinaryData& data, uint64_t block_size)
 {
+	if (block_size == 0 || block_size > 0xff)
+		throw DOG_EXCEPTION(array_to_view(ERROR_ISO10126_BLOCK_WRONG));
+	if (data.size() == block_size) return;
 	uint8_t fill = static_cast<uint8_t>(block_size - data.size());
 	std::random_device rd;
 	while (data.size() < block_size - 1)
@@ -12,8 +16,14 @@ void NSROOT::ISO10126::padding(BinaryData& data, uint64_t block_size)
 }
 void NSROOT::ISO10126::unpadding(BinaryData& data, uint64_t block_size)
 {
+	if (block_size == 0 || block_size > 0xff)
+		throw DOG_EXCEPTION(array_to_view(ERROR_ISO10126_SIZE_WRONG));
+	if (data.size() != block_size)
+		throw DOG_EXCEPTION(array_to_view(ERROR_ISO10126_BLOCK_WRONG));
 	uint8_t unfill = data.back();
-	data.resize(data.size() >= unfill ? data.size() - unfill : data.size());
+	if (unfill == 0 || unfill > block_size)
+		throw DOG_EXCEPTION(array_to_view(ERROR_ISO10126_BLOCK_WRONG));
+	data.resize(data.size() - unfill);
 }
 const NSROOT::Config& NSROOT::ISO10126::allowed_config()
 {

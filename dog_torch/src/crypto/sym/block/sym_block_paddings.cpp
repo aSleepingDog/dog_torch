@@ -46,6 +46,7 @@ std::unique_ptr<NSROOT::Padding> NSROOT::create(const std::string& name)
     }
 }
 
+#if defined(EN_C_API)
 #define NS_ROOT(name) dog_torch__crypto__sym__block__##name
 #define NS_PADDING(name) dog_torch__crypto__sym__block__padding__##name
 #define CRYPTO_BASE(name) dog_torch__crypto__##name
@@ -58,7 +59,7 @@ NS_PADDING(ConfigVector)* NS_PADDING(get_all)()
 }
 void NS_PADDING(ConfigVector_delete)(NS_PADDING(ConfigVector)** self)
 {
-    DEFAULT_DESTOTY(self);
+    DEFAULT_DESTROY(self);
 }
 uint64_t NS_PADDING(ConfigVector_size)(const LVALUE(NS_PADDING(ConfigVector)) self)
 {
@@ -96,3 +97,4 @@ NS_ROOT(Padding)* NS_ROOT(Padding_create_string)(const LVALUE(UTILS(CppString)) 
 #undef CRYPTO_BASE
 #undef SERIALIZE
 #undef UTILS
+#endif

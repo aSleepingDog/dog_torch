@@ -56,64 +56,6 @@ NSROOT::algorithm::Algorithm& NSROOT::algorithm::Algorithm::operator=(Algorithm 
 	return *this;
 }
 
-NSROOT::algorithm::Config NSROOT::algorithm::Algorithm::config() const
-{
-	return Config("", "", {});
-}
-
-std::string NSROOT::algorithm::Algorithm::fmt_string() const
-{
-	return "";
-}
-
-void NSROOT::algorithm::Algorithm::init()
-{}
-
-NSROOT::BinaryData NSROOT::algorithm::Algorithm::init_data() const
-{
-	return BinaryData();
-}
-
-NSROOT::algorithm::update_func NSROOT::algorithm::Algorithm::get_update() const
-{
-	return update_func();
-}
-
-NSROOT::algorithm::trims_func NSROOT::algorithm::Algorithm::get_trims() const
-{
-	return trims_func();
-}
-
-std::unique_ptr<NSROOT::algorithm::Algorithm> NSROOT::algorithm::Algorithm::clone() const
-{
-	return std::make_unique<Algorithm>(*this);
-}
-
-uint64_t NSROOT::algorithm::Algorithm::get_block_size() const
-{
-	return 0;
-}
-
-uint64_t NSROOT::algorithm::Algorithm::get_out_size() const
-{
-	return 0;
-}
-
-bool NSROOT::algorithm::Algorithm::have_next_block(uint64_t data_pos, uint64_t data_total)
-{
-	return false;
-}
-
-NSROOT::BinaryData NSROOT::algorithm::Algorithm::next_block(const BinaryData& data, uint64_t start, uint64_t& data_pos, uint64_t data_total)
-{
-	return BinaryData();
-}
-
-NSROOT::BinaryData NSROOT::algorithm::Algorithm::next_block(std::istream& data, uint64_t& data_pos, uint64_t data_total)
-{
-	return BinaryData();
-}
-
 NSROOT::Generator::Generator(const std::unique_ptr<algorithm::Algorithm>& algorithm) : algorithm_(algorithm->clone())
 {
 	this->init();
@@ -122,10 +64,11 @@ NSROOT::Generator::Generator(std::unique_ptr<algorithm::Algorithm>&& algorithm) 
 {
     this->init();
 }
-dog_torch::crypto::hash::Generator::Generator(const algorithm::Algorithm& algorithm) : algorithm_(algorithm.clone())
+NSROOT::Generator::Generator(const algorithm::Algorithm& algorithm) : algorithm_(algorithm.clone())
 {
 	this->init();
 }
+
 NSROOT::Generator::Generator(const Generator& other)
 {
 	this->algorithm_ = other.algorithm_->clone();
@@ -170,7 +113,7 @@ NSROOT::BinaryData NSROOT::Generator::calculate(const BinaryData& source)
 	this->init();
 	return res;
 }
-NSROOT::BinaryData NSROOT::Generator::calculate(std::istream& source, uint64_t total)
+NSROOT::BinaryData NSROOT::Generator::calculate(std::istream& source, uint64_t total, std::function<uint8_t(uint64_t, uint64_t)> onRunning)
 {
 	auto update_func = this->algorithm_->get_update();
 	auto trims_func = this->algorithm_->get_trims();
@@ -179,6 +122,7 @@ NSROOT::BinaryData NSROOT::Generator::calculate(std::istream& source, uint64_t t
 	{
 		BinaryData block = this->algorithm_->next_block(source, pos, total);
 		update_func(block, this->hash_value_);
+		if (onRunning(block.size(), total) >= 0x80) return BinaryData();
 	} while (this->algorithm_->have_next_block(pos, total));
 	trims_func(this->hash_value_);
 	auto res = this->hash_value_;
@@ -186,37 +130,13 @@ NSROOT::BinaryData NSROOT::Generator::calculate(std::istream& source, uint64_t t
 	return res;
 }
 
-NSROOT::BinaryData NSROOT::Generator::calculate(PauseableChannel& pc, std::istream& source, uint64_t total)
-{
-	pc.start();
-	auto update_func = this->algorithm_->get_update();
-	auto trims_func = this->algorithm_->get_trims();
-	uint64_t pos = 0;
-	do
-	{
-		if (pc.check_status()) break;
-		BinaryData block = this->algorithm_->next_block(source, pos, total);
-		update_func(block, this->hash_value_);
-		pc.add_progress(block.size() * 1.0 / total);
-	} while (this->algorithm_->have_next_block(pos, total));
-	trims_func(this->hash_value_);
-	auto res = this->hash_value_;
-	this->init();
-	pc.set_progress(1.0);
-	pc.stop();
-	return res;
-}
-
-NSROOT::BinaryData NSROOT::Generator::calculate_with(PauseableChannel& pc, Generator& self, std::istream& source, uint64_t total)
-{
-	return self.calculate(pc, source, total);
-}
 
 std::string NSROOT::Generator::fmt_string() const
 {
 	return std::format("Hash<{}>", this->algorithm_->fmt_string());
 }
 
+#if defined(EN_C_API)
 #define NAMESPACE(name) dog_torch__crypto__hash__##name
 #define CRYPTO_BASE(name) dog_torch__crypto__##name
 #define SERIALIZE(name) dog_torch__serialize__##name
@@ -239,7 +159,7 @@ CRYPTO_BASE(ParamInfoTreeMap)* NAMESPACE(Config_params)(const LVALUE(NAMESPACE(C
 
 void NAMESPACE(Algorithm_delete)(NAMESPACE(Algorithm)** self)
 {
-	DEFAULT_DESTOTY(self);
+	DEFAULT_DESTROY(self);
 }
 
 UTILS(CppString)* NAMESPACE(Algorithm_fmt_string)(const LVALUE(NAMESPACE(Algorithm))self)
@@ -262,7 +182,7 @@ NAMESPACE(Generator)* NAMESPACE(Generator_create_move)(NAMESPACE(Algorithm)** al
 }
 void NAMESPACE(Generator_delete)(NAMESPACE(Generator)** self)
 {
-	DEFAULT_DESTOTY(self);
+	DEFAULT_DESTROY(self);
 }
 
 UTILS(CppString)* NAMESPACE(Generator_fmt_string)(const LVALUE(NAMESPACE(Generator))self)
@@ -309,3 +229,4 @@ SERIALIZE(BinaryData)* NAMESPACE(Generator_calculate_file)(LVALUE(UTILS(CppResul
 #undef CRYPTO_BASE
 #undef SERIALIZE
 #undef UTILS
+#endif

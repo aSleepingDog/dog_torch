@@ -8,18 +8,10 @@ NSROOT::Cipher::Cipher() = default;
 NSROOT::Cipher::Cipher(const BinaryData & key) : ori_key_(key) {}
 NSROOT::Cipher::~Cipher() = default;
 
-std::unique_ptr<NSROOT::Cipher> NSROOT::Cipher::clone() const
-{
-    return std::make_unique<Cipher>(*this);
-}
-void NSROOT::Cipher::init()
-{}
-
 bool NSROOT::Cipher::effective() const
 {
     return this->is_effective_;
 }
-
 void NSROOT::Cipher::set_key(const BinaryData& key)
 {
     this->ori_key_ = key;
@@ -28,33 +20,8 @@ BinaryData NSROOT::Cipher::key() const
 {
     return this->ori_key_;
 }
-std::string NSROOT::Cipher::fmt_string() const
-{
-    return "";
-}
-Value NSROOT::Cipher::serialize() const
-{
-    return nullptr;
-}
-BinaryData NSROOT::Cipher::encrypt(const BinaryData& plain)
-{
-    return BinaryData();
-}
-BinaryData NSROOT::Cipher::decrypt(const BinaryData& crypt)
-{
-    return BinaryData();
-}
 
-void NSROOT::Cipher::encrypt_stream(std::istream& plain, uint64_t total, std::ostream& crypt)
-{}
-void NSROOT::Cipher::decrypt_stream(std::istream & crypt, uint64_t total, std::ostream & plain)
-{}
-
-void NSROOT::Cipher::encryptp_stream(PauseableChannel & pc, std::istream & plain, uint64_t total, std::ostream & crypt)
-{}
-void NSROOT::Cipher::decryptp_stream(PauseableChannel & pc, std::istream & crypt, uint64_t total, std::ostream & plain)
-{}
-
+#if defined(EN_C_API)
 #define NAMESPACE(name) dog_torch__crypto__sym__##name
 #define CRYPTO_BASE(name) dog_torch__crypto__##name
 #define SERIALIZE(name) dog_torch__serialize__##name
@@ -85,7 +52,7 @@ void                       NAMESPACE(Cipher_set_key)             (LVALUE(NAMESPA
     self->set_key(*key);
 }
 
-SERIALIZE(BinaryData)* NAMESPACE(Cipher_encrypt)             (LVALUE(UTILS(CppResultSet)) result_set, LVALUE(NAMESPACE(Cipher)) self, const LVALUE(SERIALIZE(BinaryData)) plain)
+SERIALIZE(BinaryData)* NAMESPACE(Cipher_encrypt) (LVALUE(UTILS(CppResultSet)) result_set, LVALUE(NAMESPACE(Cipher)) self, const LVALUE(SERIALIZE(BinaryData)) plain)
 {
     if (self == nullptr)
     {
@@ -102,7 +69,7 @@ SERIALIZE(BinaryData)* NAMESPACE(Cipher_encrypt)             (LVALUE(UTILS(CppRe
         return nullptr;
     }
 }
-SERIALIZE(BinaryData)* NAMESPACE(Cipher_decrypt)             (LVALUE(UTILS(CppResultSet)) result_set, LVALUE(NAMESPACE(Cipher)) self, const LVALUE(SERIALIZE(BinaryData)) crypt)
+SERIALIZE(BinaryData)* NAMESPACE(Cipher_decrypt) (LVALUE(UTILS(CppResultSet)) result_set, LVALUE(NAMESPACE(Cipher)) self, const LVALUE(SERIALIZE(BinaryData)) crypt)
 {
     if (self == nullptr)
     {
@@ -210,3 +177,4 @@ void     NAMESPACE(Cipher_decrypt_stream)      (LVALUE(UTILS(CppResultSet)) resu
 #undef CRYPTO_BASE
 #undef SERIALIZE
 #undef UTILS
+#endif

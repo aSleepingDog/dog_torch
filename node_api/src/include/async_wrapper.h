@@ -12,6 +12,9 @@ class ThreadPoolWrapper : public Napi::ObjectWrap<ThreadPoolWrapper>, public dog
 public:
     std::unique_ptr<dog_torch::async::pool::PausedThreadPool> self = nullptr;
     std::deque<ResultString> result;
+
+    static std::string now_time_point();
+
     static inline Napi::FunctionReference constructor;
 
     ThreadPoolWrapper(const Napi::CallbackInfo& info);

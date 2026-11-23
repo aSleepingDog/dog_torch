@@ -1,16 +1,8 @@
 #include "crypto/sym/block/algorithms/Rijndael.h"
+#include "error_msg.h"
 
 namespace NSROOT = dog_torch::crypto::sym::block::algorithm;
 using dog_torch::serialize::BinaryData;
-using dog_torch::utils::operator+;
-using dog_torch::utils::from_c_str;
-using dog_torch::utils::from_uint64;
-using dog_torch::utils::array_to_view;
-
-constexpr auto ERROR_AES_UNSUPPORTED_KEY_SIZE = from_c_str("AES: key size must be 128, 192 or 256");
-constexpr auto ERROR_AES_NOT_EXTEND_KEY_16 = (from_c_str("AES: key size must be bigger than ") + from_uint64<16>() + from_c_str("B"));
-constexpr auto ERROR_AES_NOT_EXTEND_KEY_24 = (from_c_str("AES: key size must be bigger than ") + from_uint64<24>() + from_c_str("B"));
-constexpr auto ERROR_AES_NOT_EXTEND_KEY_32 = (from_c_str("AES: key size must be bigger than ") + from_uint64<32>() + from_c_str("B"));
 
 const uint8_t NSROOT::Rijndael::SBox[16][16] = {
 	//0     1     2     3     4     5     6     7     8     9     A     B     C     D     E     F
@@ -428,7 +420,7 @@ BinaryData NSROOT::AES::extend_key(const BinaryData& key, uint64_t block_size, u
     return BinaryData();
 }
 
-#ifdef EN_AES_IN
+#if defined(EN_AES_IN) && (defined(__x86_64__) || defined(_M_X64))
 #include <wmmintrin.h>
 BinaryData NSROOT::AES::encoding(const BinaryData& plain, uint64_t block_size, const BinaryData& key, uint64_t key_size)
 {

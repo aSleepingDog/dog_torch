@@ -32,6 +32,13 @@ console.log(bin.toString())
 bin = new dog_torch.BinaryData(bas,3)
 console.log(bin.toString())
 
+//tlvObject
+var tlv = new dog_torch.TlvObject(dog_torch.TlvType.String,"hello");
+console.log(tlv.value());
+var par = tlv.serialize();
+console.log(par);
+
+
 //number_region
 var region = "";
 try{
@@ -59,7 +66,7 @@ try{
 }
 
 region = new dog_torch.NumberIterator("[16,32|8]");
-while(region.haveNext()){
+while(region.hasNext()){
     console.log(region.next())
 }
 //crypto
@@ -81,7 +88,7 @@ dog_torch.crypto.hash.all().forEach((config)=>{
     console.log(config.name);
     console.log(config.region);
     region = new dog_torch.NumberIterator(config.region);
-    while(region.haveNext()){
+    while(region.hasNext()){
         console.log(region.next())
     }
     console.log(config.params);
@@ -161,9 +168,9 @@ dog_torch.crypto.sym.block.algorithm.all().forEach(
         console.log(config.blockRegion);
         console.log(config.keyRegion);
         let blockr = new dog_torch.NumberIterator(config.blockRegion);
-        while(blockr.haveNext()){
+        while(blockr.hasNext()){
             let keyr = new dog_torch.NumberIterator(config.keyRegion);
-            while(keyr.haveNext()){
+            while(keyr.hasNext()){
                 let alg = dog_torch.crypto.sym.block.algorithm.create(config.name,blockr.next(),keyr.next());
                 console.log(alg.fmtString());
             }
@@ -206,9 +213,9 @@ dog_torch.crypto.sym.block.mode.all().forEach(
         dog_torch.crypto.sym.block.algorithm.all().forEach(
             (config)=>{
                 let blockr = new dog_torch.NumberIterator(config.blockRegion);
-                while(blockr.haveNext()){
+                while(blockr.hasNext()){
                     let keyr = new dog_torch.NumberIterator(config.keyRegion);
-                    while(keyr.haveNext()){
+                    while(keyr.hasNext()){
                         let alg = dog_torch.crypto.sym.block.algorithm.create(config.name,blockr.next(),keyr.next());
                         console.log(alg.fmtString());
                         let cipher = new dog_torch.crypto.sym.block.Cipher(alg,mode);
@@ -256,20 +263,26 @@ function transParam(output){
     }
     return null;
 }
-var taskPool = new dog_torch.async.ThreadPool();
-gen0 = new dog_torch.crypto.hash.Generator(sha2);
-taskPool.start();
-taskPool.addHashTask(gen0,__filename,transParam({type:2,isUpper:true}));
+// var taskPool = new dog_torch.async.ThreadPool();
+// gen0 = new dog_torch.crypto.hash.Generator(sha2);
+// taskPool.start();
+// taskPool.addHashTask(gen0,__filename,transParam({type:2,isUpper:true}));
 
-console.log(taskPool.taskDetails());
-setTimeout(()=>{
-    console.log(taskPool.taskDetails());
-    taskPool.wait();
-    console.log(taskPool.taskResults());
-},1000);
-let key0 = new dog_torch.BinaryData("0123456789ABCDEF",0);
-taskPool.addDecryptTask(key0,"E:/output.enc","E:/plain.mp4")
-setTimeout(()=>{
-    taskPool.wait();
-    console.log(taskPool.taskResults());
-},1000);
+// console.log(taskPool.taskDetails());
+// setTimeout(()=>{
+//     console.log(taskPool.taskDetails());
+//     taskPool.wait();
+//     console.log(taskPool.taskResults());
+// },1000);
+// let key0 = new dog_torch.BinaryData("0123456789ABCDEF",0);
+// taskPool.addDecryptTask(key0,__filename,__filename+".enc");
+// setTimeout(()=>{
+//     taskPool.wait();
+//     console.log(taskPool.taskResults());
+// },1000);
+
+//tlvObject
+var tlv = new dog_torch.TlvObject(dog_torch.TlvType.String,"hello");
+console.log(tlv.value());
+var par = tlv.serialize();
+console.log(par);

@@ -1,20 +1,9 @@
 #include "crypto/hash/algorithms/SHA2.h"
+#include "error_msg.h"
 
 namespace NSROOT = dog_torch::crypto::hash::algorithm;
 using dog_torch::serialize::BinaryData;
 using dog_torch::serialize::from_hex;
-
-using dog_torch::utils::from_c_str;
-
-using dog_torch::utils::from_uint64;
-using dog_torch::utils::array_to_view;
-
-
-constexpr auto ERROR_WRONG_EFFECTIVE = from_c_str("SHA2: nosupport effective length");
-constexpr auto ERROR_LARGE_DATA_SIZE = from_c_str("SHA2: data size is too large");
-constexpr auto ERROR_256_WRONG_BLOCK_SIZE = from_c_str("SHA2:256/224: block size must be 64 bytes");
-constexpr auto ERROR_512_WRONG_BLOCK_SIZE = from_c_str("SHA2:512/384: block size must be 128 bytes");
-constexpr auto ERROR_INVALID_SIZE = from_c_str("SHA2: invalid size");
 
 const uint32_t NSROOT::SHA2::k_256[64] = {
 	0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
@@ -58,7 +47,7 @@ void NSROOT::SHA2::single_256_update(const BinaryData& block_, BinaryData& value
 	using namespace dog_torch::math::integer;
 	if (block_.size() != 64)
 	{
-		throw DOG_EXCEPTION(array_to_view(ERROR_256_WRONG_BLOCK_SIZE));
+		throw DOG_EXCEPTION(array_to_view(ERROR_SHA2_256_WRONG_BLOCK_SIZE));
 	}
 	auto block = block_;
 	uint32_t tempN[9], tempH[8];
@@ -173,7 +162,7 @@ void NSROOT::SHA2::single_512_update(const BinaryData& block_, BinaryData& value
 	using namespace dog_torch::math::integer;
 	if (block_.size() != 128)
 	{
-		throw DOG_EXCEPTION(array_to_view(ERROR_512_WRONG_BLOCK_SIZE));
+		throw DOG_EXCEPTION(array_to_view(ERROR_SHA2_512_WRONG_BLOCK_SIZE));
 	}
 	uint64_t tempN[9], tempH[8];
 	for (int i = 0; i < 8; i++)
@@ -249,7 +238,7 @@ NSROOT::SHA2::SHA2(uint64_t effective) : Algorithm(effective)
 {
 	if (effective != 224 && effective != 256 && effective != 384 && effective != 512)
 	{
-		throw DOG_EXCEPTION(array_to_view(ERROR_INVALID_SIZE));
+		throw DOG_EXCEPTION(array_to_view(ERROR_SHA2_WRONG_EFFECTIVE));
 	}
 }
 
@@ -306,7 +295,7 @@ BinaryData NSROOT::SHA2::init_data() const
 	case 512:
 		return IV_512;
 	default:
-		throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_EFFECTIVE));
+		throw DOG_EXCEPTION(array_to_view(ERROR_SHA2_WRONG_EFFECTIVE));
 	}
 }
 
@@ -321,7 +310,7 @@ NSROOT::update_func NSROOT::SHA2::get_update() const
 	case 512:
 		return single_512_update;
 	default:
-		throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_EFFECTIVE));
+		throw DOG_EXCEPTION(array_to_view(ERROR_SHA2_WRONG_EFFECTIVE));
 	}
 }
 NSROOT::trims_func NSROOT::SHA2::get_trims() const
@@ -348,7 +337,7 @@ NSROOT::trims_func NSROOT::SHA2::get_trims() const
 			};
 	}
 	default:
-		throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_EFFECTIVE));
+		throw DOG_EXCEPTION(array_to_view(ERROR_SHA2_WRONG_EFFECTIVE));
 	}
 }
 uint64_t NSROOT::SHA2::get_block_size() const
@@ -362,7 +351,7 @@ uint64_t NSROOT::SHA2::get_block_size() const
 	case 512:
 		return 128;
 	default:
-		throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_EFFECTIVE));
+		throw DOG_EXCEPTION(array_to_view(ERROR_SHA2_WRONG_EFFECTIVE));
 	}
 }
 
@@ -379,7 +368,7 @@ bool NSROOT::SHA2::have_next_block(uint64_t data_pos, uint64_t data_total)
 {
 	if (data_total > this->max())
 	{
-		throw DOG_EXCEPTION(array_to_view(ERROR_LARGE_DATA_SIZE));
+		throw DOG_EXCEPTION(array_to_view(ERROR_SHA2_LARGE_DATA_SIZE));
 	}
 	uint64_t dur = (data_total - data_pos);
 	if (this->effective == 256 || this->effective == 224)
@@ -392,14 +381,14 @@ bool NSROOT::SHA2::have_next_block(uint64_t data_pos, uint64_t data_total)
 	}
 	else
 	{
-		throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_EFFECTIVE));
+		throw DOG_EXCEPTION(array_to_view(ERROR_SHA2_WRONG_EFFECTIVE));
 	}
 }
 BinaryData NSROOT::SHA2::next_block(const BinaryData& data, uint64_t start, uint64_t& data_pos, uint64_t data_total)
 {
 	if (data_total > this->max())
 	{
-		throw DOG_EXCEPTION(array_to_view(ERROR_LARGE_DATA_SIZE));
+		throw DOG_EXCEPTION(array_to_view(ERROR_SHA2_LARGE_DATA_SIZE));
 	}
 	if (this->effective == 256 || this->effective == 224)
 	{
@@ -462,7 +451,7 @@ BinaryData NSROOT::SHA2::next_block(const BinaryData& data, uint64_t start, uint
 	}
 	else
 	{
-		throw DOG_EXCEPTION(array_to_view(ERROR_INVALID_SIZE));
+		throw DOG_EXCEPTION(array_to_view(ERROR_SHA2_WRONG_EFFECTIVE));
 	}
 }
 BinaryData NSROOT::SHA2::next_block(std::istream& data, uint64_t& data_pos, uint64_t data_total)
@@ -470,13 +459,13 @@ BinaryData NSROOT::SHA2::next_block(std::istream& data, uint64_t& data_pos, uint
 	using dog_torch::serialize::stream::read_bytes;
 	if (data_total > this->max())
 	{
-		throw DOG_EXCEPTION(array_to_view(ERROR_LARGE_DATA_SIZE));
+		throw DOG_EXCEPTION(array_to_view(ERROR_SHA2_LARGE_DATA_SIZE));
 	}
 	if (this->effective == 256 || this->effective == 224)
 	{
 		BinaryData res(64);
 		uint64_t read_size = 0;
-		read_bytes(data, data_total, data_pos, res, 64, read_size);
+		read_bytes(data, data_total, data_pos, res.get_data(), 64, read_size);
 		if (res.size() >= 64) return res;
 		else
 		{
@@ -506,7 +495,7 @@ BinaryData NSROOT::SHA2::next_block(std::istream& data, uint64_t& data_pos, uint
 	{
 		BinaryData res(128);
 		uint64_t read_size = 0;
-		read_bytes(data, data_total, data_pos, res, 128, read_size);
+		read_bytes(data, data_total, data_pos, res.get_data(), 128, read_size);
 		if (res.size() >= 128) return res;
 		else
 		{
@@ -535,10 +524,11 @@ BinaryData NSROOT::SHA2::next_block(std::istream& data, uint64_t& data_pos, uint
 	}
 	else
 	{
-		throw DOG_EXCEPTION(array_to_view(ERROR_WRONG_EFFECTIVE));
+		throw DOG_EXCEPTION(array_to_view(ERROR_SHA2_WRONG_EFFECTIVE));
 	}
 }
 
+#if defined(EN_C_API)
 #define NAMESPACE(name) dog_torch__crypto__hash__SHA2_##name
 #define SERIALIZE(name) dog_torch__serialize__##name
 #define UTILS(name)     dog_torch__utils__##name
@@ -747,4 +737,4 @@ SERIALIZE(BinaryData)* NAMESPACE(512_file) (LVALUE(UTILS(CppResultSet))result_se
 #undef NAMESPACE
 #undef SERIALIZE
 #undef UTILS
-
+#endif

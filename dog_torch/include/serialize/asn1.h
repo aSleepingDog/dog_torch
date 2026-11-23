@@ -13,7 +13,6 @@
 #include <functional>
 
 #include "utils/compile.h"
-#include "BinaryData.h"
 #include "math/number.h"
 #include "math/integer.h"
 #include "utils/exception.h"

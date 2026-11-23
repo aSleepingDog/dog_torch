@@ -1,4 +1,5 @@
 #pragma once
+#include "export.h"
 
 #include <iostream>
 #include <functional>

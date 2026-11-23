@@ -1,15 +1,19 @@
 #include "crypto/sym/block/paddings/ISO7816_4.h"
+#include "error_msg.h"
 
 namespace NSROOT = dog_torch::crypto::sym::block::padding;
 
 void NSROOT::ISO7816_4::padding(BinaryData& data, uint64_t block_size)
 {
+	if (data.size() == block_size) return;
 	data.push_back(0x80);
 	data.resize(block_size, 0);
 }
 void NSROOT::ISO7816_4::unpadding(BinaryData& data, uint64_t block_size)
 {
 	while (data.size() > 0 && data.back() == 0x00) data.pop_back();
+	if (data.size() == 0 || data.back() != 0x80)
+		throw DOG_EXCEPTION(array_to_view(ERROR_ISO7816_4_WRONG));
 	if(data.size() > 0 && data.back() == 0x80) data.pop_back();
 }
 const NSROOT::Config& NSROOT::ISO7816_4::allowed_config()

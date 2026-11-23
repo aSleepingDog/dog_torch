@@ -42,7 +42,7 @@ void NSROOT::PauseableChannel::pause()
     this->status_.store(Status::Blocked);
     if (this->clock_) this->clock_->pause();
 }
-bool NSROOT::PauseableChannel::check_status()
+dog_torch::async::Status NSROOT::PauseableChannel::check_status()
 {
     std::unique_lock lock(this->mutex_);
     if (this->status_.load() == Status::Blocked)
@@ -53,7 +53,7 @@ bool NSROOT::PauseableChannel::check_status()
             }
         );
     }
-    return this->status_ == Status::Stopped;
+    return this->status_;
 }
 void NSROOT::PauseableChannel::resume()
 {
@@ -75,7 +75,7 @@ void NSROOT::PauseableChannel::cancel()
 {
     if (this->status_.load() != Status::Running && this->status_ != Status::Blocked) return;
     std::unique_lock lock(this->mutex_);
-    this->status_.store(Status::Stopped);
+    this->status_.store(Status::Canceled);
     this->is_failed_ = true;
     this->condition_variable_->notify_one();
     if (this->clock_) this->clock_->stop();
@@ -130,5 +130,3 @@ double NSROOT::PauseableChannel::get_progress()
 {
     return this->progress_.load();
 }
-
-#undef NSROOT

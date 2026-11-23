@@ -1,19 +1,14 @@
 #include "crypto/sym/block/algorithms/Twofish.h"
+#include "error_msg.h"
 
 namespace NSROOT = dog_torch::crypto::sym::block::algorithm;
 using dog_torch::serialize::BinaryData;
-
-using dog_torch::utils::from_c_str;
-using dog_torch::utils::from_uint64;
-using dog_torch::utils::array_to_view;
-
-constexpr auto ERROR_UNSUPPORTED_KEY_SIZE = from_c_str("Twofish: key size must be 128, 192 or 256");
 
 NSROOT::Twofish::Twofish(uint64_t key_size) : Algorithm(128, key_size)
 {
     if (key_size != 128 && key_size != 256 && key_size != 192)
     {
-		throw DOG_EXCEPTION(array_to_view(ERROR_UNSUPPORTED_KEY_SIZE));
+		throw DOG_EXCEPTION(array_to_view(ERROR_TWOFISH_UNSUPPORTED_KEY_SIZE));
     }
 }
 

@@ -50,9 +50,6 @@ namespace dog_torch::crypto::sym::block::mode
 		stream_crypt_func get_stream_encrypt() const override;
 		stream_crypt_func get_stream_decrypt() const override;
 
-		streamp_crypt_func get_streamp_encrypt() const override;
-		streamp_crypt_func get_streamp_decrypt() const override;
-
 		static void incr(BinaryData& conter, uint64_t s_bit);
 
 		static UInt128 mult(const UInt128& x, const UInt128& y);
@@ -83,27 +80,15 @@ namespace dog_torch::crypto::sym::block::mode
 			std::istream& plain, uint64_t total, std::ostream& crypt,
 			const BinaryData& available_key,
 			const algorithm::Algorithm& algorithm, padding::padding_func padding,
-			const BinaryData& iv, uint64_t shift, const BinaryData& acc, uint64_t tag_out
+			const BinaryData& iv, uint64_t shift, const BinaryData& acc, uint64_t tag_out,
+			std::function<uint8_t(uint64_t, uint64_t)> onRunning = alwaysRunning
 		);
 		static void decrypt_stream(
 			std::istream& crypt, uint64_t total, std::ostream& plain,
 			const BinaryData& available_key,
 			const algorithm::Algorithm& algorithm, padding::padding_func unpadding,
-			const BinaryData& iv, uint64_t shift, const BinaryData& acc, uint64_t tag_out
-		);
-		static void encryptp_stream(
-			PauseableChannel& pc,
-			std::istream& plain, uint64_t total, std::ostream& crypt,
-			const BinaryData& available_key,
-			const algorithm::Algorithm& algorithm, padding::padding_func padding,
-			const BinaryData& iv, uint64_t shift, const BinaryData& acc, uint64_t tag_out
-		);
-		static void decryptp_stream(
-			PauseableChannel& pc,
-			std::istream& crypt, uint64_t total, std::ostream& plain,
-			const BinaryData& available_key,
-			const algorithm::Algorithm& algorithm, padding::padding_func unpadding,
-			const BinaryData& iv, uint64_t shift, const BinaryData& acc, uint64_t tag_out
+			const BinaryData& iv, uint64_t shift, const BinaryData& acc, uint64_t tag_out,
+			std::function<uint8_t(uint64_t, uint64_t)> onRunning = alwaysRunning
 		);
 	};
 }
