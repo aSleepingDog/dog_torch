@@ -25,6 +25,7 @@ namespace dog_torch::crypto::sym
 		virtual bool effective() const;
 		virtual void set_key(const BinaryData& key);
 		virtual BinaryData key() const;
+		virtual void delete_key() = 0;
 		virtual std::string fmt_string() const = 0;
 		virtual Value serialize() const = 0;
 

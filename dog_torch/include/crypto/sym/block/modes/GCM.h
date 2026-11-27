@@ -75,6 +75,12 @@ namespace dog_torch::crypto::sym::block::mode
 			const algorithm::Algorithm& algorithm, padding::padding_func unpadding,
 			const BinaryData& iv, uint64_t shift, const BinaryData& acc, uint64_t tag_out
 		);
+		static bool decrypt_verify(
+			const BinaryData& crypt,
+			const BinaryData& available_key,
+			const algorithm::Algorithm& algorithm, padding::padding_func unpadding,
+			const BinaryData& iv, uint64_t shift, const BinaryData& acc, uint64_t tag_out
+		);
 
 		static void encrypt_stream(
 			std::istream& plain, uint64_t total, std::ostream& crypt,
@@ -85,6 +91,13 @@ namespace dog_torch::crypto::sym::block::mode
 		);
 		static void decrypt_stream(
 			std::istream& crypt, uint64_t total, std::ostream& plain,
+			const BinaryData& available_key,
+			const algorithm::Algorithm& algorithm, padding::padding_func unpadding,
+			const BinaryData& iv, uint64_t shift, const BinaryData& acc, uint64_t tag_out,
+			std::function<uint8_t(uint64_t, uint64_t)> onRunning = alwaysRunning
+		);
+		static bool decrypt_verify_stream(
+			std::istream& crypt, uint64_t total,
 			const BinaryData& available_key,
 			const algorithm::Algorithm& algorithm, padding::padding_func unpadding,
 			const BinaryData& iv, uint64_t shift, const BinaryData& acc, uint64_t tag_out,

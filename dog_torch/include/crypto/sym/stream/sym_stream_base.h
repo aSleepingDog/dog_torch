@@ -65,6 +65,7 @@ namespace dog_torch::crypto::sym::stream
 
 		void init() override;
 		bool effective() const override;
+		void delete_key() override;
 		std::string fmt_string() const override;
 		Value serialize() const override;
 

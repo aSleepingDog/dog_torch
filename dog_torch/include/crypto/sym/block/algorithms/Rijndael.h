@@ -42,13 +42,27 @@ namespace dog_torch::crypto::sym::block::algorithm
 		block_self_cryption_func get_encrypt_self() const override;
 		block_self_cryption_func get_decrypt_self() const override;
 
+		static BinaryData extend_key(const BinaryData& key, uint64_t block_size, uint64_t key_size);
+
+#if defined(__x86_64__) || defined(_M_X64)
+		static BinaryData x64_encoding(const BinaryData& plain, uint64_t block_size, const BinaryData& key, uint64_t key_size);
+		static BinaryData x64_decoding(const BinaryData& crypt, uint64_t block_size, const BinaryData& key, uint64_t key_size);
+		static void x64_encoding_self(BinaryData& plain, uint64_t block_size, const BinaryData& key, uint64_t key_size);
+		static void x64_decoding_self(BinaryData& crypt, uint64_t block_size, const BinaryData& key, uint64_t key_size);
+#elif defined(__aarch64__) || defined(_M_ARM64)
+		static BinaryData arm64_encoding(const BinaryData& plain, uint64_t block_size, const BinaryData& key, uint64_t key_size);
+		static BinaryData arm64_decoding(const BinaryData& crypt, uint64_t block_size, const BinaryData& key, uint64_t key_size);
+		static void arm64_encoding_self(BinaryData& plain, uint64_t block_size, const BinaryData& key, uint64_t key_size);
+		static void arm64_decoding_self(BinaryData& crypt, uint64_t block_size, const BinaryData& key, uint64_t key_size);
+#endif
 		static void en_middle0(std::array<uint8_t, 16>& datablock);
 		static void en_middle1(std::array<uint8_t, 16>& datablock);
-
 		static void de_middle0(std::array<uint8_t, 16>& datablock);
 		static void de_middle1(std::array<uint8_t, 16>& datablock);
-
-		static BinaryData extend_key(const BinaryData& key, uint64_t block_size, uint64_t key_size);
+		static BinaryData normal_encoding(const BinaryData& plain, uint64_t block_size, const BinaryData& key, uint64_t key_size);
+		static BinaryData normal_decoding(const BinaryData& crypt, uint64_t block_size, const BinaryData& key, uint64_t key_size);
+		static void normal_encoding_self(BinaryData& plain, uint64_t block_size, const BinaryData& key, uint64_t key_size);
+		static void normal_decoding_self(BinaryData& crypt, uint64_t block_size, const BinaryData& key, uint64_t key_size);
 
 		static BinaryData encoding(const BinaryData& plain, uint64_t block_size, const BinaryData& key, uint64_t key_size);
 		static BinaryData decoding(const BinaryData& crypt, uint64_t block_size, const BinaryData& key, uint64_t key_size);

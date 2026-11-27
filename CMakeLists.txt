@@ -3,8 +3,6 @@ cmake_minimum_required(VERSION 3.10)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# set(CMAKE_PREFIX_PATH cmake "E:\\C\\vcpkg_master\\installed\\x64-windows")
-
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     add_compile_options(/utf-8)
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -37,7 +35,5 @@ function(packing PATH ROOT)
 endfunction(packing PATH ROOT)
 
 add_subdirectory(dog_torch)
-# add_subdirectory(cmd_application)
-# 测试集过于庞大，之后以release发布.zip包的方式发布
-# add_subdirectory(test)
-# add_subdirectory(autoHandle)
+add_subdirectory(cmd_application)
+add_subdirectory(test)

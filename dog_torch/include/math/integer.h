@@ -9,6 +9,7 @@
 
 #include "utils/exception.h"
 #include "number.h"
+#include "random.h"
 
 namespace dog_torch::math::integer
 {

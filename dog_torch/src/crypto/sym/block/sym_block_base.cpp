@@ -274,6 +274,13 @@ bool NSROOT::BlockCipher::effective() const
 	}
 	return true;
 }
+void NSROOT::BlockCipher::delete_key()
+{
+	reinterpret_cast<Cipher*>(this)->delete_key();
+	std::fill(this->available_key_.begin(), this->available_key_.end(), 0);
+	this->available_key_.clear();
+	this->is_effective_ = false;
+}
 std::string NSROOT::BlockCipher::fmt_string() const
 {
 	return std::format("BlockCipher<{},{}>", this->algorithm_->fmt_string(), this->mode_->fmt_string());

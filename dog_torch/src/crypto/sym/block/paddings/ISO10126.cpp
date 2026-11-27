@@ -9,9 +9,8 @@ void NSROOT::ISO10126::padding(BinaryData& data, uint64_t block_size)
 		throw DOG_EXCEPTION(array_to_view(ERROR_ISO10126_BLOCK_WRONG));
 	if (data.size() == block_size) return;
 	uint8_t fill = static_cast<uint8_t>(block_size - data.size());
-	std::random_device rd;
 	while (data.size() < block_size - 1)
-		data.push_back(static_cast<uint8_t>(rd()));
+		data.push_back(static_cast<uint8_t>(dog_torch::math::random::random_uint64()));
 	data.push_back(fill);
 }
 void NSROOT::ISO10126::unpadding(BinaryData& data, uint64_t block_size)

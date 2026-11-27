@@ -20,6 +20,12 @@ BinaryData NSROOT::Cipher::key() const
 {
     return this->ori_key_;
 }
+void NSROOT::Cipher::delete_key()
+{
+    std::fill(this->ori_key_.begin(), this->ori_key_.end(), 0);
+    this->ori_key_.clear();
+    this->is_effective_ = false;
+}
 
 #if defined(EN_C_API)
 #define NAMESPACE(name) dog_torch__crypto__sym__##name

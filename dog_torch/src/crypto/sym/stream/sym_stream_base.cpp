@@ -101,6 +101,10 @@ bool NSROOT::StreamCipher::effective() const
     }
     return true;
 }
+void NSROOT::StreamCipher::delete_key()
+{
+    reinterpret_cast<Cipher*>(this)->delete_key();
+}
 
 std::string NSROOT::StreamCipher::fmt_string() const
 {

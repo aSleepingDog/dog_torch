@@ -41,11 +41,13 @@ BinaryData NSROOT::OAEP::padding(const BinaryData& plain, uint64_t key_size, con
     DB += plain;
     //std::cout << "DB:" << DB.to_hex_string(true) << std::endl;
     BinaryData seed;
-    std::random_device rd;
-    while (seed.size() < hlen)
-    {
-        seed.push_back(rd());
-    }
+    //std::random_device rd;
+    //while (seed.size() < hlen)
+    //{
+    //    seed.push_back(rd());
+    //}
+    seed.resize(hlen, 0);
+    dog_torch::math::random::random_block(seed.data_stream(), hlen);
     //std::cout << "seed:" << seed.to_hex_string(true) << std::endl;
     BinaryData maskedDB = MGF1(seed, key_size - hlen - 1, alg) ^ DB;
     //std::cout << "maskedDB:" << maskedDB.to_hex_string(true) << std::endl;
